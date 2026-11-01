@@ -1,8 +1,10 @@
 async (page) => {
+  // Disable browser caching so repeated local runs execute the current module.
+  await page.route("**/*", route => route.continue());
   const checks = [];
   const check = (ok, label) => { if (!ok) throw new Error(label); checks.push(label); };
   await page.goto("http://127.0.0.1:4178/tests/fixture.html");
-  await page.waitForFunction(() => fixtureReady);
+  await page.waitForFunction(() => globalThis.fixtureReady);
   const launcher = page.getByRole("button", { name: "Slow Insert — compendium search" });
   const panel = page.getByRole("complementary", { name: "Slow Insert compendium search" });
   const input = page.getByRole("combobox", { name: "Search items, spells, or monsters" });
@@ -33,14 +35,26 @@ async (page) => {
     });
   }, { legacy, delay, dialog });
 
-  for (const legacy of [true, false]) {
+  await page.evaluate(() => {
+    const outside = document.createElement("input");
+    outside.id = "fixture-outside-input";
+    outside.setAttribute("aria-label", "Outside input");
+    document.body.append(outside);
+  });
+  for (const legacy of [true, false]) for (const focus of ["panel", "body", "outside-input"]) {
     await openWindow(legacy);
-    await input.press("Escape");
-    check(await page.locator("#fixture-document-window").count() === 0, `${legacy ? "V1" : "V2"} window closes with focus still in search`);
+    if (focus === "panel") await input.focus();
+    else if (focus === "outside-input") await page.getByRole("textbox", { name: "Outside input" }).focus();
+    else await page.evaluate(() => document.activeElement.blur());
+    const nativeBefore = await page.evaluate(() => fixtureState.nativeDismisses || 0);
+    await page.keyboard.press("Escape");
+    check(await page.locator("#fixture-document-window").count() === 0, `${legacy ? "V1" : "V2"} window closes with focus on ${focus}`);
     check(await panel.isVisible(), "same Escape does not close Slow Insert");
     check(await page.evaluate(() => fixtureState.closeOptions?.closeKey === true), "native close-key semantics are preserved");
-    await input.press("Escape");
-    check(!await panel.isVisible(), "the next Escape closes Slow Insert");
+    check(await page.evaluate(() => fixtureState.nativeDismisses) === nativeBefore + 1, "Escape is forwarded exactly once");
+    await page.keyboard.press("Escape");
+    check(!await panel.isVisible(), `next Escape closes Slow Insert with focus on ${focus}`);
+    check(await page.evaluate(() => fixtureState.nativeDismisses) === nativeBefore + 1, "panel close does not also trigger native menu fallback");
     await launcher.click();
   }
 

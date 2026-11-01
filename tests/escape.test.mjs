@@ -61,7 +61,7 @@ test("global Escape leaves the first press to the window and closes the panel on
   assert.equal(panel.filterControls.expanded, true);
 });
 
-test("Escape from panel input is forwarded once with force, never closing both layers", t => {
+test("document Escape is forwarded once with force regardless of focus, never closing both layers", t => {
   const { panel, ui } = setup(t);
   ui.windows.sheet = { rendered: true };
   let forwarded = 0;
@@ -71,12 +71,12 @@ test("Escape from panel input is forwarded once with force, never closing both l
     assert.equal(panel.onEscape(escape()), false); // Our registered action yields to core.
     delete ui.windows.sheet; // Core closes it synchronously in this regression case.
   } } };
-  const first = escape();
-  panel.onKeydown(first);
+  const first = escape({ target: { id: "outside-input" } });
+  panel.onDocumentKeydown(first);
   assert.equal(forwarded, 1);
   assert.equal(first.defaultPrevented && first.stopped, true);
   assert.equal(panel.closed, 0);
-  panel.onKeydown(escape());
+  panel.onDocumentKeydown(escape({ target: { id: "outside-input" } }));
   assert.equal(panel.closed, 1);
 });
 
@@ -97,7 +97,16 @@ test("missing native forwarding API fails open without swallowing Escape or clos
   const { panel, ui } = setup(t);
   ui.windows.sheet = { rendered: true };
   const event = escape();
-  panel.onKeydown(event);
+  panel.onDocumentKeydown(event);
   assert.equal(event.defaultPrevented, false);
+  assert.equal(panel.closed, 0);
+});
+
+test("document listener ignores non-Escape and already handled events", t => {
+  const { panel } = setup(t);
+  const other = escape({ key: "Enter", code: "Enter" });
+  panel.onDocumentKeydown(other);
+  assert.equal(other.defaultPrevented, false);
+  panel.onDocumentKeydown(escape({ defaultPrevented: true }));
   assert.equal(panel.closed, 0);
 });

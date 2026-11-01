@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.0.5**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.0.6**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -38,6 +38,7 @@ npm run preview
 ## 部署与保存边界
 
 - 开发源码以本仓库为准，不直接在 Foundry 安装目录中开发。
+- 发布前提交 Git 并标记版本，再打包部署；不额外复制旧安装目录作为备份。世界数据与素材不在本仓库的版本控制范围内。
 - 安装时使用发行 ZIP 中的 `slow-insert` 文件夹；开发源码文件夹名 `module` 不能直接作为 Foundry 模块安装目录名。
 - `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。本次整理没有更新该副本。
 - 本仓库不包含 FVTT 总目录中的其他模块、配套包、世界数据或旧项目。

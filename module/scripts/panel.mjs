@@ -124,6 +124,9 @@ export class SlowInsertPanel {
       this.refresh();
     });
     this.listen(this.root, "keydown", event => this.onKeydown(event));
+    // Bubble after window/dialog-local handlers, but before Foundry's global
+    // keyboard manager skips shortcuts because an unrelated input has focus.
+    this.listen(document, "keydown", event => this.onDocumentKeydown(event));
     this.listen(this.list, "click", event => {
       const row = event.target.closest(".si-result");
       if (row) void this.openItem(Number(row.dataset.index));
@@ -356,11 +359,11 @@ export class SlowInsertPanel {
     if (scroll) row.scrollIntoView({ block: "nearest" });
   }
 
-  onEscape(event, { fromPanel = false } = {}) {
+  onEscape(event, { forwardNative = false } = {}) {
     if (!this.visible || event.defaultPrevented || event.isComposing
       || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
     if (hasPriorityEscapeTarget()) {
-      if (!fromPanel) return false;
+      if (!forwardNative) return false;
       // Foundry normally skips keybindings while an input/select has focus.
       // Forward this single press through its keyboard manager instead of
       // closing apps ourselves or waiting and also closing our panel.
@@ -375,14 +378,17 @@ export class SlowInsertPanel {
     return true;
   }
 
+  onDocumentKeydown(event) {
+    if (event.key !== "Escape") return;
+    if (this.onEscape(event, { forwardNative: true })) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
   onKeydown(event) {
     if (event.isComposing) return;
-    if (event.key === "Escape") {
-      if (this.onEscape(event, { fromPanel: true })) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    } else if (event.target === this.input && ["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) {
+    if (event.target === this.input && ["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) {
       event.preventDefault();
       event.stopPropagation();
       clearTimeout(this.searchTimer);
