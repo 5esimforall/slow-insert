@@ -1,0 +1,36 @@
+{
+  "reference": "5e不全书 · 本书速查",
+  "sources": [
+    {
+      "file": "topics/速查/法术速查/5E万法大全.html",
+      "sha256": "514829cc5ab85d255a7cac739968ee64485d0ed6a6858e65f31996b323b698ff",
+      "rows": 969,
+      "extracted": 969
+    },
+    {
+      "file": "topics/速查/法术速查/合作方万法大全.html",
+      "sha256": "c50b3ae548a4f49c9eb482dd5317e5ff72145f7ccd8264c362a881362982ee81",
+      "rows": 317,
+      "extracted": 285
+    },
+    {
+      "file": "topics/速查/5E万器大全.htm",
+      "sha256": "f557178fcb6454e769649c282a1b3b442f7643da1c9c373542b2029e2d7fb88f",
+      "rows": 496,
+      "extracted": 496
+    },
+    {
+      "file": "topics/速查/合作万器大全.htm",
+      "sha256": "21697904829fe3feb193c14eb9f16a12346ba0dae3f13ad85198af5f122e9684",
+      "rows": 710,
+      "extracted": 710
+    }
+  ],
+  "fields": [
+    "name aliases",
+    "source abbreviation",
+    "spell class lists",
+    "magic item category/rarity/attunement"
+  ],
+  "matching": "Exact normalized name and source; conflicting classifications are unknown. No descriptions or rules text."
+}

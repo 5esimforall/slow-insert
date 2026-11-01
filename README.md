@@ -1,0 +1,44 @@
+# Slow Insert
+
+独立开发项目，当前模块版本 **0.0.4**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+
+项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
+
+## 目录职责
+
+- [模块源码与使用说明](/Users/arctic/Arc/fvtt/projects/slow-insert/module/README.md)：可安装模块内容，包括清单、脚本、样式、本地化和分类数据。
+- [测试](/Users/arctic/Arc/fvtt/projects/slow-insert/tests)：单元测试和模拟 Foundry 的浏览器页面。
+- [开发工具](/Users/arctic/Arc/fvtt/projects/slow-insert/tools)：发行打包和本地分类事实提取。
+- [发行包](/Users/arctic/Arc/fvtt/projects/slow-insert/dist)：保留 v0.0.1–v0.0.4 的既有 ZIP；生成文件不纳入 Git。
+- [测试产物](/Users/arctic/Arc/fvtt/projects/slow-insert/output)：历史截图与验证记录；不纳入 Git。
+- `/Users/arctic/Arc/fvtt/projects/slow-insert/.playwright-cli`：历史浏览器调试记录；不纳入 Git。
+
+## 开发命令
+
+需要 Node.js、npm、系统 `zip`；预览和分类提取使用 Python 3。不需要安装运行时 npm 依赖。
+
+```sh
+cd /Users/arctic/Arc/fvtt/projects/slow-insert
+npm test
+npm run check
+npm run package
+```
+
+`npm run package` 只打包模块源码，输出到项目内的发行目录。ZIP 顶层目录始终为 `slow-insert`，不会包含测试、工具或 Git 历史，也不会自动部署到 Foundry。
+
+浏览器预览：
+
+```sh
+cd /Users/arctic/Arc/fvtt/projects/slow-insert
+npm run preview
+```
+
+打开 [英文预览](http://127.0.0.1:4178/tests/fixture.html) 或 [中文预览](http://127.0.0.1:4178/tests/fixture.html?lang=cn)。这只是模拟环境，并非真实 Foundry 世界。浏览器测试脚本位于上述测试目录。
+
+## 部署与保存边界
+
+- 开发源码以本仓库为准，不直接在 Foundry 安装目录中开发。
+- 安装时使用发行 ZIP 中的 `slow-insert` 文件夹；开发源码文件夹名 `module` 不能直接作为 Foundry 模块安装目录名。
+- `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。本次整理没有更新该副本。
+- 本仓库不包含 FVTT 总目录中的其他模块、配套包、世界数据或旧项目。
+- 既有 ZIP、截图、日志及分类数据溯源记录原样迁移；其中的旧路径和日期是历史记录，不是当前执行路径。

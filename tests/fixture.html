@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Slow Insert — browser test fixture</title>
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/module/styles/slow-insert.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #242b2b; color: #d8dfde; font: 14px system-ui; }
+  .fixture { padding: 32px; max-width: 470px; }
+  h1 { font-size: 24px; font-weight: 500; }
+  p { color: #a2aeac; line-height: 1.6; }
+  #sidebar { position: fixed; right: 0; top: 0; width: 300px; height: 100vh; background: #12171dd9; border-left: 1px solid #3b4248; padding: 20px; }
+  #sidebar.collapsed { width: 48px; padding: 4px; }
+  #sidebar.collapsed .sidebar-content { display: none; }
+  #drop { border: 1px dashed #758d84; padding: 28px; margin-top: 32px; }
+  button { cursor: pointer; }
+</style>
+<main class="fixture">
+  <h1>Slow Insert / test scene</h1>
+  <p>Browser fixture, not a live Foundry world. Search “fire” to compare source badges. Search “unsafe” to exercise text escaping.</p>
+  <button id="collapse">Toggle sidebar</button>
+  <button id="deny">Toggle GM-only restriction</button>
+  <div id="drop">Drop an item here</div>
+  <p id="opened">No document opened.</p>
+</main>
+<aside id="sidebar"><div class="sidebar-content">Foundry sidebar placeholder</div></aside>
+<script type="module">
+  const language = new URL(location.href).searchParams.get("lang") || "en";
+  const fallback = await (await fetch("/module/lang/en.json")).json();
+  const translations = language === "cn" ? await (await fetch("/module/lang/cn.json")).json() : {};
+  const systemLabels = language === "cn"
+    ? { "TYPES.Item.spell": "法术", "TYPES.Item.weapon": "武器" }
+    : { "TYPES.Item.spell": "Spell", "TYPES.Item.weapon": "Weapon" };
+  document.documentElement.lang = language === "cn" ? "zh-CN" : language;
+  const labels = { ...fallback, ...translations, ...systemLabels };
+  const handlers = new Map();
+  globalThis.Hooks = {
+    on(name, fn) { const list = handlers.get(name) || []; list.push(fn); handlers.set(name, list); return fn; },
+    once(name, fn) { return this.on(name, fn); },
+    off(name, fn) { handlers.set(name, (handlers.get(name) || []).filter(x => x !== fn)); },
+    callAll(name, ...args) { for (const fn of handlers.get(name) || []) fn(...args); }
+  };
+  const settings = new Map([["quick-insert.gmOnly", false], ...Object.entries(globalThis.fixtureSettingsSeed ?? {})]);
+  const icon = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="5" fill="#774f3a"/><path d="M16 5c7 10 10 12 6 19-3 5-13 3-13-3 0-5 6-6 7-16z" fill="#efb478"/></svg>');
+  globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
+  globalThis.game = {
+    system: { id: "dnd5e" }, world: {}, user: { isGM: false },
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.0.4" }]]),
+    packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
+    settings: {
+      register(id, key, config) { if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
+      get(id, key) { return settings.get(`${id}.${key}`); },
+      async set(id, key, value) { settings.set(`${id}.${key}`, value); return value; }
+    },
+    keybindings: { register(id, key, config) { fixtureState.keybind = config; } },
+    i18n: { lang: language, localize: key => labels[key] || key }
+  };
+  globalThis.ui = { notifications: { warn: message => { fixtureState.warning = message; } } };
+  globalThis.CONFIG = { Item: { compendiumIndexFields: [], typeLabels: { spell: "TYPES.Item.spell", weapon: "TYPES.Item.weapon" } }, Actor: { compendiumIndexFields: [], typeLabels: { npc: "怪物" } } };
+  globalThis.CONST = { KEYBINDING_PRECEDENCE: { NORMAL: 0 } };
+  const rows = [
+    ["Fireball", "PHB", "2014"], ["Fireball", "PHB 2024", "2024"],
+    ["Fire Bolt", "PHB", "2014"], ["Fire Bolt", "PHB", "2024"],
+    ["Fire Shield", "TCoE", "2014"], ["Fire Ward", "", ""],
+    ['Unsafe <img src=x onerror="window.pwned=true">', '<img src=x onerror="window.pwned=true">', ""],
+    ["剑 / Sword", "玩家手册", "2024"]
+  ];
+  const items = rows.map(([name, book, rules], i) => ({
+    name, uuid: `Compendium.fixture.spells.Item.item${i}`, package: "fixture.spells",
+    documentType: "Item", subType: i === 7 ? "weapon" : "spell", img: icon,
+    system: { source: { book, rules }, level: [3, 3, 0, 0, 4, 2, null, null][i], school: i === 5 ? "abj" : "evo", activation: { type: i === 5 ? "bonus" : "action" }, properties: i === 5 ? ["concentration", "ritual", "vocal"] : ["vocal", "somatic"] },
+    async show() { fixtureState.opened.push(name); document.querySelector("#opened").textContent = `Opened: ${name}`; }
+  }));
+  items.push({ name: "Fire Elemental", uuid: "Actor.test", documentType: "Actor", subType: "npc", img: icon,
+    system: { source: { book: "MM 2025" }, details: { cr: 5, type: { value: "elemental" } }, traits: { size: "lg" }, resources: { legact: { max: 0 } } },
+    async show() { fixtureState.opened.push(this.name); } });
+  for (let i = 0; i < 120; i++) items.push({ ...items[0], name: `Bulk item ${i}`, uuid: `Item.bulk${i}` });
+  items.push({ ...items[0], name: "Bulk late ritual", uuid: "Item.late-ritual", system: { source: { book: "TCoE" }, level: 1, school: "div", activation: { type: "minute" }, properties: ["ritual", "vocal", "material"] } });
+  items.push({ ...items[0], name: "Mystery spell", uuid: "Item.unknown", system: {} });
+  items.push({ ...items[0], name: "宝石法术 Gem Spell", uuid: "Item.costly", system: { source: { book: "Homebrew" }, level: 1, school: "abj", activation: { type: "minute" }, properties: ["material", "ritual"], materials: { cost: 100, consumed: false } } });
+  items.push({ ...items[0], name: "测试魔杖 Test Wand", uuid: "Item.wand", subType: "equipment", system: { source: { book: "DMG 2024" }, rarity: "rare", type: { value: "wand" }, properties: ["mgc"], attunement: "required" } });
+  items.push({ ...items[0], name: "测试药水 Test Potion", uuid: "Item.potion", subType: "consumable", system: { source: { book: "DMG 2024" }, rarity: "common", type: { value: "potion" }, properties: ["mgc"], attunement: "" } });
+  for (const [id, name, cr, size, type, max] of [["rat", "Rat", 0, "tiny", "beast", 0], ["scout", "Scout", 0.25, "med", "humanoid", 0], ["dragon", "Dragon", 20, "grg", "dragon", 3], ["unknown", "Unknown creature", null, null, null, null]]) {
+    items.push({ name, uuid: `Actor.${id}`, documentType: "Actor", subType: "npc", img: icon,
+      system: { source: { book: "MM 2025" }, details: { cr, type: { value: type } }, traits: { size }, resources: { legact: { max } } },
+      async show() { fixtureState.opened.push(this.name); } });
+  }
+  items.push({ name: "Player character", uuid: "Actor.pc", documentType: "Actor", subType: "character", system: {} });
+  globalThis.fixtureItems = items;
+  globalThis.QuickInsert = {
+    hasIndex: true,
+    search(query, filter, max) {
+      fixtureState.calls.push(query);
+      return items.filter(item => item.name.toLowerCase().includes(query.toLowerCase())).map(item => ({ item })).filter(filter).slice(0, max);
+    },
+    async forceIndex() {
+      fixtureState.indexBuilds++;
+      await new Promise(resolve => setTimeout(resolve, 200));
+      this.hasIndex = true;
+      Hooks.callAll("QuickInsert:IndexCompleted");
+    }
+  };
+  document.querySelector("#collapse").onclick = () => { document.querySelector("#sidebar").classList.toggle("collapsed"); Hooks.callAll("collapseSidebar"); };
+  document.querySelector("#deny").onclick = () => { fixtureState.denied = !fixtureState.denied; settings.set("quick-insert.gmOnly", fixtureState.denied); };
+  document.querySelector("#drop").ondragover = event => event.preventDefault();
+  document.querySelector("#drop").ondrop = event => { event.preventDefault(); fixtureState.drop = JSON.parse(event.dataTransfer.getData("text/plain")); event.currentTarget.textContent = JSON.stringify(fixtureState.drop); };
+  await import("/module/scripts/main.mjs");
+  Hooks.callAll("init");
+  Hooks.callAll("ready");
+  globalThis.fixtureReady = true;
+</script>
+</html>

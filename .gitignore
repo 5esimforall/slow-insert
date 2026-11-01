@@ -1,0 +1,10 @@
+# Generated releases, browser captures and local test state
+/dist/
+/output/
+/.playwright-cli/
+/node_modules/
+
+# OS and Python cache files
+.DS_Store
+__pycache__/
+*.py[cod]
