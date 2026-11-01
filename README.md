@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.0.4**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.0.5**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -9,7 +9,7 @@
 - [模块源码与使用说明](/Users/arctic/Arc/fvtt/projects/slow-insert/module/README.md)：可安装模块内容，包括清单、脚本、样式、本地化和分类数据。
 - [测试](/Users/arctic/Arc/fvtt/projects/slow-insert/tests)：单元测试和模拟 Foundry 的浏览器页面。
 - [开发工具](/Users/arctic/Arc/fvtt/projects/slow-insert/tools)：发行打包和本地分类事实提取。
-- [发行包](/Users/arctic/Arc/fvtt/projects/slow-insert/dist)：保留 v0.0.1–v0.0.4 的既有 ZIP；生成文件不纳入 Git。
+- [发行包](/Users/arctic/Arc/fvtt/projects/slow-insert/dist)：保留历史 ZIP，并输出新版本发行包；生成文件不纳入 Git。
 - [测试产物](/Users/arctic/Arc/fvtt/projects/slow-insert/output)：历史截图与验证记录；不纳入 Git。
 - `/Users/arctic/Arc/fvtt/projects/slow-insert/.playwright-cli`：历史浏览器调试记录；不纳入 Git。
 

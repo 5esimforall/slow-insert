@@ -169,5 +169,6 @@
   "SLOWINSERT.Type.tool": "Tool",
   "SLOWINSERT.Type.loot": "Loot",
   "SLOWINSERT.Type.container": "Container",
-  "SLOWINSERT.Type.unknown": "Unknown"
+  "SLOWINSERT.Type.unknown": "Unknown",
+  "SLOWINSERT.DismissHint": "Close Slow Insert after other windows and dialogs have been dismissed."
 }

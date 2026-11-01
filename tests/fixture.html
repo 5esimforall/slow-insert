@@ -47,19 +47,50 @@
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
     system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.0.4" }]]),
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.0.5" }]]),
     packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
       register(id, key, config) { if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
       get(id, key) { return settings.get(`${id}.${key}`); },
       async set(id, key, value) { settings.set(`${id}.${key}`, value); return value; }
     },
-    keybindings: { register(id, key, config) { fixtureState.keybind = config; } },
+    keybindings: { actions: new Map(), register(id, key, config) {
+      this.actions.set(`${id}.${key}`, config);
+      if (key === "toggle") fixtureState.keybind = config;
+    } },
     i18n: { lang: language, localize: key => labels[key] || key }
   };
-  globalThis.ui = { notifications: { warn: message => { fixtureState.warning = message; } } };
+  globalThis.ui = { windows: {}, notifications: { warn: message => { fixtureState.warning = message; } } };
   globalThis.CONFIG = { Item: { compendiumIndexFields: [], typeLabels: { spell: "TYPES.Item.spell", weapon: "TYPES.Item.weapon" } }, Actor: { compendiumIndexFields: [], typeLabels: { npc: "怪物" } } };
-  globalThis.CONST = { KEYBINDING_PRECEDENCE: { NORMAL: 0 } };
+  globalThis.CONST = { KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 } };
+  globalThis.foundry = { applications: { instances: new Map() } };
+  // Model Foundry v13's focus suppression and ordered keybinding consumption.
+  class FixtureKeyboard {
+    static emulateKeypress(up, code, { force = false } = {}) {
+      if (!up) game.keyboard.process(new KeyboardEvent("keydown", { key: code, code }), { force });
+    }
+    process(event, { force = false } = {}) {
+      const focused = document.activeElement;
+      if (!force && (focused?.matches("input, select, textarea") || focused?.isContentEditable)) return;
+      const actions = [...game.keybindings.actions.values()].sort((a, b) => a.precedence - b.precedence);
+      for (const action of actions) {
+        if (event.repeat && !action.repeat) continue;
+        if (![...(action.uneditable ?? []), ...(action.editable ?? [])].some(binding => binding.key === event.code)) continue;
+        if (action.onDown?.({ event })) { event.preventDefault(); event.stopPropagation(); break; }
+      }
+    }
+  }
+  game.keyboard = new FixtureKeyboard();
+  game.keybindings.register("core", "dismiss", {
+    uneditable: [{ key: "Escape" }], precedence: CONST.KEYBINDING_PRECEDENCE.DEFERRED,
+    onDown: () => {
+      fixtureState.nativeDismisses = (fixtureState.nativeDismisses || 0) + 1;
+      for (const app of Object.values(ui.windows)) app.close({ closeKey: true });
+      for (const app of foundry.applications.instances.values()) if (app.hasFrame) app.close({ closeKey: true });
+      return true;
+    }
+  });
+  window.addEventListener("keydown", event => game.keyboard.process(event));
   const rows = [
     ["Fireball", "PHB", "2014"], ["Fireball", "PHB 2024", "2024"],
     ["Fire Bolt", "PHB", "2014"], ["Fire Bolt", "PHB", "2024"],

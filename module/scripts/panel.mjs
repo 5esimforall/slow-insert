@@ -2,6 +2,7 @@ import { t } from "./i18n.mjs";
 import { getDockLayout, resolveSource } from "./source.mjs";
 import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls } from "./filter-controls.mjs";
+import { hasPriorityEscapeTarget } from "./escape.mjs";
 
 export const MODULE_ID = "slow-insert";
 const LIMIT = 100;
@@ -355,13 +356,32 @@ export class SlowInsertPanel {
     if (scroll) row.scrollIntoView({ block: "nearest" });
   }
 
+  onEscape(event, { fromPanel = false } = {}) {
+    if (!this.visible || event.defaultPrevented || event.isComposing
+      || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
+    if (hasPriorityEscapeTarget()) {
+      if (!fromPanel) return false;
+      // Foundry normally skips keybindings while an input/select has focus.
+      // Forward this single press through its keyboard manager instead of
+      // closing apps ourselves or waiting and also closing our panel.
+      const keyboardClass = game.keyboard?.constructor;
+      if (typeof keyboardClass?.emulateKeypress !== "function") return false;
+      event.preventDefault();
+      event.stopPropagation();
+      keyboardClass.emulateKeypress(false, "Escape", { force: true });
+      return true;
+    }
+    this.close();
+    return true;
+  }
+
   onKeydown(event) {
     if (event.isComposing) return;
     if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      if (this.filterControls.expanded) this.filterControls.setExpanded(false, true);
-      else this.close();
+      if (this.onEscape(event, { fromPanel: true })) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
     } else if (event.target === this.input && ["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) {
       event.preventDefault();
       event.stopPropagation();

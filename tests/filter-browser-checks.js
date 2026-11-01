@@ -140,9 +140,7 @@ async (page) => {
   await finder.fill("");
   check(await page.evaluate(() => !window.pwned && !document.querySelector(".si-filter-choice img")), "source names remain inert text");
   await input.press("Escape");
-  check(!await drawer.isVisible() && await input.isVisible(), "Escape collapses filters before the panel");
-  await page.getByRole("button", { name: /^显示筛选/ }).press("Escape");
-  check(!await input.isVisible(), "second Escape closes the panel");
+  check(!await drawer.isVisible() && !await input.isVisible(), "Escape closes the entire panel even with filters expanded");
   await page.getByRole("button", { name: "Slow Insert — 合集搜索" }).click();
   await scheme.selectOption("monsters");
   await waitRows(1);

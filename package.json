@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check module/scripts/main.mjs && node --check module/scripts/panel.mjs && node --check module/scripts/source.mjs && node --check module/scripts/filters.mjs && node --check module/scripts/filter-controls.mjs && node --check module/scripts/reference.mjs && node --check module/data/quick-reference.mjs && node --check module/scripts/i18n.mjs",
+    "check": "node --check module/scripts/main.mjs && node --check module/scripts/panel.mjs && node --check module/scripts/source.mjs && node --check module/scripts/filters.mjs && node --check module/scripts/filter-controls.mjs && node --check module/scripts/reference.mjs && node --check module/data/quick-reference.mjs && node --check module/scripts/i18n.mjs && node --check module/scripts/escape.mjs",
     "package": "node tools/package.mjs",
     "preview": "python3 -m http.server 4178 --bind 127.0.0.1"
   }

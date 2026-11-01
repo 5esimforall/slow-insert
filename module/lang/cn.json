@@ -169,5 +169,6 @@
   "SLOWINSERT.Type.tool": "工具",
   "SLOWINSERT.Type.loot": "杂物",
   "SLOWINSERT.Type.container": "容器",
-  "SLOWINSERT.Type.unknown": "未知"
+  "SLOWINSERT.Type.unknown": "未知",
+  "SLOWINSERT.DismissHint": "先关闭其他窗口与对话框，再关闭 Slow Insert。"
 }
