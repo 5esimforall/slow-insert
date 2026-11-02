@@ -232,7 +232,10 @@
 #slow-insert-panel .si-group-button:hover { color: var(--si-text); border-color: var(--si-muted); }
 #slow-insert-panel .si-group-button[aria-pressed="true"] { color: var(--si-accent); border-color: #a7d6c56b; }
 #slow-insert-panel .si-result-group { margin-bottom: 5px; }
-#slow-insert-panel .si-group-controls { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px 7px 50px; }
+#slow-insert-panel .si-group-heading { display: flex; align-items: center; gap: 2px; }
+#slow-insert-panel .si-group-heading > .si-result { flex: 1; min-width: 0; width: 0; }
+#slow-insert-panel .si-group-toggle { flex: none; min-width: 38px; min-height: 36px; padding: 4px; border-color: transparent; font-variant-numeric: tabular-nums; }
+#slow-insert-panel .si-group-toggle:focus-visible { outline: 2px solid var(--si-accent); outline-offset: -2px; }
 #slow-insert-panel .si-group-members { margin: 0 3px 10px 13px; padding-left: 5px; border-left: 2px solid var(--si-line); }
 #slow-insert-panel .si-group-members[hidden], #slow-insert-panel .si-group-button[hidden] { display: none; }
 #slow-insert-panel .si-member { margin-bottom: 7px; }

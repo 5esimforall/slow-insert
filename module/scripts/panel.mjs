@@ -7,7 +7,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.2.2";
+export const MODULE_VERSION = "0.2.3";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -389,17 +389,20 @@ export class SlowInsertPanel {
       const wrapper = element("div", "si-result-group");
       wrapper.setAttribute("role", "group");
       wrapper.setAttribute("aria-label", group.representative.result.item.name);
-      wrapper.append(this.renderRow(group.representative, group, environment));
+      const heading = element("div", "si-group-heading");
+      heading.append(this.renderRow(group.representative, group, environment));
+      wrapper.append(heading);
       if (group.members.length > 1) {
         const expanded = this.expandedGroups.has(group.key);
-        const controls = element("div", "si-group-controls");
         const toggle = this.groupAction("expand", group, t(expanded ? "Grouping.Collapse" : "Grouping.Expand", { count: group.members.length }));
+        toggle.setAttribute("aria-label", toggle.textContent);
+        toggle.classList.add("si-group-toggle");
+        toggle.textContent = `${group.members.length} ${expanded ? "▾" : "▸"}`;
         toggle.setAttribute("aria-expanded", String(expanded));
         toggle.title = t(group.kind === "exact" ? "Grouping.ExactHint" : "Grouping.FamilyHint");
         const childrenId = `slow-insert-members-${this.results.length}`;
         toggle.setAttribute("aria-controls", childrenId);
-        controls.append(toggle);
-        wrapper.append(controls);
+        heading.append(toggle);
         const children = element("div", "si-group-members");
         children.id = childrenId;
         children.hidden = !expanded;
