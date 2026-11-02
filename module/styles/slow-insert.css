@@ -221,3 +221,16 @@
   #slow-insert-panel { top: 8px; bottom: 8px; min-height: 0; }
   #slow-insert-panel .si-footer { display: none; }
 }
+/* Group controls are siblings of draggable result buttons, never nested buttons. */
+#slow-insert-panel .si-grouping-bar { display: flex; flex: none; flex-wrap: wrap; gap: 6px; margin: 9px 12px 0; }
+#slow-insert-panel .si-group-button { width: auto; min-height: 26px; height: auto; margin: 0; padding: 4px 7px; border: 1px solid var(--si-line); border-radius: 4px; color: var(--si-muted); background: transparent; box-shadow: none; font: 11px/1.4 var(--font-body, sans-serif); white-space: normal; cursor: pointer; }
+#slow-insert-panel .si-group-button:hover { color: var(--si-text); border-color: var(--si-muted); }
+#slow-insert-panel .si-group-button[aria-pressed="true"] { color: var(--si-accent); border-color: #a7d6c56b; }
+#slow-insert-panel .si-result-group { margin-bottom: 5px; }
+#slow-insert-panel .si-group-controls { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px 7px 50px; }
+#slow-insert-panel .si-group-members { margin: 0 3px 10px 13px; padding-left: 5px; border-left: 2px solid var(--si-line); }
+#slow-insert-panel .si-group-members[hidden], #slow-insert-panel .si-group-button[hidden] { display: none; }
+#slow-insert-panel .si-member { margin-bottom: 7px; }
+#slow-insert-panel .si-member > .si-group-button { margin-left: 49px; }
+#slow-insert-panel .si-pack { color: var(--si-muted); font-size: 10px; overflow-wrap: anywhere; }
+#slow-insert-panel .si-warning { color: #edc38c; font-size: 10px; }

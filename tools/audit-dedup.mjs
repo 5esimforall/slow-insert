@@ -98,7 +98,8 @@ function project(doc, pack, aliases) {
       embeddedItems: digest(doc.items ?? []), image: digest(doc.img ?? null)
     },
     fields: Object.fromEntries(Object.entries(system).map(([key,value]) => [key,digest(value)])),
-    stats: { systemVersion: doc._stats?.systemVersion, coreVersion: doc._stats?.coreVersion },
+    stats: { systemVersion: doc._stats?.systemVersion, coreVersion: doc._stats?.coreVersion,
+      modifiedTime: doc._stats?.modifiedTime ?? null },
     basics: { level: system.level, school: system.school, activation: system.activation, duration: system.duration,
       range: system.range, target: system.target, materials: system.materials, properties: system.properties,
       rarity: system.rarity, attunement: system.attunement, magicalBonus: system.magicalBonus,

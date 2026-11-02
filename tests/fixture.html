@@ -47,7 +47,7 @@
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
     system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.0.7" }]]),
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.1.0" }]]),
     packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
       register(id, key, config) { if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
@@ -120,6 +120,33 @@
       async show() { fixtureState.opened.push(this.name); } });
   }
   items.push({ name: "Player character", uuid: "Actor.pc", documentType: "Actor", subType: "character", system: {} });
+  if (new URL(location.href).searchParams.has("grouping")) {
+    const { GROUPING_REGISTRY } = await import("/module/data/grouping-registry.mjs");
+    const exact = Object.entries(GROUPING_REGISTRY.groups).find(([,g]) => g.kind === "exact")[0];
+    for (const [uuid, record] of Object.entries(GROUPING_REGISTRY.members)) {
+      if (record.identifier !== "forcecage" && record.group !== exact) continue;
+      const packId = uuid.split(".").slice(1,3).join("."), id = uuid.split(".").at(-1);
+      if (record.package === "dnd5e") game.system.version = record.packageVersion;
+      else game.modules.set(record.package, {version:record.packageVersion,active:true});
+      const book = packId === "dnd5e.spells" ? "SRD 5.1" : packId === "dnd5e.spells24" ? "SRD 5.2"
+        : record.rules === "2024" ? "PHB 2024" : "PHB";
+      if (!game.packs.has(packId)) game.packs.set(packId, {title:packId, index:new Map(),
+        metadata:{packageType:record.package === "dnd5e" ? "system" : "module",packageName:record.package}});
+      game.packs.get(packId).index.set(id, {_stats:{modifiedTime:record.modifiedTime}});
+      const translated = record.names.find(name => /[\u3400-\u9fff]/.test(name));
+      const name = language === "cn" && translated ? translated : record.names[0];
+      items.push({name, uuid:uuid.replace(".Item.","."), documentType:"Item",subType:record.type,package:packId,packageName:packId,img:icon,
+        system:{identifier:record.identifier,source:{book,rules:record.rules},level:record.level,school:record.school},
+        async show(){fixtureState.opened.push(name);document.querySelector("#opened").textContent=`Opened UUID: ${this.uuid}`;}});
+    }
+    const stale = document.createElement("button"); stale.textContent="Simulate edited source";
+    stale.onclick=()=>{
+      const item=items.find(item=>item.package==="dnd-players-handbook.spells"&&item.system.identifier==="forcecage");
+      game.packs.get(item.package).index.get(item.uuid.split(".").at(-1))._stats.modifiedTime=123456789;
+      Hooks.callAll("updateItem",{});
+    };
+    document.querySelector("main").append(stale);
+  }
   globalThis.fixtureItems = items;
   globalThis.QuickInsert = {
     hasIndex: true,

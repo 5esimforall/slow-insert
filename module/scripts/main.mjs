@@ -2,6 +2,7 @@ import { t } from "./i18n.mjs";
 import { SlowInsertPanel, MODULE_ID } from "./panel.mjs";
 import { SOURCE_INDEX_FIELDS } from "./source.mjs";
 import { FILTER_INDEX_FIELDS, ACTOR_FILTER_INDEX_FIELDS } from "./filters.mjs";
+import { GROUP_INDEX_FIELDS, GROUP_ACTOR_INDEX_FIELDS, normalizeGrouping } from "./grouping.mjs";
 
 let panel;
 
@@ -9,10 +10,11 @@ Hooks.once("init", () => {
   // Register before Quick Insert requests pack indexes. No full-pack loads.
   if (game.system.id === "dnd5e") {
     const fields = CONFIG.Item.compendiumIndexFields;
-    for (const field of [...SOURCE_INDEX_FIELDS, ...FILTER_INDEX_FIELDS]) if (!fields.includes(field)) fields.push(field);
+    for (const field of [...SOURCE_INDEX_FIELDS, ...FILTER_INDEX_FIELDS, ...GROUP_INDEX_FIELDS]) if (!fields.includes(field)) fields.push(field);
     const actorFields = CONFIG.Actor.compendiumIndexFields;
-    for (const field of [...SOURCE_INDEX_FIELDS, ...ACTOR_FILTER_INDEX_FIELDS]) if (!actorFields.includes(field)) actorFields.push(field);
+    for (const field of [...SOURCE_INDEX_FIELDS, ...ACTOR_FILTER_INDEX_FIELDS, ...GROUP_ACTOR_INDEX_FIELDS]) if (!actorFields.includes(field)) actorFields.push(field);
   }
+  game.settings.register(MODULE_ID, "grouping", { scope: "client", config: false, type: Object, default: normalizeGrouping() });
 
   for (const [key, type, value] of [["width", Number, 360], ["query", String, ""], ["filters", Object, {}]]) {
     game.settings.register(MODULE_ID, key, { scope: "client", config: false, type, default: value });

@@ -3,6 +3,7 @@ import { getDockLayout, resolveSource } from "./source.mjs";
 import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls } from "./filter-controls.mjs";
 import { hasPriorityEscapeTarget } from "./escape.mjs";
+import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
 
 export const MODULE_ID = "slow-insert";
 const LIMIT = 100;
@@ -34,6 +35,9 @@ export class SlowInsertPanel {
     this.events = new AbortController();
     this.hooks = [];
     this.filters = normalizeFilters(game.settings.get(MODULE_ID, "filters"));
+    this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, "grouping"));
+    this.expandedGroups = new Set();
+    this.rowElements = [];
     this.dnd5e = game.system.id === "dnd5e";
     if (!this.dnd5e) this.filters = setScheme(this.filters, "items");
   }
@@ -86,6 +90,25 @@ export class SlowInsertPanel {
       }
     });
 
+    this.groupingBar = element("div", "si-grouping-bar");
+    this.groupToggle = element("button", "si-group-button", t("Grouping.ShowCopies"));
+    this.groupToggle.type = "button";
+    this.groupToggle.title = t("Grouping.ToggleHint");
+    this.restoreGroups = element("button", "si-group-button", t("Grouping.Restore"));
+    this.restoreGroups.type = "button";
+    this.restoreGroups.title = t("Grouping.RestoreHint");
+    this.groupingBar.append(this.groupToggle, this.restoreGroups);
+    this.listen(this.groupToggle, "click", () => {
+      this.grouping.enabled = !this.grouping.enabled;
+      void this.save("grouping", this.grouping);
+      this.refresh();
+    });
+    this.listen(this.restoreGroups, "click", () => {
+      this.grouping.split = [];
+      void this.save("grouping", this.grouping);
+      this.refresh();
+    });
+
     this.status = element("div", "si-status");
     this.status.setAttribute("role", "status");
     this.status.setAttribute("aria-live", "polite");
@@ -102,7 +125,7 @@ export class SlowInsertPanel {
     this.resizeHandle.setAttribute("aria-orientation", "vertical");
     this.resizeHandle.setAttribute("aria-valuemin", "280");
     this.resizeHandle.setAttribute("aria-valuemax", "560");
-    this.root.append(this.resizeHandle, header, searchBox, this.filterControls.root, this.status, this.list, footer);
+    this.root.append(this.resizeHandle, header, searchBox, this.filterControls.root, this.groupingBar, this.status, this.list, footer);
 
     this.launcher = button(t("Panel.Launcher"), "fa-magnifying-glass");
     this.launcher.id = "slow-insert-toggle";
@@ -128,6 +151,8 @@ export class SlowInsertPanel {
     // keyboard manager skips shortcuts because an unrelated input has focus.
     this.listen(document, "keydown", event => this.onDocumentKeydown(event));
     this.listen(this.list, "click", event => {
+      const action = event.target.closest("[data-group-action]");
+      if (action) { this.onGroupAction(action); return; }
       const row = event.target.closest(".si-result");
       if (row) void this.openItem(Number(row.dataset.index));
     });
@@ -258,6 +283,7 @@ export class SlowInsertPanel {
 
   clearResults(message) {
     this.results = [];
+    this.rowElements = [];
     this.selected = -1;
     this.list.replaceChildren();
     this.input.removeAttribute("aria-activedescendant");
@@ -275,17 +301,20 @@ export class SlowInsertPanel {
   ensureFilterCatalog(qi, environment) {
     const index = qi.searchLib?.index;
     if (this.filterCatalog && this.filterCatalog.index === index) return;
-    const { options, dataCache } = buildFilterOptions(qi.search("", isSupportedResult, Number.MAX_SAFE_INTEGER), environment, {
+    const allResults = qi.search("", isSupportedResult, Number.MAX_SAFE_INTEGER);
+    const { options, dataCache } = buildFilterOptions(allResults, environment, {
       typeLabels: CONFIG.Item.typeLabels,
       spellSchools: CONFIG.DND5E?.spellSchools,
       activationTypes: CONFIG.DND5E?.abilityActivationTypes
     });
-    this.filterCatalog = { index, dataCache };
+    this.filterCatalog = { index, dataCache, grouping: buildGroupingCatalog(allResults, environment) };
     this.filterControls.setOptions(options);
   }
 
   refresh() {
     if (!this.visible) return;
+    this.groupToggle.setAttribute("aria-pressed", String(!this.grouping.enabled));
+    this.restoreGroups.hidden = this.grouping.split.length === 0;
     if (!this.allowed()) { this.clearResults(t("Status.Unavailable")); return; }
     if (this.indexing) { this.clearResults(t("Status.Indexing")); return; }
     const qi = globalThis.QuickInsert;
@@ -297,7 +326,7 @@ export class SlowInsertPanel {
       this.ensureFilterCatalog(qi, environment);
       const filtered = this.filters.scheme !== "items" || activeFilters(this.filters).length > 0;
       if (!query && !filtered) { this.clearResults(t("Status.Start")); return; }
-      const matches = qi.search(query, result => {
+      const accept = result => {
         if (!isSupportedResult(result)) return false;
         let data = this.filterCatalog.dataCache.get(result.item);
         if (!data) {
@@ -305,41 +334,19 @@ export class SlowInsertPanel {
           this.filterCatalog.dataCache.set(result.item, data);
         }
         return matchesFilters(data, this.filters);
-      }, LIMIT + 1);
-      this.results = matches.slice(0, LIMIT);
-      this.list.replaceChildren();
-      const fragment = document.createDocumentFragment();
-      for (const [index, { item }] of this.results.entries()) {
-        const source = resolveSource(item, environment);
-        const row = element("button", "si-result");
-        row.type = "button";
-        row.tabIndex = -1;
-        row.draggable = true;
-        row.dataset.index = String(index);
-        row.id = `slow-insert-result-${index}`;
-        row.setAttribute("role", "option");
-        row.setAttribute("aria-selected", "false");
-        row.title = `${item.name}\n${source.title}`;
-        const image = element("img", "si-image");
-        image.src = item.img || (item.documentType === "Actor" ? "icons/svg/mystery-man.svg" : "icons/svg/item-bag.svg");
-        image.alt = "";
-        image.loading = "lazy";
-        image.draggable = false;
-        image.addEventListener("error", () => { image.hidden = true; }, { once: true });
-        const label = element("span", "si-label");
-        label.append(element("span", "si-name", item.name || t("Panel.Unnamed")));
-        const data = this.filterCatalog.dataCache.get(item);
-        const subtitle = data?.monster ? t("Panel.MonsterCR", { cr: data.cr === null ? t("Unknown") : crLabel(data.cr) })
-          : itemTypeLabel(item.subType, CONFIG[item.documentType]?.typeLabels, environment) || t("Panel.Item");
-        label.append(element("span", "si-type", subtitle));
-        const badge = element("span", `si-source si-source--${source.kind}`, source.label);
-        badge.title = source.title;
-        row.append(image, label, badge);
-        fragment.append(row);
-      }
-      this.list.append(fragment);
-      this.status.textContent = this.results.length
-        ? t(matches.length > LIMIT ? "Status.ResultsLimited" : "Status.Results", { count: this.results.length, scheme: t(SCHEMES[this.filters.scheme].label) })
+      };
+      // Limit after grouping, never before: otherwise a group could hide matches
+      // past the first 100 raw rows or choose a representative outside filters.
+      const matches = qi.search(query, accept, Number.MAX_SAFE_INTEGER);
+      const { groups, rawCount } = groupSearchResults(matches, this.filterCatalog.grouping, {
+        preferences: this.grouping, accept, query, lang: environment.lang
+      });
+      this.renderGroups(groups.slice(0, LIMIT), environment);
+      const grouped = groups.some(group => group.members.length > 1);
+      this.status.textContent = groups.length
+        ? t(grouped ? "Grouping.Status" : groups.length > LIMIT ? "Status.ResultsLimited" : "Status.Results", {
+          count: Math.min(groups.length, LIMIT), total: groups.length, raw: rawCount, scheme: t(SCHEMES[this.filters.scheme].label)
+        })
         : t("Status.NoResults");
       this.input.setAttribute("aria-expanded", String(this.results.length > 0));
       this.select(this.results.length ? 0 : -1, false);
@@ -349,10 +356,127 @@ export class SlowInsertPanel {
     }
   }
 
+  renderGroups(groups, environment) {
+    this.results = [];
+    this.rowElements = [];
+    this.renderedGroups = new Map(groups.map(group => [group.key, group]));
+    this.list.replaceChildren();
+    const fragment = document.createDocumentFragment();
+    for (const group of groups) {
+      const wrapper = element("div", "si-result-group");
+      wrapper.setAttribute("role", "group");
+      wrapper.setAttribute("aria-label", group.representative.result.item.name);
+      wrapper.append(this.renderRow(group.representative, group, environment));
+      if (group.members.length > 1) {
+        const expanded = this.expandedGroups.has(group.key);
+        const controls = element("div", "si-group-controls");
+        const toggle = this.groupAction("expand", group, t(expanded ? "Grouping.Collapse" : "Grouping.Expand", { count: group.members.length }));
+        toggle.setAttribute("aria-expanded", String(expanded));
+        toggle.title = t(group.kind === "exact" ? "Grouping.ExactHint" : "Grouping.FamilyHint");
+        const childrenId = `slow-insert-members-${this.results.length}`;
+        toggle.setAttribute("aria-controls", childrenId);
+        controls.append(toggle, this.groupAction("split", group, t("Grouping.Split")));
+        wrapper.append(controls);
+        const children = element("div", "si-group-members");
+        children.id = childrenId;
+        children.hidden = !expanded;
+        if (expanded) for (const entry of group.members) {
+          const member = element("div", "si-member");
+          member.append(this.renderRow(entry, group, environment, true));
+          const pinned = this.grouping.pins[group.key] === entry.uuid;
+          const pin = this.groupAction(pinned ? "unpin" : "pin", group, t(pinned ? "Grouping.Unpin" : "Grouping.Pin"));
+          pin.dataset.uuid = entry.uuid;
+          pin.title = t("Grouping.PinHint");
+          member.append(pin);
+          children.append(member);
+        }
+        wrapper.append(children);
+      }
+      fragment.append(wrapper);
+    }
+    this.list.append(fragment);
+  }
+
+  groupAction(action, group, label) {
+    const control = element("button", "si-group-button", label);
+    control.type = "button";
+    control.dataset.groupAction = action;
+    control.dataset.group = group.key;
+    return control;
+  }
+
+  onGroupAction(control) {
+    const group = this.renderedGroups?.get(control.dataset.group);
+    if (!group) return;
+    const action = control.dataset.groupAction;
+    if (action === "expand") {
+      if (this.expandedGroups.has(group.key)) this.expandedGroups.delete(group.key);
+      else this.expandedGroups.add(group.key);
+    } else if (action === "split") {
+      this.grouping.split = [...new Set([...this.grouping.split, group.key])];
+    } else if (action === "pin" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
+      this.grouping.pins = { ...this.grouping.pins, [group.key]: control.dataset.uuid };
+    } else if (action === "unpin") {
+      delete this.grouping.pins[group.key];
+    }
+    if (action !== "expand") void this.save("grouping", this.grouping);
+    this.refresh();
+    const index = this.results.findIndex(result => result.group?.key === group.key);
+    if (index >= 0) this.select(index, false);
+    this.input.focus();
+  }
+
+  renderRow(entry, group, environment, member = false) {
+    const { item } = entry.result;
+    const index = this.results.length;
+    this.results.push({ ...entry.result, group });
+    const source = resolveSource(item, environment);
+    const row = element("button", "si-result");
+    row.type = "button";
+    row.tabIndex = -1;
+    row.draggable = true;
+    row.dataset.index = String(index);
+    row.id = `slow-insert-result-${index}`;
+    row.setAttribute("role", "option");
+    row.setAttribute("aria-selected", "false");
+    row.title = `${item.name}\n${source.title}\n${item.uuid}`;
+    row.dataset.uuid = item.uuid;
+    const image = element("img", "si-image");
+    image.src = item.img || (item.documentType === "Actor" ? "icons/svg/mystery-man.svg" : "icons/svg/item-bag.svg");
+    image.alt = ""; image.loading = "lazy"; image.draggable = false;
+    image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+    const label = element("span", "si-label");
+    label.append(element("span", "si-name", item.name || t("Panel.Unnamed")));
+    const data = this.filterCatalog.dataCache.get(item);
+    const subtitle = data?.monster ? t("Panel.MonsterCR", { cr: data.cr === null ? t("Unknown") : crLabel(data.cr) })
+      : itemTypeLabel(item.subType, CONFIG[item.documentType]?.typeLabels, environment) || t("Panel.Item");
+    const details = [subtitle];
+    if (group.members.length > 1) {
+      details.push(group.rules);
+      if (!member) details.push(t(group.kind === "exact" ? "Grouping.Exact" : "Grouping.Family"));
+      else {
+        if (entry.uuid === group.representative.uuid) details.push(t("Grouping.Default"));
+        for (const tag of entry.tags) details.push(t(`Grouping.Tag.${tag}`));
+      }
+    }
+    label.append(element("span", "si-type", details.filter(Boolean).join(" · ")));
+    if (member) label.append(element("span", "si-pack", item.packageName || item.package || entry.uuid));
+    if (entry.warning) {
+      const warning = element("span", "si-warning", t(`Grouping.Review.${entry.warning}`));
+      warning.title = t("Grouping.ReviewHint");
+      label.append(warning);
+    }
+    const badge = element("span", `si-source si-source--${source.kind}`, source.label);
+    badge.title = group.members.length > 1 && !member ? t("Grouping.DefaultSource", { source: source.title }) : source.title;
+    row.append(image, label, badge);
+    this.rowElements.push(row);
+    return row;
+  }
+
   select(index, scroll = true) {
-    this.list.children[this.selected]?.setAttribute("aria-selected", "false");
+    this.rowElements[this.selected]?.setAttribute("aria-selected", "false");
     this.selected = index;
-    const row = this.list.children[index];
+    const row = this.rowElements[index];
     if (!row) { this.input.removeAttribute("aria-activedescendant"); return; }
     row.setAttribute("aria-selected", "true");
     this.input.setAttribute("aria-activedescendant", row.id);
@@ -393,6 +517,15 @@ export class SlowInsertPanel {
 
   onKeydown(event) {
     if (event.isComposing) return;
+    if (event.target === this.input && ["ArrowRight", "ArrowLeft"].includes(event.key)
+      && event.altKey && !event.ctrlKey && !event.metaKey) {
+      const group = this.results[this.selected]?.group;
+      if (group?.members.length > 1 && this.expandedGroups.has(group.key) !== (event.key === "ArrowRight")) {
+        event.preventDefault(); event.stopPropagation();
+        this.onGroupAction({ dataset: { group: group.key, groupAction: "expand" } });
+      }
+      return;
+    }
     if (event.target === this.input && ["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) {
       event.preventDefault();
       event.stopPropagation();

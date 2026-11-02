@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.0.7**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.1.0**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -61,3 +61,10 @@ node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
 - `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。本次整理没有更新该副本。
 - 本仓库不包含 FVTT 总目录中的其他模块、配套包、世界数据或旧项目。
 - 既有 ZIP、截图、日志及分类数据溯源记录原样迁移；其中的旧路径和日期是历史记录，不是当前执行路径。
+
+## v0.1.0 归并界面
+
+加入可展开的审计白名单副本组与同版法术家族；支持客户端首选、拆分/恢复、全部副本视图。冲突或审计失效的成员自动保持独立。具体范围与失效检查见模块说明。
+
+归并专用浏览器夹具：`http://127.0.0.1:4178/tests/fixture.html?grouping=1&lang=cn`。
+运行时注册表由 `node tools/build-grouping-registry.mjs` 生成，只含身份、别名和校验元数据，不含规则正文。
