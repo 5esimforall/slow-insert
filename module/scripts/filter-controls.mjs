@@ -65,7 +65,7 @@ export class FilterControls {
       this.state = resetProfile(this.state);
       this.updateState();
       this.onChange(this.state);
-      this.toggle.focus();
+      (this.focusTarget ?? this.toggle).focus();
     });
     this.toolbar = toolbar;
     toolbar.append(this.toggle);
@@ -102,7 +102,7 @@ export class FilterControls {
     this.drawer.hidden = !value;
     this.toggle.setAttribute("aria-expanded", String(value));
     this.updateState();
-    if (focus) this.toggle.focus();
+    if (focus) (this.focusTarget ?? this.toggle).focus();
   }
   setOptions(options) { this.options = options; this.renderGroups(); }
 
@@ -254,7 +254,7 @@ export class FilterControls {
       chip.setAttribute("aria-label", t("Filter.ResetGroup", { group: t(config.label) }));
       chip.addEventListener("click", () => {
         this.changeGroup(group, config.range ? { min: null, max: null } : config.optional ? [] : null);
-        this.toggle.focus();
+        (this.focusTarget ?? this.toggle).focus();
       });
       this.active.append(chip);
     }

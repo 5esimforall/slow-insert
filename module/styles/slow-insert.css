@@ -302,3 +302,50 @@
 .slow-insert .si-filter-reset-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
 .slow-insert .si-sort-drawer { flex: 0 1 auto; min-height: 0; max-height: 38vh; overflow-y: auto; scrollbar-width: thin; }
 .slow-insert .si-filter-toolbar .si-sort-custom { color: var(--si-accent); border-color: var(--si-accent); }
+
+/* The sidebar now contains only the entry button, search and results. */
+.slow-insert .si-search-row { display: flex; flex: none; align-items: center; gap: 7px; margin: 4px 12px 0; }
+.slow-insert .si-search-row .si-search-box { flex: 1; min-width: 0; margin: 0; padding: 0 9px; gap: 7px; }
+.slow-insert .si-browse-button { flex: 0 0 32px; width: 32px; height: 38px; border: 1px solid var(--si-line); background: #ffffff04; }
+.slow-insert .si-browse-button.si-browse-active { color: var(--si-accent); border-color: #a7d6c55c; }
+.slow-insert .si-browse-button:focus-visible { outline: 2px solid var(--si-accent); outline-offset: 2px; }
+
+/* Native Foundry frame: no custom drag implementation or global z-index override. */
+.si-browse-window { min-width: 300px; min-height: 320px; }
+.si-browse-window .window-content { padding: 0; overflow: hidden; }
+.si-browse-window .slow-insert.si-browse-content { position: relative; inset: auto; display: flex; flex: 1; width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; box-shadow: none; z-index: auto; container-type: inline-size; }
+.si-browse-content .si-browse-top { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--si-line); }
+.si-browse-content .si-scheme-row { flex: 1; max-width: 360px; margin: 0; font-size: 12px; }
+.si-browse-content .si-browse-summary { color: var(--si-muted); font-size: 11px; }
+.si-browse-content .si-browse-columns { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); flex: 1; min-height: 0; overflow-y: auto; }
+.si-browse-content .si-browse-filters { min-width: 0; padding: 18px 20px; }
+.si-browse-content .si-browse-right { min-width: 0; padding: 18px 20px; border-left: 1px solid var(--si-line); }
+.si-browse-content h3 { margin: 0 0 14px; padding: 0; border: 0; font: 600 13px/1.4 var(--font-body, sans-serif); color: var(--si-text); }
+.si-browse-content .si-browse-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.si-browse-content .si-browse-section-header h3 { margin: 0; }
+.si-browse-content .si-filter-drawer { max-height: none; overflow: visible; margin: 0; padding: 0; background: transparent; border: 0; border-radius: 0; }
+.si-browse-content .si-filter-active { max-height: none; padding: 0 0 10px; }
+.si-browse-content .si-filter-group:first-child { border-top: 0; }
+.si-browse-content .si-filter-group summary { font-size: 12px; padding: 12px 0; }
+.si-browse-content .si-filter-choice { font-size: 12px; padding: 4px 7px; }
+.si-browse-content .si-sort-controls { margin-bottom: 14px; }
+.si-browse-content .si-sort-controls button[hidden] { display: none; }
+.si-browse-content .si-sort-select { height: 32px; font-size: 12px; }
+.si-browse-content .si-sort-drawer { max-height: none; overflow: visible; padding: 0; margin: 0; border: 0; }
+.si-browse-content .si-sort-title { margin-bottom: 10px; }
+.si-browse-content .si-sort-rule { margin-bottom: 8px; gap: 5px; }
+.si-browse-content .si-sort-button { height: 30px; }
+.si-browse-content .si-sort-actions { margin: 12px 0 16px; }
+.si-browse-content .si-sort-language { flex-direction: column; align-items: stretch; gap: 7px; margin-bottom: 14px; }
+.si-browse-content .si-sort-language select { flex: none; width: 100%; }
+.si-browse-content .si-filter-help { font-size: 11px; line-height: 1.7; }
+.si-browse-content .si-browse-display { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--si-line); }
+.si-browse-content .si-display-options { padding: 0; border: 0; }
+.si-browse-content .si-filter-switch-title { font-size: 12px; }
+.si-browse-content .si-filter-switch { padding: 9px 0; }
+.si-browse-content .si-browse-footer { flex: none; padding: 12px 20px; color: var(--si-muted); font-size: 11px; border-top: 1px solid var(--si-line); }
+@container (max-width: 570px) {
+  .si-browse-content .si-browse-columns { grid-template-columns: minmax(0,1fr); }
+  .si-browse-content .si-browse-right { border-left: 0; border-top: 1px solid var(--si-line); }
+  .si-browse-content .si-browse-top { flex-direction: column; align-items: stretch; gap: 8px; }
+}

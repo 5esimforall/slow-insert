@@ -1,15 +1,16 @@
+import { createBrowseWindow, browseWindowPosition } from "./browse-window.mjs";
 import { normalizeSorting, sortGroups, effectiveSort, sortValueLabel } from "./sorting.mjs";
 import { SortControls } from "./sort-controls.mjs";
 import { t } from "./i18n.mjs";
 import { getDockLayout, resolveSource, documentDragData } from "./source.mjs";
-import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
+import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls, createFilterSwitch } from "./filter-controls.mjs";
 import { hasPriorityEscapeTarget } from "./escape.mjs";
 import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.4.1";
+export const MODULE_VERSION = "0.5.0";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -89,6 +90,14 @@ export class SlowInsertPanel {
     this.input.setAttribute("aria-controls", `${this.idPrefix}-results`);
     this.input.setAttribute("aria-expanded", "false");
     searchBox.append(searchIcon, this.input);
+    const searchRow = element("div", "si-search-row");
+    this.browseButton = button(t("Browse.Title"), "fa-sliders");
+    this.browseButton.classList.add("si-browse-button");
+    this.browseButton.setAttribute("aria-haspopup", "dialog");
+    this.browseButton.setAttribute("aria-expanded", "false");
+    this.browseButton.setAttribute("aria-controls", `${this.idPrefix}-browse`);
+    searchRow.append(this.browseButton, searchBox);
+    this.listen(this.browseButton, "click", () => { void this.openBrowseWindow(); });
 
     this.filterControls = new FilterControls({
       state: this.filters, dnd5e: this.dnd5e,
@@ -111,11 +120,6 @@ export class SlowInsertPanel {
         this.refresh();
       }
     });
-    this.sortControls.onExpanded = value => { if (value) this.filterControls.setExpanded(false); };
-    this.filterControls.onExpanded = value => { if (value) this.sortControls.setExpanded(false); };
-    this.filterControls.toolbar.append(this.sortControls.root);
-    this.filterControls.toolbar.after(this.sortControls.drawer);
-
     const copies = createFilterSwitch({ label: t("Grouping.ShowCopies"), hint: t("Grouping.ToggleHint") });
     this.groupToggle = copies.input;
     this.groupToggleState = copies.state;
@@ -125,6 +129,8 @@ export class SlowInsertPanel {
       void this.save("grouping", this.grouping);
       this.refresh();
     });
+
+    this.buildBrowseContent();
 
     this.status = element("div", "si-status");
     this.status.setAttribute("role", "status");
@@ -142,7 +148,7 @@ export class SlowInsertPanel {
     this.resizeHandle.setAttribute("aria-valuemin", "280");
     this.resizeHandle.setAttribute("aria-valuemax", "560");
     if (!sidebarHost) this.root.append(this.resizeHandle);
-    this.root.append(header, searchBox, this.filterControls.root, this.status, this.list);
+    this.root.append(header, searchRow, this.status, this.list);
 
     this.launcher = button(t("Panel.Launcher"), "fa-magnifying-glass");
     this.launcher.id = "slow-insert-toggle";
@@ -229,6 +235,54 @@ export class SlowInsertPanel {
       })]);
     }
     this.position();
+  }
+
+  buildBrowseContent() {
+    const filters = this.filterControls, sorting = this.sortControls;
+    this.browseContent = element("div", "slow-insert si-browse-content");
+    const top = element("div", "si-browse-top");
+    this.browseSummary = element("span", "si-browse-summary");
+    this.browseSummary.setAttribute("role", "status");
+    top.append(filters.scheme.parentElement, this.browseSummary);
+    const columns = element("div", "si-browse-columns");
+    const left = element("section", "si-browse-filters");
+    const filterHeader = element("div", "si-browse-section-header");
+    filterHeader.append(element("h3", "", t("Browse.Filters")), filters.reset);
+    // Retain the live controls rather than cloning them; closing never resets state.
+    filters.focusTarget = filters.scheme;
+    filters.drawer.querySelector(".si-filter-reset-row").remove();
+    filters.setExpanded(true);
+    left.append(filterHeader, filters.active, filters.drawer);
+    const right = element("div", "si-browse-right");
+    const sortSection = element("section", "si-browse-sort");
+    sortSection.append(element("h3", "", t("Browse.Sorting")), sorting.root, sorting.drawer);
+    sorting.more.hidden = true;
+    sorting.setExpanded(true);
+    const display = element("section", "si-browse-display");
+    display.append(element("h3", "", t("Browse.Display")), filters.displayOptions);
+    right.append(sortSection, display);
+    columns.append(left, right);
+    const footer = element("div", "si-browse-footer", t("Browse.Live"));
+    this.browseContent.append(top, columns, footer);
+  }
+
+  async openBrowseWindow() {
+    if (this.destroyed || !this.allowed()) return;
+    if (!this.browseWindow) this.browseWindow = createBrowseWindow(this);
+    if (this.browseWindow.rendered) { this.browseWindow.bringToFront(); return; }
+    await this.browseWindow.render({ force: true, position: browseWindowPosition(
+      { width: window.innerWidth, height: window.innerHeight }, this.root.getBoundingClientRect(), this.browsePosition) });
+    if (this.destroyed) await this.browseWindow.close({ animate: false, restoreFocus: false });
+  }
+
+  updateBrowseSummary() {
+    const count = activeFilters(this.filters).length;
+    const custom = this.sorting.profiles[this.filters.scheme].mode === "manual";
+    this.browseButton?.classList.toggle("si-browse-active", count > 0 || custom || this.filters.includeExternal || !this.grouping.enabled);
+    if (this.browseSummary) this.browseSummary.textContent = t("Browse.Summary", {
+      scheme: t(SCHEMES[this.filters.scheme].label), count
+    });
+    if (this.browseButton) this.browseButton.title = `${t("Browse.Title")} · ${t(SCHEMES[this.filters.scheme].label)} · ${t("Browse.FilterCount", { count })}`;
   }
 
   schedulePosition() {
@@ -447,7 +501,8 @@ export class SlowInsertPanel {
   refresh(preservePage = false) {
     const previousCount = preservePage ? this.page?.shown : 0;
     const scrollTop = preservePage ? this.list.scrollTop : 0;
-    if (!this.visible) return;
+    if (!this.visible && !this.browseWindow?.rendered) return;
+    this.updateBrowseSummary();
     this.groupToggle.checked = !this.grouping.enabled;
     this.groupToggleState.textContent = t(this.grouping.enabled ? "Grouping.CopiesGrouped" : "Grouping.CopiesShown");
     if (!this.allowed()) { this.clearResults(t("Status.Unavailable")); return; }
@@ -660,8 +715,8 @@ export class SlowInsertPanel {
   }
 
   onEscape(event, { forwardNative = false } = {}) {
-    if (this.sidebarHost && !this.sidebarHost.app.isPopout && !ui.sidebar.expanded) return false;
-    if (!this.visible || event.defaultPrevented || event.isComposing
+    if (!this.browseWindow?.rendered && this.sidebarHost && !this.sidebarHost.app.isPopout && !ui.sidebar.expanded) return false;
+    if ((!this.visible && !this.browseWindow?.rendered) || event.defaultPrevented || event.isComposing
       || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
     if (hasPriorityEscapeTarget()) {
       if (!forwardNative) return false;
@@ -741,6 +796,7 @@ export class SlowInsertPanel {
 
   destroy() {
     this.destroyed = true;
+    void this.browseWindow?.close({ animate: false, restoreFocus: false });
     clearTimeout(this.initialIndexTimer);
     clearTimeout(this.indexTimeout);
     clearTimeout(this.searchTimer);

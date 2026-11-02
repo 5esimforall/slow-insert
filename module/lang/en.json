@@ -236,5 +236,12 @@
   "SLOWINSERT.Sort.NameOrder": "Name order",
   "SLOWINSERT.Sort.Local": "Interface language",
   "SLOWINSERT.Sort.English": "English title first",
-  "SLOWINSERT.Sort.Help": "Rules apply top to bottom (up to three). Ties use name; unknown values stay last. Relevance is ignored without a query. English order uses an existing English title, falling back to the displayed name."
+  "SLOWINSERT.Sort.Help": "Rules apply top to bottom (up to three). Ties use name; unknown values stay last. Relevance is ignored without a query. English order uses an existing English title, falling back to the displayed name.",
+  "SLOWINSERT.Browse.Title": "Filters & sorting",
+  "SLOWINSERT.Browse.Filters": "Filters",
+  "SLOWINSERT.Browse.Sorting": "Sorting",
+  "SLOWINSERT.Browse.Display": "Display options",
+  "SLOWINSERT.Browse.Live": "Changes apply immediately · Settings are retained when closed",
+  "SLOWINSERT.Browse.Summary": "{scheme} · {count} filters",
+  "SLOWINSERT.Browse.FilterCount": "{count} filters"
 }
