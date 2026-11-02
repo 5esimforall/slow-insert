@@ -35,6 +35,24 @@ npm run preview
 
 打开 [英文预览](http://127.0.0.1:4178/tests/fixture.html) 或 [中文预览](http://127.0.0.1:4178/tests/fixture.html?lang=cn)。这只是模拟环境，并非真实 Foundry 世界。浏览器测试脚本位于上述测试目录。
 
+## 非破坏性归并审计
+
+审计工具只读取已启用的 Item/NPC 合集与世界顶层集合，不部署归并、不修改文档或索引设置。它先将数据库校验克隆到临时目录，仅在副本上打开 LevelDB，完成后清理副本。输出目录必须在 Foundry Data 之外。
+
+```sh
+cd /Users/arctic/Arc/fvtt/projects/slow-insert
+node tools/audit-dedup.mjs \
+  --data-root '/Users/arctic/Library/Application Support/FoundryVTT/Data' \
+  --world arenae \
+  --out output/dedup-audit-2026-11-01 \
+  --level-module '/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/node_modules/classic-level/index.js'
+node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
+```
+
+当前克隆命令使用 macOS `cp -cR`。离线审计不执行运行时系统迁移、Babele 优先级或模组钩子；结果不能直接当作实时索引。相同名称、identifier、来源指针乃至无上下文的内容指纹，都不能单独证明可归并。
+
+分析输出包括严格负载候选、保守包对白名单、法术家族候选、年代证据冲突与法术字段差异的 JSON/CSV。白名单与候选均为审计建议，不会被运行模块自动加载。产物在 `output/` 下，不纳入 Git。
+
 ## 部署与保存边界
 
 - 开发源码以本仓库为准，不直接在 Foundry 安装目录中开发。
