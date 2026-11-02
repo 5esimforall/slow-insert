@@ -5,9 +5,9 @@ import { readFile, access } from "node:fs/promises";
 const root = new URL("../module/", import.meta.url);
 const manifest = JSON.parse(await readFile(new URL("module.json", root), "utf8"));
 
-test("release is v0.0.6 with an explicit Quick Insert dependency", () => {
+test("release is v0.0.7 with an explicit Quick Insert dependency", () => {
   assert.equal(manifest.id, "slow-insert");
-  assert.equal(manifest.version, "0.0.6");
+  assert.equal(manifest.version, "0.0.7");
   assert.equal(manifest.relationships.requires[0].id, "quick-insert");
   assert.equal(manifest.relationships.requires[0].compatibility.minimum, "3.7.8");
   assert.equal(manifest.compatibility.maximum, "13");

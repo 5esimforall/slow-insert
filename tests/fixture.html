@@ -47,7 +47,7 @@
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
     system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.0.6" }]]),
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.0.7" }]]),
     packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
       register(id, key, config) { if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
@@ -66,8 +66,8 @@
   globalThis.foundry = { applications: { instances: new Map() } };
   // Model Foundry v13's focus suppression and ordered keybinding consumption.
   class FixtureKeyboard {
-    static emulateKeypress(up, code, { force = false } = {}) {
-      if (!up) game.keyboard.process(new KeyboardEvent("keydown", { key: code, code }), { force });
+    static getKeyboardEventContext(event) {
+      return { event, key: event.code };
     }
     process(event, { force = false } = {}) {
       const focused = document.activeElement;
@@ -83,7 +83,8 @@
   game.keyboard = new FixtureKeyboard();
   game.keybindings.register("core", "dismiss", {
     uneditable: [{ key: "Escape" }], precedence: CONST.KEYBINDING_PRECEDENCE.DEFERRED,
-    onDown: () => {
+    onDown: ({ event }) => {
+      if (!event.target) throw new Error("A synthetic event lost its target (Plutonium regression)");
       fixtureState.nativeDismisses = (fixtureState.nativeDismisses || 0) + 1;
       for (const app of Object.values(ui.windows)) app.close({ closeKey: true });
       for (const app of foundry.applications.instances.values()) if (app.hasFrame) app.close({ closeKey: true });

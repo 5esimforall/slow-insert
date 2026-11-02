@@ -61,17 +61,22 @@ test("global Escape leaves the first press to the window and closes the panel on
   assert.equal(panel.filterControls.expanded, true);
 });
 
-test("document Escape is forwarded once with force regardless of focus, never closing both layers", t => {
+test("native dismiss receives the original event and target, without synthetic keybindings or closing both layers", t => {
   const { panel, ui } = setup(t);
   ui.windows.sheet = { rendered: true };
   let forwarded = 0;
-  globalThis.game.keyboard = { constructor: { emulateKeypress(up, code, options) {
-    assert.equal(up, false); assert.equal(code, "Escape"); assert.deepEqual(options, { force: true });
+  const first = escape({ target: { id: "outside-input", nodeName: "INPUT" } });
+  globalThis.game.keyboard = { constructor: {
+    getKeyboardEventContext(event) { return { event, key: event.code }; },
+    emulateKeypress() { throw new Error("Synthetic events would crash Plutonium"); }
+  } };
+  globalThis.game.keybindings = { actions: new Map([["core.dismiss", { onDown(context) {
+    assert.equal(context.event, first);
+    assert.equal(context.event.target.nodeName, "INPUT");
+    assert.equal(context.key, "Escape");
     forwarded++;
-    assert.equal(panel.onEscape(escape()), false); // Our registered action yields to core.
     delete ui.windows.sheet; // Core closes it synchronously in this regression case.
-  } } };
-  const first = escape({ target: { id: "outside-input" } });
+  } }]]) };
   panel.onDocumentKeydown(first);
   assert.equal(forwarded, 1);
   assert.equal(first.defaultPrevented && first.stopped, true);

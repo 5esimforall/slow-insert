@@ -364,14 +364,19 @@ export class SlowInsertPanel {
       || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
     if (hasPriorityEscapeTarget()) {
       if (!forwardNative) return false;
-      // Foundry normally skips keybindings while an input/select has focus.
-      // Forward this single press through its keyboard manager instead of
-      // closing apps ourselves or waiting and also closing our panel.
+      // Preserve the real event (including target) for native window dismissal.
+      // emulateKeypress creates a target-less event which crashes Plutonium's
+      // Escape handler. Redispatching all keybindings also lets its input-blur
+      // shortcut consume the press instead of closing the open window.
       const keyboardClass = game.keyboard?.constructor;
-      if (typeof keyboardClass?.emulateKeypress !== "function") return false;
+      const dismiss = game.keybindings?.actions?.get("core.dismiss");
+      if (typeof keyboardClass?.getKeyboardEventContext !== "function" || typeof dismiss?.onDown !== "function") return false;
+      const context = keyboardClass.getKeyboardEventContext(event);
       event.preventDefault();
       event.stopPropagation();
-      keyboardClass.emulateKeypress(false, "Escape", { force: true });
+      // Invoke the original native action, not another synthetic keyboard event.
+      // Never close our panel when this promise completes: that needs a new press.
+      Promise.resolve(dismiss.onDown(context)).catch(error => console.error("Slow Insert | Native dismiss failed", error));
       return true;
     }
     this.close();
