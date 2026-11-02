@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, access } from "node:fs/promises";
+import { MODULE_VERSION } from "../module/scripts/panel.mjs";
 
 const root = new URL("../module/", import.meta.url);
 const manifest = JSON.parse(await readFile(new URL("module.json", root), "utf8"));
@@ -8,6 +9,7 @@ const manifest = JSON.parse(await readFile(new URL("module.json", root), "utf8")
 test("release is v0.1.0 with an explicit Quick Insert dependency", () => {
   assert.equal(manifest.id, "slow-insert");
   assert.equal(manifest.version, "0.1.0");
+  assert.equal(manifest.version, MODULE_VERSION);
   assert.equal(manifest.relationships.requires[0].id, "quick-insert");
   assert.equal(manifest.relationships.requires[0].compatibility.minimum, "3.7.8");
   assert.equal(manifest.compatibility.maximum, "13");

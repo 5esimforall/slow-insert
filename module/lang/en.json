@@ -194,5 +194,7 @@
   "SLOWINSERT.Grouping.Review.spell": "Spell metadata needs review",
   "SLOWINSERT.Grouping.Review.stale": "Changed since audit · kept separate",
   "SLOWINSERT.Grouping.Review.unverified": "Audit stamp unavailable · kept separate",
-  "SLOWINSERT.Grouping.ReviewHint": "This entry is not auto-grouped. Reindex if fields are missing; changed packages or documents require a new audit. No data is repaired automatically."
+  "SLOWINSERT.Grouping.ReviewHint": "This entry is not auto-grouped. Reindex if fields are missing; changed packages or documents require a new audit. No data is repaired automatically.",
+  "SLOWINSERT.Source.External": "External · {book}",
+  "SLOWINSERT.Source.ExternalHint": "External integration entry, not a world document. Kept separate from audited compendium groups."
 }

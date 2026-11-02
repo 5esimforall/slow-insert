@@ -1,11 +1,12 @@
 import { t } from "./i18n.mjs";
-import { getDockLayout, resolveSource } from "./source.mjs";
+import { getDockLayout, resolveSource, documentDragData } from "./source.mjs";
 import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls } from "./filter-controls.mjs";
 import { hasPriorityEscapeTarget } from "./escape.mjs";
 import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
 
 export const MODULE_ID = "slow-insert";
+export const MODULE_VERSION = "0.1.0";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -59,7 +60,8 @@ export class SlowInsertPanel {
 
     const header = element("header", "si-header");
     const heading = element("div", "si-heading");
-    heading.append(element("h2", "", "Slow Insert"), element("span", "si-version", game.modules.get(MODULE_ID)?.version || ""));
+    // A running server can retain the previous manifest version until restart.
+    heading.append(element("h2", "", "Slow Insert"), element("span", "si-version", MODULE_VERSION));
     this.reindexButton = button(t("Panel.Reindex"), "fa-arrows-rotate");
     this.closeButton = button(t("Panel.Close"), "fa-xmark");
     header.append(heading, this.reindexButton, this.closeButton);
@@ -558,7 +560,7 @@ export class SlowInsertPanel {
     const item = row && this.results[Number(row.dataset.index)]?.item;
     if (!item || !this.allowed() || !event.dataTransfer) { event.preventDefault(); return; }
     // Standard Foundry document drag data; destinations enforce their own permissions.
-    event.dataTransfer.setData("text/plain", JSON.stringify({ type: item.documentType, uuid: item.uuid }));
+    event.dataTransfer.setData("text/plain", JSON.stringify(documentDragData(item)));
     event.dataTransfer.effectAllowed = "copy";
   }
 

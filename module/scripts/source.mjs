@@ -31,6 +31,13 @@ export function sourceBadge(book, rules = "") {
 }
 
 export function resolveSource(item, environment = {}) {
+  // Integrations such as Plutonium use @spell[...] handles, not world UUIDs.
+  // Keep them separate from audited documents and label their actual origin.
+  if (/^@[\w]+\[/.test(item.uuid ?? "")) {
+    const book = sourceBadge(text(item.source));
+    return { label: t("Source.External", { book: book || t("Source.Unknown", {}, environment) }, environment),
+      kind: "external", title: t("Source.ExternalHint", {}, environment) };
+  }
   const { packs, modules, system, world, localize = value => value } = environment;
   const packId = item.package || item.uuid?.match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1];
   const pack = packs?.get(packId);
@@ -66,6 +73,13 @@ export function resolveSource(item, environment = {}) {
     kind: "fallback",
     title: t("Source.Fallback", { location: fallback, unknown: t("Source.Unknown", {}, environment) }, environment)
   };
+}
+
+export function documentDragData(item) {
+  const supplied = item.dragData;
+  // Preserve integration-specific import payloads, not only their pseudo-UUID.
+  if (supplied && typeof supplied === "object" && supplied.type === item.documentType) return { ...supplied };
+  return { type: item.documentType, uuid: item.uuid };
 }
 
 /** Preserve Quick Insert ranking and exclusions; do not combine duplicate names. */

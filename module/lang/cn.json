@@ -194,5 +194,7 @@
   "SLOWINSERT.Grouping.Review.spell": "法术数据待复核",
   "SLOWINSERT.Grouping.Review.stale": "审计后已变化 · 保持独立",
   "SLOWINSERT.Grouping.Review.unverified": "缺少审计校验信息 · 保持独立",
-  "SLOWINSERT.Grouping.ReviewHint": "此条目不自动归并。缺少索引字段时可重建索引；包版本或文档变化后需重新审计，不会自动修复数据。"
+  "SLOWINSERT.Grouping.ReviewHint": "此条目不自动归并。缺少索引字段时可重建索引；包版本或文档变化后需重新审计，不会自动修复数据。",
+  "SLOWINSERT.Source.External": "外部 · {book}",
+  "SLOWINSERT.Source.ExternalHint": "集成模块提供的外部检索条目，不是世界文档；与已审计的合集条目保持独立。"
 }

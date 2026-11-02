@@ -99,3 +99,16 @@ test("narrow-screen fallback and width limits stay inside the viewport", () => {
   assert.equal(getDockLayout(1440, 1080, 900).width, 560);
   assert.equal(getDockLayout(1440, 1080, -5).width, 280);
 });
+
+test("external integration handles are not mislabeled as world documents", () => {
+  const result = resolveSource({ uuid: "@spell[forcecage|xphb|Forcecage]", source: "xphb" });
+  assert.equal(result.kind, "external");
+  assert.match(result.label, /PHB'24/);
+});
+
+test("drag preserves provider import data and falls back to native UUIDs", async () => {
+  const { documentDragData } = await import("../module/scripts/source.mjs");
+  const payload = { type: "Item", uuid: "@spell[forcecage|xphb]", subType: "hover", page: "spells.html", hash: "forcecage_xphb" };
+  assert.deepEqual(documentDragData({ documentType: "Item", dragData: payload }), payload);
+  assert.deepEqual(documentDragData({ documentType: "Item", uuid: "Compendium.a.b.c" }), { type: "Item", uuid: "Compendium.a.b.c" });
+});

@@ -97,3 +97,21 @@ test("grouping settings sanitize old state and do not inherit prototype preferen
   const state=normalizeGrouping({version:1,pins:{good:4,valid:"Compendium.a.b.Item.x"},split:["a","a",null]});
   assert.deepEqual(state.split,["a"]);assert.deepEqual(state.pins,{valid:"Compendium.a.b.Item.x"});
 });
+
+test("panel opening and dragging use the selected original member, including provider payloads", async () => {
+  const { SlowInsertPanel } = await import("../module/scripts/panel.mjs");
+  const opened=[];
+  const native={documentType:"Item",uuid:"Compendium.a.b.original",show(){opened.push(this.uuid);}};
+  const external={documentType:"Item",uuid:"@spell[forcecage|xphb]",get dragData(){return {type:"Item",uuid:this.uuid,subType:"hover",page:"spells.html",hash:"forcecage_xphb"};},show(){opened.push(this.uuid);}};
+  const panel={allowed:()=>true,results:[{item:native},{item:external}],select(index){this.selected=index;}};
+  for(let index=0;index<panel.results.length;index++) {
+    await SlowInsertPanel.prototype.openItem.call(panel,index);
+    let data;
+    const event={target:{closest:()=>({dataset:{index:String(index)}})},dataTransfer:{setData(type,value){assert.equal(type,"text/plain");data=JSON.parse(value);}}};
+    SlowInsertPanel.prototype.onDragStart.call(panel,event);
+    assert.equal(data.uuid,panel.results[index].item.uuid);
+    assert.equal(event.dataTransfer.effectAllowed,"copy");
+    if(index===1)assert.deepEqual(data,external.dragData);
+  }
+  assert.deepEqual(opened,[native.uuid,external.uuid]);
+});
