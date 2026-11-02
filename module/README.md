@@ -1,4 +1,4 @@
-# Slow Insert v0.2.0
+# Slow Insert v0.2.1
 
 依赖 Quick Insert 的右侧常驻速查面板。显示来源徽标，支持打开条目和原生拖放，不修改 Quick Insert 本身。
 
@@ -160,3 +160,7 @@ node tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classif
 ```
 
 该工具不读取原始数据库。浏览器夹具：`http://127.0.0.1:4178/tests/fixture.html?sources=1&lang=cn`，涵盖分页、版本冲突、未知、别名、多书、外部来源和动态扩展。
+
+## v0.2.1：简化界面文案
+
+以书目、版次、来源选择为中心；删去常驻技术说明和底部操作提示。筛选帮助移至悬停提示，冲突与未知保留短标签。归类与筛选行为不变。

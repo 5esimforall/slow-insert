@@ -60,7 +60,7 @@ export class FilterControls {
     this.drawer.hidden = true;
     this.drawer.setAttribute("role", "region");
     this.drawer.setAttribute("aria-label", t("Filter.Region"));
-    this.drawer.append(node("p", "si-filter-help", t("Filter.Help")));
+    this.drawer.title = t("Filter.Help");
     this.body = node("div", "si-filter-groups");
     this.drawer.append(this.body);
     this.root.append(schemeRow, toolbar, this.active, this.drawer);
@@ -120,7 +120,7 @@ export class FilterControls {
           row.append(label);
           this.ranges.push({ select, bound });
         }
-        details.append(row, node("p", "si-filter-help", t("Filter.CRHelp")));
+        details.append(row);
       } else {
         const actions = node("div", "si-group-actions");
         const count = node("span", "si-group-count");
@@ -144,9 +144,9 @@ export class FilterControls {
           this.sourceSearch.value = query;
           this.sourceSearch.addEventListener("input", () => this.filterSources());
           details.append(this.sourceSearch);
-          details.append(node("p", "si-filter-help", t("Source.FilterHelp")));
+          this.sourceSearch.title = t("Source.FilterHelp");
         }
-        if (id === "classes") details.append(node("p", "si-filter-help", t("Filter.ClassesHelp")));
+        if (id === "classes") details.querySelector("summary").title = t("Filter.ClassesHelp");
         const choices = node("div", "si-filter-options");
         let sourceSection;
         for (const option of this.options[this.state.scheme][id] ?? []) {

@@ -38,7 +38,7 @@ test("options and tooltips follow Foundry localization while stable filter value
   assert.deepEqual(filterItemData(item, language("en")).values, filterItemData(item, language("cn")).values);
   assert.match(resolveSource(item, language("en")).title, /p\. 241.*2024 rules/);
   assert.match(resolveSource(item, language("cn")).title, /第 241 页.*2024 版规则/);
-  assert.equal(resolveSource({ uuid: "Item.x" }, language("cn")).label, "来源书籍未知");
+  assert.equal(resolveSource({ uuid: "Item.x" }, language("cn")).label, "来源待确认");
   assert.equal(item.name, "Fireball");
 });
 

@@ -46,7 +46,7 @@ test("pages collapse under a book while each result keeps its own citation", () 
   assert.deepEqual(options.items.source.map(option => [option.value, option.count]), [["book:phb14", 3]]);
   assert.match(dataCache.get(entries[0].item).source.title, /p\. 153/);
   assert.equal(dataCache.get(entries[0].item).source.label, "PHB'14");
-  assert.match(dataCache.get(entries[0].item).source.title, /rules metadata/);
+  assert.match(dataCache.get(entries[0].item).source.title, /rules version/);
 });
 
 test("core editions need evidence; a bare page number does not establish 2014", () => {
@@ -89,7 +89,7 @@ test("module names, versions, class names and unknown book text stay out of bibl
   for (const name of ["2.1.38", "Midi 12.4.25", "CPR Class Features", "BLFX", "Warlock : The Genie", "DND BEYOND", "My undisclosed book", "PHB 2924"]) {
     const result = resolve({ custom: name });
     assert.deepEqual(result.keys, ["review:unknown"], name);
-    assert.equal(result.label, "Sourcebook unknown", name);
+    assert.equal(result.label, "Source unknown", name);
     assert.ok(result.title.includes(name));
   }
 });

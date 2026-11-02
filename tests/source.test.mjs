@@ -60,22 +60,22 @@ test("pack sourcebook wins over module sourcebook", () => {
 test("a module with multiple books is ambiguous, not arbitrarily assigned", () => {
   const modules = new Map([["test-module", { flags: { dnd5e: { sourceBooks: { PHB: "PHB", DMG: "DMG" } } } }]]);
   const result = resolveSource(item, { ...env, modules });
-  assert.equal(result.label, "Sourcebook unknown");
+  assert.equal(result.label, "Source unknown");
   assert.match(result.title, /Spells/);
   assert.equal(result.kind, "fallback");
-  assert.match(result.title, /Sourcebook unknown/);
+  assert.match(result.title, /Source unknown/);
 });
 
 test("missing data is not mislabeled as homebrew or a particular edition", () => {
-  assert.equal(resolveSource({ uuid: "Item.abc" }).label, "Sourcebook unknown");
-  assert.equal(resolveSource({ uuid: "Compendium.unknown.spells.Item.abc" }).label, "Sourcebook unknown");
+  assert.equal(resolveSource({ uuid: "Item.abc" }).label, "Source unknown");
+  assert.equal(resolveSource({ uuid: "Compendium.unknown.spells.Item.abc" }).label, "Source unknown");
   assert.equal(resolveSource({ ...item, system: { source: { rules: "2024" } } }).kind, "fallback");
 });
 
 test("source data stays text, never trusted HTML", () => {
   const book = '<img src=x onerror="alert(1)">';
   const result = resolveSource({ system: { source: { book } } });
-  assert.equal(result.label, "Sourcebook unknown");
+  assert.equal(result.label, "Source unknown");
   assert.ok(result.title.includes(book));
 });
 

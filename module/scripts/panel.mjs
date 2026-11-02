@@ -7,7 +7,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.2.0";
+export const MODULE_VERSION = "0.2.1";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -120,7 +120,6 @@ export class SlowInsertPanel {
     this.list.id = "slow-insert-results";
     this.list.setAttribute("role", "listbox");
     this.list.setAttribute("aria-label", t("Panel.ResultsLabel"));
-    const footer = element("footer", "si-footer", t("Panel.Footer"));
 
     this.resizeHandle = element("div", "si-resize");
     this.resizeHandle.tabIndex = 0;
@@ -129,7 +128,7 @@ export class SlowInsertPanel {
     this.resizeHandle.setAttribute("aria-orientation", "vertical");
     this.resizeHandle.setAttribute("aria-valuemin", "280");
     this.resizeHandle.setAttribute("aria-valuemax", "560");
-    this.root.append(this.resizeHandle, header, searchBox, this.filterControls.root, this.groupingBar, this.status, this.list, footer);
+    this.root.append(this.resizeHandle, header, searchBox, this.filterControls.root, this.groupingBar, this.status, this.list);
 
     this.launcher = button(t("Panel.Launcher"), "fa-magnifying-glass");
     this.launcher.id = "slow-insert-toggle";
