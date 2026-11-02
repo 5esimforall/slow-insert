@@ -1,5 +1,6 @@
+import { registerSidebar, SIDEBAR_TAB } from "./sidebar.mjs";
 import { t } from "./i18n.mjs";
-import { SlowInsertPanel, MODULE_ID } from "./panel.mjs";
+import { MODULE_ID } from "./panel.mjs";
 import { SOURCE_INDEX_FIELDS } from "./source.mjs";
 import { FILTER_INDEX_FIELDS, ACTOR_FILTER_INDEX_FIELDS } from "./filters.mjs";
 import { GROUP_INDEX_FIELDS, GROUP_ACTOR_INDEX_FIELDS, normalizeGrouping } from "./grouping.mjs";
@@ -38,7 +39,11 @@ Hooks.once("init", () => {
   });
 });
 
-Hooks.once("ready", () => {
+Hooks.once("setup", () => {
+  if (game.modules.get("quick-insert")?.active) registerSidebar();
+});
+
+Hooks.once("ready", async () => {
   if (!game.modules.get("quick-insert")?.active || !globalThis.QuickInsert?.search) {
     ui.notifications.warn(t("DependencyWarning"));
     return;
@@ -46,8 +51,9 @@ Hooks.once("ready", () => {
   // Respect Quick Insert's GM-only setting, including its decision not to index.
   if (!game.user.isGM && game.settings.get("quick-insert", "gmOnly")) return;
 
-  panel = new SlowInsertPanel();
-  panel.mount();
+  const sidebar = ui[SIDEBAR_TAB];
+  await sidebar.render({ force: true });
+  panel = sidebar.panel;
   game.modules.get(MODULE_ID).api = Object.freeze({
     open: () => panel.open(), close: () => panel.close(), toggle: () => panel.toggle(),
     registerPublications: (providerId, records) => panel.registerPublications(providerId, records),

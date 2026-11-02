@@ -1,4 +1,4 @@
-# Slow Insert v0.2.4
+# Slow Insert v0.3.0
 
 依赖 Quick Insert 的右侧常驻速查面板。显示来源徽标，支持打开条目和原生拖放，不修改 Quick Insert 本身。
 
@@ -176,3 +176,7 @@ node tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classif
 ## v0.2.4：连续浏览
 
 接近列表底部追加100组，保留已有结果、展开状态及滚动位置。搜索或筛选变化回到首批。展开入口采用轻量数字和CSS箭头。
+
+## v0.3.0：原生侧栏
+
+Slow Insert 注册为 Foundry V13 原生搜索标签。侧栏控制切换与收起；快捷键聚焦搜索。切换保留搜索、筛选、展开和已加载结果。原生模式移除浮动入口、独立关闭与调整宽度控件。右键标签可弹出独立搜索窗口。条目主体和展开箭头共享背景及边框。

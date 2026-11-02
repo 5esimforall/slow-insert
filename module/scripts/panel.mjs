@@ -7,7 +7,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.2.4";
+export const MODULE_VERSION = "0.3.0";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -54,9 +54,11 @@ export class SlowInsertPanel {
     target.addEventListener(event, callback, { ...options, signal: this.events.signal });
   }
 
-  mount() {
+  mount(sidebarHost = null) {
+    this.sidebarHost = sidebarHost;
+    this.idPrefix = sidebarHost?.app.isPopout ? "slow-insert-popout" : "slow-insert";
     this.root = element("aside", "slow-insert");
-    this.root.id = "slow-insert-panel";
+    this.root.id = sidebarHost?.app.isPopout ? "slow-insert-popout-panel" : "slow-insert-panel";
     this.root.hidden = true;
     this.root.setAttribute("aria-label", t("Panel.Label"));
 
@@ -66,7 +68,8 @@ export class SlowInsertPanel {
     heading.append(element("h2", "", "Slow Insert"), element("span", "si-version", MODULE_VERSION));
     this.reindexButton = button(t("Panel.Reindex"), "fa-arrows-rotate");
     this.closeButton = button(t("Panel.Close"), "fa-xmark");
-    header.append(heading, this.reindexButton, this.closeButton);
+    header.append(heading, this.reindexButton);
+    if (!sidebarHost) header.append(this.closeButton);
 
     const searchBox = element("div", "si-search-box");
     const searchIcon = element("i", "fas fa-magnifying-glass");
@@ -80,7 +83,7 @@ export class SlowInsertPanel {
     this.input.setAttribute("aria-label", t("Panel.SearchLabel"));
     this.input.setAttribute("role", "combobox");
     this.input.setAttribute("aria-autocomplete", "list");
-    this.input.setAttribute("aria-controls", "slow-insert-results");
+    this.input.setAttribute("aria-controls", `${this.idPrefix}-results`);
     this.input.setAttribute("aria-expanded", "false");
     searchBox.append(searchIcon, this.input);
 
@@ -93,6 +96,9 @@ export class SlowInsertPanel {
         this.refresh();
       }
     });
+
+    this.filterControls.drawer.id = `${this.idPrefix}-filters`;
+    this.filterControls.toggle.setAttribute("aria-controls", this.filterControls.drawer.id);
 
     this.groupingBar = element("div", "si-grouping-bar");
     this.groupToggle = element("button", "si-group-button", t("Grouping.ShowCopies"));
@@ -109,7 +115,7 @@ export class SlowInsertPanel {
     this.status.setAttribute("role", "status");
     this.status.setAttribute("aria-live", "polite");
     this.list = element("div", "si-results");
-    this.list.id = "slow-insert-results";
+    this.list.id = `${this.idPrefix}-results`;
     this.list.setAttribute("role", "listbox");
     this.list.setAttribute("aria-label", t("Panel.ResultsLabel"));
 
@@ -120,7 +126,8 @@ export class SlowInsertPanel {
     this.resizeHandle.setAttribute("aria-orientation", "vertical");
     this.resizeHandle.setAttribute("aria-valuemin", "280");
     this.resizeHandle.setAttribute("aria-valuemax", "560");
-    this.root.append(this.resizeHandle, header, searchBox, this.filterControls.root, this.groupingBar, this.status, this.list);
+    if (!sidebarHost) this.root.append(this.resizeHandle);
+    this.root.append(header, searchBox, this.filterControls.root, this.groupingBar, this.status, this.list);
 
     this.launcher = button(t("Panel.Launcher"), "fa-magnifying-glass");
     this.launcher.id = "slow-insert-toggle";
@@ -128,7 +135,10 @@ export class SlowInsertPanel {
     this.launcher.append(element("span", "", "Slow Insert"));
     this.launcher.setAttribute("aria-controls", this.root.id);
     this.launcher.setAttribute("aria-expanded", "false");
-    document.body.append(this.root, this.launcher);
+    if (sidebarHost) {
+      this.root.classList.add("si-native");
+      sidebarHost.content.append(this.root);
+    } else document.body.append(this.root, this.launcher);
 
     this.listen(this.launcher, "click", () => this.toggle());
     this.listen(this.closeButton, "click", () => this.close());
@@ -155,6 +165,7 @@ export class SlowInsertPanel {
       if (this.list.scrollHeight - this.list.scrollTop - this.list.clientHeight < 160) this.loadMore();
     });
     this.listen(this.list, "dragstart", event => this.onDragStart(event));
+    if (!sidebarHost) {
     this.listen(this.resizeHandle, "pointerdown", event => {
       if (event.button !== 0) return;
       event.preventDefault();
@@ -189,6 +200,7 @@ export class SlowInsertPanel {
     for (const hook of ["collapseSidebar", "renderSidebar"]) {
       this.hooks.push([hook, Hooks.on(hook, () => this.schedulePosition())]);
     }
+    }
     this.hooks.push(["QuickInsert:IndexCompleted", Hooks.on("QuickInsert:IndexCompleted", () => {
       this.filterCatalog = null;
       this.indexing = false;
@@ -215,6 +227,7 @@ export class SlowInsertPanel {
   }
 
   position() {
+    if (this.sidebarHost) return;
     const sidebar = document.getElementById("sidebar");
     const bounds = sidebar?.getBoundingClientRect();
     const sidebarLeft = bounds?.width && bounds.height ? bounds.left : window.innerWidth;
@@ -225,10 +238,35 @@ export class SlowInsertPanel {
     this.resizeHandle.setAttribute("aria-valuenow", String(Math.round(width)));
   }
 
-  toggle() { this.visible ? this.close() : this.open(); }
+  toggle() {
+    const active = this.sidebarHost ? this.sidebarHost.app.active && ui.sidebar.expanded : this.visible;
+    active ? this.close() : this.open();
+  }
+
+  activateSidebar() {
+    if (!this.allowed()) return;
+    this.visible = true;
+    this.root.hidden = false;
+    if (!this.page || this.renderedQuery !== this.input.value.trim()) this.refresh();
+    else if (this.filterCatalog?.index !== globalThis.QuickInsert?.searchLib?.index) this.refresh(true);
+    if (!globalThis.QuickInsert?.hasIndex && !this.indexing) void this.buildIndex();
+  }
+
+  deactivateSidebar() {
+    if (this.sidebarHost?.app.isPopout) return;
+    this.visible = false;
+    clearTimeout(this.searchTimer);
+    void this.save("query", this.input.value);
+  }
 
   open() {
     if (!this.allowed()) return;
+    if (this.sidebarHost) {
+      this.sidebarHost.app.activate();
+      this.activateSidebar();
+      this.input.focus();
+      return;
+    }
     if (!this.visible) this.previousFocus = document.activeElement;
     this.visible = true;
     this.root.hidden = false;
@@ -242,6 +280,11 @@ export class SlowInsertPanel {
   }
 
   close() {
+    if (this.sidebarHost) {
+      if (this.sidebarHost.app.isPopout) void this.sidebarHost.app.close();
+      else { ui.sidebar.collapse(); this.input.blur(); }
+      return;
+    }
     const restoreFocus = this.root.contains(document.activeElement);
     this.visible = false;
     this.root.hidden = true;
@@ -430,7 +473,7 @@ export class SlowInsertPanel {
         toggle.append(count, chevron);
         toggle.setAttribute("aria-expanded", String(expanded));
         toggle.title = t(group.kind === "exact" ? "Grouping.ExactHint" : "Grouping.FamilyHint");
-        const childrenId = `slow-insert-members-${this.results.length}`;
+        const childrenId = `${this.idPrefix}-members-${this.results.length}`;
         toggle.setAttribute("aria-controls", childrenId);
         heading.append(toggle);
         const children = element("div", "si-group-members");
@@ -491,7 +534,7 @@ export class SlowInsertPanel {
     row.tabIndex = -1;
     row.draggable = true;
     row.dataset.index = String(index);
-    row.id = `slow-insert-result-${index}`;
+    row.id = `${this.idPrefix || "slow-insert"}-result-${index}`;
     row.setAttribute("role", "option");
     row.setAttribute("aria-selected", "false");
     row.title = `${item.name}\n${source.title}\n${item.uuid}`;
@@ -540,6 +583,7 @@ export class SlowInsertPanel {
   }
 
   onEscape(event, { forwardNative = false } = {}) {
+    if (this.sidebarHost && !this.sidebarHost.app.isPopout && !ui.sidebar.expanded) return false;
     if (!this.visible || event.defaultPrevented || event.isComposing
       || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
     if (hasPriorityEscapeTarget()) {
