@@ -9,7 +9,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.4.0";
+export const MODULE_VERSION = "0.4.1";
 const LIMIT = 100;
 
 function element(tag, className, content) {

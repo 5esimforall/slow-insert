@@ -76,3 +76,11 @@ test('sort labels and values are localized and match visible rule metadata',()=>
  assert.equal(sortValueLabel('cr',{}, {cr:.125},language('en')),'CR 1/8');
  assert.match(sortValueLabel('rarity',{}, {values:{rarity:['legendary']}},language('en')),/Legendary/);
 });
+test('English-title sorting handles prefix and suffix bilingual names',()=>{
+ const rows=[entry('a','Zulu（阿尔法）'),entry('b','泽塔 Alpha')];
+ assert.deepEqual(ids(sort(rows,profile([['name']],{nameOrder:'english'}))),['b','a']);
+});
+test('variable rarity remains labeled accurately even though it sorts with non-numeric values',()=>{
+ assert.equal(sortValue('rarity',{}, {values:{rarity:['varies']}},language('en')),null);
+ assert.equal(sortValueLabel('rarity',{}, {values:{rarity:['varies']}},language('en')),dictionaries.en['SLOWINSERT.Option.rarity.varies']);
+});

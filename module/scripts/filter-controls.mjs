@@ -232,7 +232,6 @@ export class FilterControls {
     const active = activeFilters(this.state);
     const toggleLabel = t(this.expanded ? "Filter.Hide" : "Filter.Show");
     this.toggle.textContent = active.length ? t("Filter.ToggleCount", { label: toggleLabel, count: active.length }) : toggleLabel;
-    if (active.length) this.toggle.textContent += ` · ${active.length}`;
     this.toggle.setAttribute("aria-label", this.toggle.textContent);
     this.reset.disabled = !active.length;
     this.active.hidden = !active.length;
