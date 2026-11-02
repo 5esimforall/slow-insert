@@ -70,7 +70,7 @@ export function normalizeFilters(value) {
       return [id, GROUPS[id].optional ? list(current) : Array.isArray(current) ? list(current) : null];
     }))
   ]));
-  return { version: 4, scheme: Object.hasOwn(SCHEMES, saved.scheme) ? saved.scheme : "items", profiles };
+  return { version: 4, includeExternal: saved.includeExternal === true, scheme: Object.hasOwn(SCHEMES, saved.scheme) ? saved.scheme : "items", profiles };
 }
 export function setScheme(state, scheme) {
   const next = normalizeFilters(state);
@@ -158,6 +158,7 @@ export function matchesScheme(data, scheme) {
   return scheme === "spells" ? data.spell : scheme === "magic" ? data.magic : scheme === "monsters" ? data.monster : data.isItem;
 }
 export function matchesFilters(data, state) {
+  if (data.source?.external && state.includeExternal !== true) return false;
   if (!matchesScheme(data, state.scheme)) return false;
   for (const id of SCHEMES[state.scheme].groups) {
     const selected = state.profiles[state.scheme][id];

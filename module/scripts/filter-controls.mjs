@@ -62,7 +62,16 @@ export class FilterControls {
     this.drawer.setAttribute("aria-label", t("Filter.Region"));
     this.drawer.title = t("Filter.Help");
     this.body = node("div", "si-filter-groups");
-    this.drawer.append(this.body);
+    const externalLabel = node("label", "si-external-toggle");
+    this.externalToggle = node("input", "");
+    this.externalToggle.type = "checkbox";
+    this.externalToggle.addEventListener("change", () => {
+      this.state = normalizeFilters({ ...this.state, includeExternal: this.externalToggle.checked });
+      this.updateState();
+      this.onChange(this.state);
+    });
+    externalLabel.append(this.externalToggle, node("span", "", t("Filter.IncludeExternal")));
+    this.drawer.append(externalLabel, this.body);
     this.root.append(schemeRow, toolbar, this.active, this.drawer);
     this.renderGroups();
   }
@@ -197,6 +206,7 @@ export class FilterControls {
     this.onChange(this.state);
   }
   updateState() {
+    this.externalToggle.checked = this.state.includeExternal;
     const active = activeFilters(this.state);
     const toggleLabel = t(this.expanded ? "Filter.Hide" : "Filter.Show");
     this.toggle.textContent = active.length ? t("Filter.ToggleCount", { label: toggleLabel, count: active.length }) : toggleLabel;

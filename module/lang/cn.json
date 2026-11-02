@@ -210,5 +210,6 @@
   "SLOWINSERT.Source.FilterHelp": "按书目筛选；页码见条目提示。",
   "SLOWINSERT.Source.BooksSection": "书目",
   "SLOWINSERT.Source.ReviewSection": "待确认",
-  "SLOWINSERT.Grouping.Review.source": "来源冲突"
+  "SLOWINSERT.Grouping.Review.source": "来源冲突",
+  "SLOWINSERT.Filter.IncludeExternal": "包含外部内容"
 }

@@ -165,3 +165,24 @@ test("index extensions are metadata only and include NPC fields", () => {
   assert.ok(ACTOR_FILTER_INDEX_FIELDS.includes("system.details.cr"));
   assert.ok([...FILTER_INDEX_FIELDS, ...ACTOR_FILTER_INDEX_FIELDS].every(field => !/description|items|activities/.test(field)));
 });
+
+test("external content is opt-in by source type, independent of display text", () => {
+  const native = spell({source:{book:"PHB 2024"}}, {name:"外部 example"});
+  const external = spell({}, {uuid:"@spell[Fireball|xphb]",source:"XPHB"});
+  const off=normalizeFilters(),on=normalizeFilters({...off,includeExternal:true});
+  assert.equal(match(native,off),true);
+  assert.equal(match(external,off),false);
+  assert.equal(match(external,on),true);
+  assert.equal(match(external,setGroup(on,"source",["book:phb14"])),false);
+  assert.equal(match(external,setGroup(on,"source",["book:phb24"])),true);
+});
+test("external preference persists across schemes and profile resets without migrating book selections", () => {
+  const old=setGroup(normalizeFilters(),"source",["book:phb24"]);
+  assert.equal(normalizeFilters(old).includeExternal,false);
+  const on=normalizeFilters({...old,includeExternal:true});
+  assert.deepEqual(on.profiles,old.profiles);
+  assert.equal(normalizeFilters(JSON.parse(JSON.stringify(on))).includeExternal,true);
+  assert.equal(setScheme(on,"monsters").includeExternal,true);
+  assert.equal(resetProfile(on).includeExternal,true);
+  assert.equal(normalizeFilters({...on,includeExternal:"true"}).includeExternal,false);
+});

@@ -210,5 +210,6 @@
   "SLOWINSERT.Source.FilterHelp": "Filter by publication; hover an entry for page numbers.",
   "SLOWINSERT.Source.BooksSection": "Publications",
   "SLOWINSERT.Source.ReviewSection": "Needs verification",
-  "SLOWINSERT.Grouping.Review.source": "Source conflict"
+  "SLOWINSERT.Grouping.Review.source": "Source conflict",
+  "SLOWINSERT.Filter.IncludeExternal": "Include external content"
 }

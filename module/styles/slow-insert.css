@@ -267,3 +267,6 @@
 .slow-insert .si-group-heading > .si-result { margin: 0; border: 0; border-radius: 0; background: transparent; }
 .slow-insert .si-group-heading > .si-group-toggle { align-self: stretch; min-width: 36px; margin: 0; border: 0; border-radius: 0 5px 5px 0; }
 .slow-insert .si-group-heading > .si-group-toggle:hover { background: #a7d6c50b; }
+
+.slow-insert .si-external-toggle { display: flex; align-items: center; gap: 7px; padding: 2px 0 10px; color: var(--si-muted); font-size: 12px; cursor: pointer; }
+.slow-insert .si-external-toggle input { flex: none; width: 14px; height: 14px; margin: 0; }
