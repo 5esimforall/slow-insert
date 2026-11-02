@@ -32,7 +32,7 @@ export const GROUPS = Object.freeze({
 });
 export const SCHEMES = Object.freeze({
   items: { label: "Scheme.items", groups: ["type", "source"] },
-  spells: { label: "Scheme.spells", groups: ["special", "mundane", "casting", "level", "school", "classes", "source"] },
+  spells: { label: "Scheme.spells", groups: ["casting", "level", "school", "classes", "source", "special", "mundane"] },
   magic: { label: "Scheme.magic", groups: ["rarity", "category", "attunement", "source"] },
   monsters: { label: "Scheme.monsters", groups: ["cr", "legendary", "size", "creatureType", "source"] },
 });

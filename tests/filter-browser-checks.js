@@ -17,9 +17,12 @@ async (page) => {
   await scheme.selectOption("spells");
   await waitRows(100);
   check(await drawer.isVisible(), "selecting 万法 opens its filter scheme and supports blank-query browsing");
-  check(await box("环阶：零环／戏法").isChecked() && !await box("特殊：仪式").isChecked(), "ordinary checkboxes default to all, special requirements to none");
+  check(await box("环阶：零环／戏法").isChecked() && !await box("必须具备：仪式").isChecked(), "ordinary checkboxes default to all, special requirements to none");
   const groupNames = await drawer.locator("summary").allTextContents();
-  check(groupNames.join("/") === "特殊/凡骨/时间/环阶/学派/职业/来源", "spell groups follow 本书速查 order");
+  check(!await drawer.locator('details[data-group="special"]').evaluate(el => el.open) && !await drawer.locator('details[data-group="mundane"]').evaluate(el => el.open), "property groups start collapsed");
+  await drawer.locator('details[data-group="special"] > summary').click();
+  await drawer.locator('details[data-group="mundane"] > summary').click();
+  check(groupNames.join("/") === "时间/环阶/学派/职业/来源/必须具备/必须不具备", "spell groups follow 本书速查 order");
   check(await sourceGroup.getAttribute("open") === null, "source group starts collapsed while other spell groups stay open");
 
   await input.fill("fire");
@@ -46,25 +49,25 @@ async (page) => {
   await reset();
   await waitRows(6);
   check(await input.inputValue() === "fire", "Reset preserves the search text");
-  await box("特殊：仪式").check();
+  await box("必须具备：仪式").check();
   await waitRows(1);
   check((await rows.first().textContent()).includes("Fire Ward"), "positive special requirements filter spells");
-  await box("凡骨：无专注").check();
+  await box("必须不具备：专注").check();
   await waitRows(0);
   check(true, "special and mundane requirements must all be satisfied");
   await reset();
 
   await input.fill("bulk");
   await waitRows(100);
-  await box("特殊：仪式").check();
+  await box("必须具备：仪式").check();
   await waitRows(1);
   check((await rows.first().textContent()).includes("Bulk late ritual"), "filtering occurs before the 100-result limit");
   await input.fill("");
   await waitRows(3);
-  await box("特殊：有价值／会消耗的材料").check();
+  await box("必须具备：有价值／会消耗的材料").check();
   await waitRows(1);
   check((await rows.first().textContent()).includes("Gem Spell"), "costly-material metadata works with ritual requirements");
-  await box("凡骨：无价值／不消耗的材料").check();
+  await box("必须不具备：有价值／会消耗的材料").check();
   await waitRows(0);
   check(true, "contradictory material requirements correctly yield zero matches");
   await reset();

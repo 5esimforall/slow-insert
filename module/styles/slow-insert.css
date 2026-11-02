@@ -153,7 +153,7 @@
 }
 .slow-insert .si-filter-help { margin: 0 0 6px; color: var(--si-muted); font: 10px/1.5 var(--font-body, sans-serif); }
 .slow-insert .si-filter-group { border-top: 1px solid var(--si-line); margin: 0; padding: 0; }
-.slow-insert .si-filter-group summary { padding: 9px 0; color: var(--si-text); font-size: 11px; font-weight: 600; cursor: pointer; }
+.slow-insert .si-filter-group summary { border: 0; box-shadow: none; padding: 9px 0; color: var(--si-text); font-size: 11px; font-weight: 600; cursor: pointer; }
 .slow-insert .si-filter-options { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 10px; }
 .slow-insert .si-filter-chip { min-height: 24px; padding: 3px 6px; font-size: 10px; }
 .slow-insert .si-filter-source-search {
@@ -227,17 +227,13 @@
   .slow-insert .si-footer { display: none; }
 }
 /* Group controls are siblings of draggable result buttons, never nested buttons. */
-.slow-insert .si-grouping-bar { display: flex; flex: none; flex-wrap: wrap; gap: 6px; margin: 9px 12px 0; }
-.slow-insert .si-group-button { width: auto; min-height: 26px; height: auto; margin: 0; padding: 4px 7px; border: 1px solid var(--si-line); border-radius: 4px; color: var(--si-muted); background: transparent; box-shadow: none; font: 11px/1.4 var(--font-body, sans-serif); white-space: normal; cursor: pointer; }
-.slow-insert .si-group-button:hover { color: var(--si-text); border-color: var(--si-muted); }
-.slow-insert .si-group-button[aria-pressed="true"] { color: var(--si-accent); border-color: #a7d6c56b; }
 .slow-insert .si-result-group { margin-bottom: 5px; }
 .slow-insert .si-group-heading { display: flex; align-items: center; gap: 2px; }
 .slow-insert .si-group-heading > .si-result { flex: 1; min-width: 0; width: 0; }
 .slow-insert .si-group-toggle { flex: none; min-width: 38px; min-height: 36px; padding: 4px; border-color: transparent; font-variant-numeric: tabular-nums; }
 .slow-insert .si-group-toggle:focus-visible { outline: 2px solid var(--si-accent); outline-offset: -2px; }
 .slow-insert .si-group-members { margin: 0 3px 10px 13px; padding-left: 5px; border-left: 2px solid var(--si-line); }
-.slow-insert .si-group-members[hidden], .slow-insert .si-group-button[hidden] { display: none; }
+.slow-insert .si-group-members[hidden] { display: none; }
 .slow-insert .si-member { display: flex; align-items: center; gap: 0; margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; }
 .slow-insert .si-member:hover { background: #ffffff08; }
 .slow-insert .si-member:has(> .si-result[aria-selected="true"]) { background: #a7d6c50c; border-color: #a7d6c537; }
@@ -268,5 +264,41 @@
 .slow-insert .si-group-heading > .si-group-toggle { align-self: stretch; min-width: 36px; margin: 0; border: 0; border-radius: 0 5px 5px 0; }
 .slow-insert .si-group-heading > .si-group-toggle:hover { background: #a7d6c50b; }
 
-.slow-insert .si-external-toggle { display: flex; align-items: center; gap: 7px; padding: 2px 0 10px; color: var(--si-muted); font-size: 12px; cursor: pointer; }
-.slow-insert .si-external-toggle input { flex: none; width: 14px; height: 14px; margin: 0; }
+
+/* Content scope is the final row inside the filter drawer. */
+.slow-insert .si-filter-switch { display: flex; flex: none; align-items: center; gap: 8px; margin: 0; padding: 8px 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; }
+.slow-insert .si-filter-switch-title { flex: 1; min-width: 0; font-size: 11px; color: var(--si-text); }
+.slow-insert .si-filter-switch-state { font-size: 10px; color: var(--si-muted); white-space: nowrap; }
+.slow-insert .si-filter-switch input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 30px; height: 18px; margin: 0; padding: 0; border: 1px solid #ffffff30; border-radius: 12px; background: #ffffff12; cursor: pointer; box-shadow: none; }
+.slow-insert .si-filter-switch input::before { content: ""; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: var(--si-muted); transform: none; transition: left .15s ease; }
+.slow-insert .si-filter-switch input::after { content: none; }
+.slow-insert .si-filter-switch input:checked { background: #a7d6c530; border-color: var(--si-accent); }
+.slow-insert .si-filter-switch input:checked::before { left: 14px; background: var(--si-accent); }
+.slow-insert .si-filter-switch:has(input:checked) .si-filter-switch-state { color: var(--si-accent); }
+.slow-insert .si-filter-switch input:focus-visible { outline: 2px solid var(--si-accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .slow-insert .si-filter-switch input::before { transition: none; } }
+
+.slow-insert .si-filter-groups > .si-filter-group:first-child { border-top: 0; }
+
+.slow-insert .si-display-options { border-top: 1px solid var(--si-line); padding-top: 2px; }
+
+/* Sorting and filtering share a compact, always-visible browse toolbar. */
+.slow-insert .si-filter-toolbar { gap: 5px; }
+.slow-insert .si-filter-toolbar .si-filter-toggle { flex: 0 0 auto; padding: 4px 6px; white-space: nowrap; }
+.slow-insert .si-sort-controls { display: flex; flex: 1; min-width: 0; gap: 4px; align-items: center; }
+.slow-insert .si-sort-select { width: 100%; min-width: 0; height: 28px; min-height: 0; margin: 0; padding: 2px 5px; border: 1px solid var(--si-line); border-radius: 4px; background: #0f131a; color: var(--si-text); font: 11px/1.4 var(--font-body, sans-serif); color-scheme: dark; box-shadow: none; }
+.slow-insert .si-sort-button, .slow-insert .si-filter-reset { flex: none; width: auto; height: 28px; min-height: 0; margin: 0; padding: 3px 7px; border: 1px solid var(--si-line); border-radius: 4px; background: transparent; color: var(--si-muted); font: 11px/1.4 var(--font-body, sans-serif); box-shadow: none; cursor: pointer; }
+.slow-insert .si-sort-button:disabled { opacity: .35; cursor: default; }
+.slow-insert .si-sort-button:hover:not(:disabled), .slow-insert .si-sort-custom { color: var(--si-accent); border-color: var(--si-accent); }
+.slow-insert .si-sort-select:focus-visible, .slow-insert .si-sort-button:focus-visible { outline: 1px solid var(--si-accent); outline-offset: 1px; }
+.slow-insert .si-sort-drawer { flex: none; margin-top: 8px; padding: 8px 0; border-block: 1px solid var(--si-line); }
+.slow-insert .si-sort-drawer[hidden] { display: none; }
+.slow-insert .si-sort-title { color: var(--si-text); font-size: 11px; margin-bottom: 8px; }
+.slow-insert .si-sort-rule { display: flex; gap: 4px; align-items: center; margin-bottom: 5px; }
+.slow-insert .si-sort-number { width: 12px; flex: none; font-size: 10px; color: var(--si-muted); }
+.slow-insert .si-sort-actions { display: flex; gap: 5px; margin: 8px 0; flex-wrap: wrap; }
+.slow-insert .si-sort-language { display: flex; align-items: center; gap: 8px; color: var(--si-muted); font-size: 11px; margin-bottom: 8px; }
+.slow-insert .si-sort-language select { flex: 1; width: auto; }
+.slow-insert .si-filter-reset-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.slow-insert .si-sort-drawer { flex: 0 1 auto; min-height: 0; max-height: 38vh; overflow-y: auto; scrollbar-width: thin; }
+.slow-insert .si-filter-toolbar .si-sort-custom { color: var(--si-accent); border-color: var(--si-accent); }

@@ -47,7 +47,7 @@
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
     system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.3.2" }]]),
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.4.0" }]]),
     packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
       register(id, key, config) { if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
@@ -188,6 +188,12 @@
   document.querySelector("#drop").ondrop = event => { event.preventDefault(); fixtureState.drop = JSON.parse(event.dataTransfer.getData("text/plain")); event.currentTarget.textContent = JSON.stringify(fixtureState.drop); };
   await import("/module/scripts/main.mjs");
   Hooks.callAll("init");
+  // Minimal floating-host adapter: production uses Foundry's native sidebar.
+  const { SlowInsertPanel } = await import("/module/scripts/panel.mjs");
+  ui.slowinsert = { async render() {
+    this.panel = new SlowInsertPanel(); this.panel.mount(); this.panel.open();
+  } };
+  game.ready = true;
   Hooks.callAll("ready");
   globalThis.fixtureReady = true;
 </script>

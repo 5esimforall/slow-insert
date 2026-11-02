@@ -17,7 +17,7 @@ Hooks.once("init", () => {
   }
   game.settings.register(MODULE_ID, "grouping", { scope: "client", config: false, type: Object, default: normalizeGrouping() });
 
-  for (const [key, type, value] of [["width", Number, 360], ["query", String, ""], ["filters", Object, {}]]) {
+  for (const [key, type, value] of [["width", Number, 360], ["query", String, ""], ["filters", Object, {}], ["sorting", Object, {}]]) {
     game.settings.register(MODULE_ID, key, { scope: "client", config: false, type, default: value });
   }
   game.keybindings.register(MODULE_ID, "toggle", {

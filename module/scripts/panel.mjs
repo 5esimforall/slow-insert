@@ -1,13 +1,15 @@
+import { normalizeSorting, sortGroups, effectiveSort, sortValueLabel } from "./sorting.mjs";
+import { SortControls } from "./sort-controls.mjs";
 import { t } from "./i18n.mjs";
 import { getDockLayout, resolveSource, documentDragData } from "./source.mjs";
-import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
-import { FilterControls } from "./filter-controls.mjs";
+import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
+import { FilterControls, createFilterSwitch } from "./filter-controls.mjs";
 import { hasPriorityEscapeTarget } from "./escape.mjs";
 import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.3.2";
+export const MODULE_VERSION = "0.4.0";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -37,6 +39,7 @@ export class SlowInsertPanel {
     this.events = new AbortController();
     this.hooks = [];
     this.filters = normalizeFilters(game.settings.get(MODULE_ID, "filters"));
+    this.sorting = normalizeSorting(game.settings.get(MODULE_ID, "sorting"));
     this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, "grouping"));
     this.expandedGroups = new Set();
     this.rowElements = [];
@@ -100,13 +103,25 @@ export class SlowInsertPanel {
     this.filterControls.drawer.id = `${this.idPrefix}-filters`;
     this.filterControls.toggle.setAttribute("aria-controls", this.filterControls.drawer.id);
 
-    this.groupingBar = element("div", "si-grouping-bar");
-    this.groupToggle = element("button", "si-group-button", t("Grouping.ShowCopies"));
-    this.groupToggle.type = "button";
-    this.groupToggle.title = t("Grouping.ToggleHint");
-    this.groupingBar.append(this.groupToggle);
-    this.listen(this.groupToggle, "click", () => {
-      this.grouping.enabled = !this.grouping.enabled;
+    this.sortControls = new SortControls({ state: this.sorting, scheme: this.filters.scheme, id: this.idPrefix,
+      onChange: state => {
+        this.sorting = state;
+        clearTimeout(this.searchTimer);
+        void this.save("sorting", state);
+        this.refresh();
+      }
+    });
+    this.sortControls.onExpanded = value => { if (value) this.filterControls.setExpanded(false); };
+    this.filterControls.onExpanded = value => { if (value) this.sortControls.setExpanded(false); };
+    this.filterControls.toolbar.append(this.sortControls.root);
+    this.filterControls.toolbar.after(this.sortControls.drawer);
+
+    const copies = createFilterSwitch({ label: t("Grouping.ShowCopies"), hint: t("Grouping.ToggleHint") });
+    this.groupToggle = copies.input;
+    this.groupToggleState = copies.state;
+    this.filterControls.displayOptions.append(copies.root);
+    this.listen(this.groupToggle, "change", () => {
+      this.grouping.enabled = !this.groupToggle.checked;
       void this.save("grouping", this.grouping);
       this.refresh();
     });
@@ -127,7 +142,7 @@ export class SlowInsertPanel {
     this.resizeHandle.setAttribute("aria-valuemin", "280");
     this.resizeHandle.setAttribute("aria-valuemax", "560");
     if (!sidebarHost) this.root.append(this.resizeHandle);
-    this.root.append(header, searchBox, this.filterControls.root, this.groupingBar, this.status, this.list);
+    this.root.append(header, searchBox, this.filterControls.root, this.status, this.list);
 
     this.launcher = button(t("Panel.Launcher"), "fa-magnifying-glass");
     this.launcher.id = "slow-insert-toggle";
@@ -201,12 +216,10 @@ export class SlowInsertPanel {
       this.hooks.push([hook, Hooks.on(hook, () => this.schedulePosition())]);
     }
     }
-    this.hooks.push(["QuickInsert:IndexCompleted", Hooks.on("QuickInsert:IndexCompleted", () => {
-      this.filterCatalog = null;
-      this.indexing = false;
-      this.reindexButton.disabled = false;
-      if (this.visible) this.refresh();
-    })]);
+    this.hooks.push(["QuickInsert:IndexCompleted", Hooks.on("QuickInsert:IndexCompleted", () => this.onIndexCompleted())]);
+    // Sidebar rendering precedes ready. Importer integrations can replace the
+    // Quick Insert index during ready; never start indexing from that render.
+    this.hooks.push(["ready", Hooks.on("ready", () => this.scheduleInitialIndex())]);
     for (const hook of ["createItem", "updateItem", "deleteItem", "createActor", "updateActor", "deleteActor"]) {
       this.hooks.push([hook, Hooks.on(hook, () => {
         this.filterCatalog = null;
@@ -249,7 +262,7 @@ export class SlowInsertPanel {
     this.root.hidden = false;
     if (!this.page || this.renderedQuery !== this.input.value.trim()) this.refresh();
     else if (this.filterCatalog?.index !== globalThis.QuickInsert?.searchLib?.index) this.refresh(true);
-    if (!globalThis.QuickInsert?.hasIndex && !this.indexing) void this.buildIndex();
+    this.scheduleInitialIndex();
   }
 
   deactivateSidebar() {
@@ -276,7 +289,7 @@ export class SlowInsertPanel {
     this.input.focus();
     this.input.select();
     this.refresh();
-    if (!globalThis.QuickInsert?.hasIndex && !this.indexing) void this.buildIndex();
+    this.scheduleInitialIndex();
   }
 
   close() {
@@ -304,21 +317,67 @@ export class SlowInsertPanel {
     catch (error) { console.warn("Slow Insert | Could not save client preference", error); }
   }
 
-  async buildIndex() {
-    if (this.indexing || !this.allowed()) return;
+  scheduleInitialIndex() {
+    if (!game.ready || !this.visible || this.indexing || this.initialIndexTimer || this.indexFailed) return;
+    if (globalThis.QuickInsert?.hasIndex) return;
+    // Yield past ready callbacks, including their microtasks. When QI owns a
+    // delayed automatic build, let it run rather than creating a second build.
+    if (game.settings.get("quick-insert", "automaticIndexing") !== -1) return;
+    this.initialIndexTimer = setTimeout(() => {
+      this.initialIndexTimer = null;
+      if (!this.destroyed && this.visible && !globalThis.QuickInsert?.hasIndex) void this.buildIndex(false);
+    }, 0);
+  }
+
+  onIndexCompleted() {
+    if (this.destroyed) return;
+    clearTimeout(this.indexTimeout);
+    this.indexing = false;
+    this.reindexButton.disabled = false;
+    this.filterCatalog = null;
+    // Other completion listeners may still update the index. Refresh once,
+    // after the hook dispatch, not once here AND once after forceIndex returns.
+    clearTimeout(this.catalogTimer);
+    this.catalogTimer = setTimeout(() => {
+      if (this.destroyed) return;
+      if (!globalThis.QuickInsert?.hasIndex) {
+        if (!this.indexRecoveryUsed) {
+          this.indexRecoveryUsed = true;
+          console.warn("Slow Insert | Index reference lost during startup; retrying once");
+          void this.buildIndex(false);
+        } else this.failIndex(new Error("Index reference missing after recovery"));
+        return;
+      }
+      this.indexFailed = false;
+      if (this.visible) this.refresh();
+    }, 0);
+  }
+
+  failIndex(error) {
+    clearTimeout(this.indexTimeout);
+    this.indexing = false;
+    this.indexFailed = true;
+    this.reindexButton.disabled = false;
+    console.error("Slow Insert | Indexing failed", error);
+    this.status.textContent = t("Status.IndexFailed");
+  }
+
+  async buildIndex(manual = true) {
+    if (!game.ready || this.destroyed || this.indexing || !this.allowed()) return;
+    if (manual) this.indexRecoveryUsed = false;
+    this.indexFailed = false;
     this.indexing = true;
     this.reindexButton.disabled = true;
     this.refresh();
+    // forceIndex returns immediately if QI is already building. Only its
+    // completion event is evidence of completion; a resolved promise isn't.
+    this.indexTimeout = setTimeout(() => {
+      if (!this.destroyed && this.indexing) this.failIndex(new Error("No index completion event within 60 seconds"));
+    }, 60000);
     try {
       await globalThis.QuickInsert.forceIndex();
-      this.indexing = false;
-      this.reindexButton.disabled = false;
-      if (this.visible) this.refresh();
     } catch (error) {
-      this.indexing = false;
-      this.reindexButton.disabled = false;
-      console.error("Slow Insert | Indexing failed", error);
-      this.status.textContent = t("Status.IndexFailed");
+      if (!this.destroyed) this.failIndex(error);
     }
   }
 
@@ -371,6 +430,7 @@ export class SlowInsertPanel {
   ensureFilterCatalog(qi, environment) {
     const index = qi.searchLib?.index;
     if (this.filterCatalog && this.filterCatalog.index === index) return this.filterCatalog.environment;
+    const started = performance.now();
     environment = prepareSourceEnvironment(environment);
     const allResults = qi.search("", isSupportedResult, Number.MAX_SAFE_INTEGER);
     const { options, dataCache } = buildFilterOptions(allResults, environment, {
@@ -380,6 +440,7 @@ export class SlowInsertPanel {
     });
     this.filterCatalog = { index, dataCache, environment, grouping: buildGroupingCatalog(allResults, environment) };
     this.filterControls.setOptions(options);
+    console.debug(`Slow Insert | Catalog: ${allResults.length} entries in ${(performance.now() - started).toFixed(1)}ms`);
     return environment;
   }
 
@@ -387,17 +448,18 @@ export class SlowInsertPanel {
     const previousCount = preservePage ? this.page?.shown : 0;
     const scrollTop = preservePage ? this.list.scrollTop : 0;
     if (!this.visible) return;
-    this.groupToggle.setAttribute("aria-pressed", String(!this.grouping.enabled));
+    this.groupToggle.checked = !this.grouping.enabled;
+    this.groupToggleState.textContent = t(this.grouping.enabled ? "Grouping.CopiesGrouped" : "Grouping.CopiesShown");
     if (!this.allowed()) { this.clearResults(t("Status.Unavailable")); return; }
+    if (this.indexFailed) { this.clearResults(t("Status.IndexFailed")); return; }
     if (this.indexing) { this.clearResults(t("Status.Indexing")); return; }
     const qi = globalThis.QuickInsert;
     if (!qi?.hasIndex) { this.clearResults(t("Status.Waiting")); return; }
     const query = this.input.value.trim();
     this.renderedQuery = this.input.value;
+    this.sortControls.update(this.filters.scheme, query);
     try {
       const environment = this.ensureFilterCatalog(qi, this.sourceEnvironment());
-      const filtered = this.filters.scheme !== "items" || activeFilters(this.filters).length > 0;
-      if (!query && !filtered) { this.clearResults(t("Status.Start")); return; }
       const accept = result => {
         if (!isSupportedResult(result)) return false;
         let data = this.filterCatalog.dataCache.get(result.item);
@@ -410,9 +472,11 @@ export class SlowInsertPanel {
       // Limit after grouping, never before: otherwise a group could hide matches
       // past the first 100 raw rows or choose a representative outside filters.
       const matches = qi.search(query, accept, Number.MAX_SAFE_INTEGER);
-      const { groups, rawCount } = groupSearchResults(matches, this.filterCatalog.grouping, {
+      const { groups: unsortedGroups, rawCount } = groupSearchResults(matches, this.filterCatalog.grouping, {
         preferences: this.grouping, accept, query, lang: environment.lang
       });
+      const groups = sortGroups(unsortedGroups, { profile: this.sorting.profiles[this.filters.scheme],
+        scheme: this.filters.scheme, query, environment, dataFor: item => this.filterCatalog.dataCache.get(item) });
       this.page = { groups, environment, rawCount, shown: Math.min(groups.length, previousCount || LIMIT),
         query, scheme: this.filters.scheme };
       this.renderGroups(groups.slice(0, this.page.shown), environment);
@@ -556,6 +620,12 @@ export class SlowInsertPanel {
     const subtitle = data?.monster ? t("Panel.MonsterCR", { cr: data.cr === null ? t("Unknown") : crLabel(data.cr) })
       : itemTypeLabel(item.subType, CONFIG[item.documentType]?.typeLabels, environment) || t("Panel.Item");
     const details = [subtitle];
+    const sortKeys = effectiveSort(this.sorting.profiles[this.filters.scheme], this.filters.scheme, this.input.value);
+    for (const key of sortKeys) {
+      if (key.field === "cr" && data?.monster) continue;
+      const value = sortValueLabel(key.field, item, data, environment);
+      if (value && !details.includes(value)) details.push(value);
+    }
     if (group.members.length > 1) {
       details.push(group.rules);
       if (!member) details.push(t(group.kind === "exact" ? "Grouping.Exact" : "Grouping.Family"));
@@ -670,6 +740,9 @@ export class SlowInsertPanel {
   }
 
   destroy() {
+    this.destroyed = true;
+    clearTimeout(this.initialIndexTimer);
+    clearTimeout(this.indexTimeout);
     clearTimeout(this.searchTimer);
     clearTimeout(this.catalogTimer);
     cancelAnimationFrame(this.positionFrame);

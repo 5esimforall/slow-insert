@@ -13,6 +13,21 @@ function button(className, text) {
   return el;
 }
 
+/** Shared presentation for the display options at the bottom of the drawer. */
+export function createFilterSwitch({ label, ariaLabel = label, hint }) {
+  const root = node("label", "si-filter-switch");
+  root.title = hint;
+  const title = node("span", "si-filter-switch-title", label);
+  const state = node("span", "si-filter-switch-state");
+  state.setAttribute("aria-hidden", "true");
+  const input = node("input", "");
+  input.type = "checkbox";
+  input.setAttribute("role", "switch");
+  input.setAttribute("aria-label", ariaLabel);
+  root.append(title, state, input);
+  return { root, input, state };
+}
+
 /** The 本书速查 interaction: scheme-specific checkbox groups with All/Clear. */
 export class FilterControls {
   constructor({ state, dnd5e, onChange }) {
@@ -52,7 +67,8 @@ export class FilterControls {
       this.onChange(this.state);
       this.toggle.focus();
     });
-    toolbar.append(this.toggle, this.reset);
+    this.toolbar = toolbar;
+    toolbar.append(this.toggle);
     this.active = node("div", "si-filter-active");
     this.active.setAttribute("aria-label", t("Filter.Active"));
     this.drawer = node("div", "si-filter-drawer");
@@ -62,22 +78,27 @@ export class FilterControls {
     this.drawer.setAttribute("aria-label", t("Filter.Region"));
     this.drawer.title = t("Filter.Help");
     this.body = node("div", "si-filter-groups");
-    const externalLabel = node("label", "si-external-toggle");
-    this.externalToggle = node("input", "");
-    this.externalToggle.type = "checkbox";
+    const external = createFilterSwitch({ label: t("Filter.ExternalTitle"),
+      ariaLabel: t("Filter.IncludeExternal"), hint: t("Filter.ExternalHelp") });
+    this.externalToggle = external.input;
+    this.externalState = external.state;
     this.externalToggle.addEventListener("change", () => {
       this.state = normalizeFilters({ ...this.state, includeExternal: this.externalToggle.checked });
       this.updateState();
       this.onChange(this.state);
     });
-    externalLabel.append(this.externalToggle, node("span", "", t("Filter.IncludeExternal")));
-    this.drawer.append(externalLabel, this.body);
+    this.displayOptions = node("div", "si-display-options");
+    this.displayOptions.append(external.root);
+    const resetRow = node("div", "si-filter-reset-row");
+    resetRow.append(this.reset);
+    this.drawer.append(resetRow, this.body, this.displayOptions);
     this.root.append(schemeRow, toolbar, this.active, this.drawer);
     this.renderGroups();
   }
 
   setExpanded(value, focus = false) {
     this.expanded = value;
+    this.onExpanded?.(value);
     this.drawer.hidden = !value;
     this.toggle.setAttribute("aria-expanded", String(value));
     this.updateState();
@@ -104,9 +125,9 @@ export class FilterControls {
       const group = GROUPS[id];
       const details = node("details", "si-filter-group");
       details.dataset.group = id;
-      // Sources can be long: start collapsed, but keep the user's choice when
-      // the current scheme's options are refreshed (e.g. after reindexing).
-      details.open = sameScheme && hadGroups ? opened.has(id) : id !== "source";
+      // Start source and property requirements collapsed; preserve disclosure
+      // choices when the current scheme's options are refreshed.
+      details.open = sameScheme && hadGroups ? opened.has(id) : !["source", "special", "mundane"].includes(id);
       details.append(node("summary", "", t(group.label)));
       if (group.range) {
         const row = node("div", "si-cr-range");
@@ -207,9 +228,11 @@ export class FilterControls {
   }
   updateState() {
     this.externalToggle.checked = this.state.includeExternal;
+    this.externalState.textContent = t(this.state.includeExternal ? "Filter.ExternalIncluded" : "Filter.ExternalHidden");
     const active = activeFilters(this.state);
     const toggleLabel = t(this.expanded ? "Filter.Hide" : "Filter.Show");
     this.toggle.textContent = active.length ? t("Filter.ToggleCount", { label: toggleLabel, count: active.length }) : toggleLabel;
+    if (active.length) this.toggle.textContent += ` · ${active.length}`;
     this.toggle.setAttribute("aria-label", this.toggle.textContent);
     this.reset.disabled = !active.length;
     this.active.hidden = !active.length;

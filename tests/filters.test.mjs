@@ -9,7 +9,7 @@ const state = (scheme, group, selected) => group ? setGroup(setScheme(normalizeF
 const match = (item, filters) => matchesFilters(filterItemData(item), filters);
 
 test("three schemes follow the local quick-reference group order", () => {
-  assert.deepEqual(SCHEMES.spells.groups, ["special", "mundane", "casting", "level", "school", "classes", "source"]);
+  assert.deepEqual(SCHEMES.spells.groups, ["casting", "level", "school", "classes", "source", "special", "mundane"]);
   assert.deepEqual(SCHEMES.magic.groups, ["rarity", "category", "attunement", "source"]);
   assert.deepEqual(SCHEMES.monsters.groups, ["cr", "legendary", "size", "creatureType", "source"]);
 });

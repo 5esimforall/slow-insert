@@ -49,3 +49,14 @@ test("system type translations take precedence and Foundry cn maps to Chinese co
   assert.equal(t("Filter.SelectedCount", { count: 3 }, language("cn")), "3 项");
   assert.equal(t("Filter.SelectedCount", { count: 3 }, language("en")), "3 selected");
 });
+
+test('property requirement groups use positive property names and appear last', () => {
+  assert.deepEqual(SCHEMES.spells.groups.slice(-2), ['special', 'mundane']);
+  assert.equal(dictionaries.cn['SLOWINSERT.Group.special'], '必须具备');
+  assert.equal(dictionaries.cn['SLOWINSERT.Group.mundane'], '必须不具备');
+  for (const dict of Object.values(dictionaries)) {
+    for (const {value} of GROUPS.special.options) {
+      assert.equal(dict[`SLOWINSERT.Option.special.${value}`], dict[`SLOWINSERT.Option.mundane.${value}`]);
+    }
+  }
+});
