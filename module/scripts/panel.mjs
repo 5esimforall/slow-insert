@@ -6,7 +6,7 @@ import { hasPriorityEscapeTarget } from "./escape.mjs";
 import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.1.1";
+export const MODULE_VERSION = "0.1.2";
 const LIMIT = 100;
 
 function element(tag, className, content) {

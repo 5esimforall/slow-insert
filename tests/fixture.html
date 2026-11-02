@@ -47,7 +47,7 @@
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
     system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.1.1" }]]),
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.1.2" }]]),
     packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
       register(id, key, config) { if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },

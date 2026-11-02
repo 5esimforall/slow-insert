@@ -96,14 +96,17 @@ export function buildGroupingCatalog(results,environment={},registry=GROUPING_RE
 function prioritizeMembers(entries,key,preferences,lang) {
   const pin=preferences.pins[key];
   const chinese=/^(cn|zh)/i.test(lang??"");
+  const automated=entry=>!entry.srd && entry.tags?.includes("automation")===true;
   const publisher=entry=>{
     const pack=entry.result.item.package || entry.uuid.match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1] || "";
     return /^(dnd-players-handbook|dnd-monster-manual|dnd-dungeon-masters-guide)\./.test(pack)?0:pack.startsWith("dnd5e.")?1:2;
   };
   // An explicit client pin wins; otherwise every non-SRD implementation ranks
-  // above SRD, regardless of publisher or language. Never remove a fallback.
+  // above SRD. Within non-SRD, audited automation markers outrank publisher
+  // and language. Dependency tags alone do not imply automation.
   return entries.slice().sort((a,b)=>Number(b.uuid===pin)-Number(a.uuid===pin)
     || Number(Boolean(a.srd))-Number(Boolean(b.srd))
+    || Number(automated(b))-Number(automated(a))
     || publisher(a)-publisher(b)
     || (chinese?Number(!/[\u3400-\u9fff]/.test(a.result.item.name))-Number(!/[\u3400-\u9fff]/.test(b.result.item.name)):0)
     || a.uuid.localeCompare(b.uuid));

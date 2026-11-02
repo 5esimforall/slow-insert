@@ -65,6 +65,47 @@ test("SRD detection uses source and pack metadata, not publisher IDs or license 
   const packs=new Map([["vendor.copy",{metadata:{flags:{dnd5e:{sourceBook:"SRD 5.2"}}}}]]);
   assert.equal(isSrdSource({package:"vendor.copy",system:{source:{book:"PHB"}}},{packs}),true);
 });
+test("audited non-SRD automation outranks publisher and language in default and expanded order",()=>{
+  const key="spell:2024:acid-splash",ids=GROUPING_REGISTRY.groups[key].members;
+  for(const lang of ["en","cn"]) {
+    const f=fixture(ids),group=groupSearchResults(f.results,f.catalog(),{lang}).groups[0];
+    assert.equal(group.representative.result.item.package,"chris-premades.CPRSpells2024");
+    assert.equal(group.members[0].uuid,group.representative.uuid);
+    assert.equal(group.members[1].result.item.package,"dnd-players-handbook.spells");
+    assert.equal(group.members.at(-1).result.item.package,"dnd5e.spells24");
+    assert.equal(group.members.length,ids.length);
+    assert.ok(group.members.find(e=>e.result.item.package==="aaatransfer.classes").tags.includes("dependency"));
+  }
+});
+test("manual ordinary or SRD preferences still outrank automation",()=>{
+  const key="spell:2024:acid-splash",f=fixture(GROUPING_REGISTRY.groups[key].members),catalog=f.catalog();
+  for(const pack of ["dnd-players-handbook.spells","dnd5e.spells24"]) {
+    const pin=f.results.find(r=>r.item.package===pack).item.uuid;
+    const preferences=normalizeGrouping({version:1,pins:{[key]:pin}});
+    const group=groupSearchResults(f.results,catalog,{preferences}).groups[0];
+    assert.equal(group.representative.uuid,pin);
+    assert.equal(group.members[0].uuid,pin);
+    assert.equal(group.pinned,true);
+  }
+});
+test("filtering automation out selects an eligible ordinary member without losing the saved pin",()=>{
+  const key="spell:2024:acid-splash",f=fixture(GROUPING_REGISTRY.groups[key].members),catalog=f.catalog();
+  const pin=f.results.find(r=>r.item.package==="chris-premades.CPRSpells2024").item.uuid;
+  const preferences=normalizeGrouping({version:1,pins:{[key]:pin}});
+  const group=groupSearchResults(f.results,catalog,{preferences,accept:r=>r.item.package!=="chris-premades.CPRSpells2024"}).groups[0];
+  assert.equal(group.representative.result.item.package,"dnd-players-handbook.spells");
+  assert.ok(group.members.every(e=>e.uuid!==pin));
+  assert.equal(preferences.pins[key],pin);
+});
+test("automation never promotes an SRD member above any non-SRD member",()=>{
+  const key="spell:2024:acid-splash",f=fixture(GROUPING_REGISTRY.groups[key].members),catalog=f.catalog();
+  // Simulate an audited automated implementation whose actual source is SRD.
+  catalog.groups.get(key).find(e=>e.tags.includes("automation")).srd=true;
+  const group=groupSearchResults(f.results,catalog).groups[0];
+  assert.equal(group.representative.result.item.package,"dnd-players-handbook.spells");
+  const firstSrd=group.members.findIndex(e=>e.srd);
+  assert.ok(group.members.slice(firstSrd).every(e=>e.srd));
+});
 test("translated aliases find a family while retaining only permitted index members",()=>{
   const f=fixture(forceIds),catalog=f.catalog();
   assert.equal(groupSearchResults([],catalog,{query:"力场监牢"}).rawCount,6);
