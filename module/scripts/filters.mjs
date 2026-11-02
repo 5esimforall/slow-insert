@@ -1,6 +1,7 @@
 import { t, currentLocale, localizeValue } from "./i18n.mjs";
 import { resolveSource } from "./source.mjs";
-import { lookupReference, referenceBook } from "./reference.mjs";
+import { lookupReference } from "./reference.mjs";
+import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const FILTER_INDEX_FIELDS = Object.freeze([
   "system.level", "system.school", "system.activation.type", "system.properties", "system.identifier",
@@ -51,10 +52,12 @@ export function parseCR(value) {
 
 /** v0.0.2 tri-state selections are deliberately reset instead of silently reinterpreted. */
 export function normalizeFilters(value) {
-  const saved = value?.version === 3 ? value : {};
+  const saved = [3, 4].includes(value?.version) ? value : {};
   const profiles = Object.fromEntries(Object.entries(SCHEMES).map(([scheme, { groups }]) => [scheme,
     Object.fromEntries(groups.map(id => {
-      const current = own(saved.profiles?.[scheme], id);
+      // v4 source keys identify publications/review states, not raw strings or
+      // packs. Reset only that facet; every other v3 selection survives.
+      const current = id === "source" && saved.version !== 4 ? null : own(saved.profiles?.[scheme], id);
       if (GROUPS[id].range) {
         let min = parseCR(current?.min), max = parseCR(current?.max);
         if (min !== null) min = Math.min(30, min);
@@ -67,7 +70,7 @@ export function normalizeFilters(value) {
       return [id, GROUPS[id].optional ? list(current) : Array.isArray(current) ? list(current) : null];
     }))
   ]));
-  return { version: 3, scheme: Object.hasOwn(SCHEMES, saved.scheme) ? saved.scheme : "items", profiles };
+  return { version: 4, scheme: Object.hasOwn(SCHEMES, saved.scheme) ? saved.scheme : "items", profiles };
 }
 export function setScheme(state, scheme) {
   const next = normalizeFilters(state);
@@ -109,8 +112,7 @@ function magicCategory(item, reference) {
 
 export function filterItemData(item, environment = {}) {
   const source = resolveSource(item, environment);
-  const packId = item.package || item.uuid?.match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1];
-  const sourceKey = source.kind === "book" ? `book:${referenceBook(source.label)}` : `pack:${packId || "world"}`;
+  const sourceKey = source.keys[0];
   const system = item.system ?? {};
   const isItem = item.documentType === "Item";
   const spell = isItem && item.subType === "spell";
@@ -139,7 +141,7 @@ export function filterItemData(item, environment = {}) {
     source, sourceKey, cr: monster ? parseCR(system.details?.cr) : null,
     referenceMatched: Boolean(reference),
     values: {
-      source: [sourceKey], type: [text(item.subType) || "unknown"],
+      source: source.keys, type: [text(item.subType) || "unknown"],
       special: spell ? Object.keys(flags).filter(key => flags[key] === true) : [],
       mundane: spell ? Object.keys(flags).filter(key => flags[key] === false) : [],
       level: [level !== null && Number.isInteger(level) && level >= 0 && level <= 9 ? String(level) : "unknown"],
@@ -171,14 +173,15 @@ export function matchesFilters(data, state) {
 
 /** Options are scheme-specific and use the entire permission-filtered index. */
 export function buildFilterOptions(results, environment = {}, config = {}) {
+  environment = prepareSourceEnvironment(environment);
   const options = Object.fromEntries(Object.entries(SCHEMES).map(([scheme, { groups }]) => [scheme,
     Object.fromEntries(groups.filter(id => !GROUPS[id].range).map(id => [id,
       new Map((GROUPS[id].options ?? []).map(option => [option.value, { ...option, label: t(option.label, option.data, environment), title: t(option.label, option.data, environment), count: 0 }]))]))]));
   const dataCache = new WeakMap();
-  const add = (scheme, id, value, label, title = label) => {
+  const add = (scheme, id, value, label, title = label, section, searchText) => {
     const option = options[scheme][id].get(value);
     if (option) option.count++;
-    else options[scheme][id].set(value, { value, label, title, count: 1 });
+    else options[scheme][id].set(value, { value, label, title, section, searchText, count: 1 });
   };
   for (const result of results) {
     if (!isSupportedResult(result)) continue;
@@ -190,8 +193,10 @@ export function buildFilterOptions(results, environment = {}, config = {}) {
       for (const id of groups) {
         if (GROUPS[id].range) continue;
         for (const value of data.values[id]) {
-          if (id === "source") add(scheme, id, value, data.source.label,
-            data.source.kind === "book" ? data.source.label : t("Source.FilterHint", { label: data.source.label, pack: value.slice(5), unknown: t("Source.Unknown", {}, environment) }, environment));
+          if (id === "source") {
+            const option = data.source.options.find(option => option.value === value);
+            add(scheme, id, value, option.label, option.title, option.section, option.searchText);
+          }
           else if (id === "type") add(scheme, id, value, itemTypeLabel(value, config.typeLabels, environment));
           else add(scheme, id, value, options[scheme][id].get(value)?.label || value);
         }
@@ -200,7 +205,8 @@ export function buildFilterOptions(results, environment = {}, config = {}) {
   }
   for (const groups of Object.values(options)) for (const [id, values] of Object.entries(groups)) {
     groups[id] = [...values.values()];
-    if (!GROUPS[id].options) groups[id].sort((a, b) => a.label.localeCompare(b.label, currentLocale(environment), { numeric: true }));
+    if (!GROUPS[id].options) groups[id].sort((a, b) => (Number(a.section === "review") - Number(b.section === "review"))
+      || a.label.localeCompare(b.label, currentLocale(environment), { numeric: true }));
   }
   return { options, dataCache };
 }

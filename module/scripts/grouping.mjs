@@ -1,4 +1,5 @@
 import { GROUPING_REGISTRY } from "../data/grouping-registry.mjs";
+import { identifySource, prepareSourceEnvironment } from "./source-resolution.mjs";
 
 // Small index fields only. No descriptions, activities, effects or full-document reads.
 export const GROUP_INDEX_FIELDS = Object.freeze(["_stats.modifiedTime", "system.source.revision"]);
@@ -19,22 +20,9 @@ export function normalizeGrouping(value) {
   const split=Array.isArray(saved.split)?[...new Set(saved.split.filter(key=>typeof key==="string"&&key.length<300))].slice(0,2000):[];
   return {version:1,enabled:saved.enabled!==false,pins,split};
 }
-function bookEdition(value) {
-  const name=text(value).toLowerCase();
-  if (/(phb|dmg|mm)[\s'’]*(?:20)?(?:24|25)\b|\bx(?:phb|dmg|mm)\b|srd\s*5\.2/.test(name))return "2024";
-  if (/(phb|dmg|mm)[\s'’]*(?:20)?14\b|srd\s*5\.1/.test(name))return "2014";
-  return null;
-}
 export function editionEvidence(item, environment={}) {
-  const packId=item.package || canonicalUuid(item).match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1];
-  const pack=environment.packs?.get(packId);
-  const pkg=pack?.metadata?.packageType==="system"?environment.system:environment.modules?.get(pack?.metadata?.packageName);
-  const books=Object.keys(pkg?.flags?.dnd5e?.sourceBooks??{});
-  const source=item.system?.source ?? item.system?.details?.source ?? {};
-  const rules=text(source.rules);
-  const years=new Set([...["2014","2024"].includes(rules)?[rules]:[],
-    ...[source.book,source.custom,pack?.metadata?.flags?.dnd5e?.sourceBook,books.length===1?books[0]:null].map(bookEdition).filter(Boolean)]);
-  return {rules:years.size===1?[...years][0]:null,conflict:years.size>1};
+  const source=identifySource(item,environment);
+  return {rules:source.rules,conflict:source.status==="edition-conflict"};
 }
 export function isSrdSource(item, environment={}) {
   const packId=item.package || canonicalUuid(item).match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1];
@@ -75,12 +63,13 @@ function currentMember(item,record,environment) {
  * loads full documents, runs migrations, mutates indexes or invents a new UUID.
  */
 export function buildGroupingCatalog(results,environment={},registry=GROUPING_REGISTRY) {
+  environment=prepareSourceEnvironment(environment);
   const entries=new Map(),groups=new Map();
   for(const result of results) {
     const item=result.item,uuid=canonicalUuid(item);
     if(entries.has(uuid))continue;
     const member=registry.members[uuid],edition=editionEvidence(item,environment);
-    let warning=edition.conflict?"edition":registry.review[uuid]??null;
+    let warning=edition.conflict?"edition":identifySource(item,environment).status==="source-conflict"?"source":registry.review[uuid]??null;
     let key=null;
     if(member&&!warning) {
       warning=currentMember(item,member,environment);

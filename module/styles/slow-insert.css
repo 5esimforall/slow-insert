@@ -211,6 +211,11 @@
   text-overflow: ellipsis;
 }
 #slow-insert-panel .si-source--fallback { color: var(--si-muted); border-color: var(--si-line); background: transparent; font-weight: 400; }
+#slow-insert-panel .si-source--conflict { color: #edc38c; border-color: #edc38c55; background: #edc38c09; }
+#slow-insert-panel .si-source-section { flex: 0 0 100%; padding: 5px 0 2px; color: var(--si-muted); font-size: 10px; font-weight: 600; }
+#slow-insert-panel .si-source-section[data-section="review"] { margin-top: 5px; color: #edc38c; }
+#slow-insert-panel .si-source-section[hidden] { display: none; }
+#slow-insert-panel .si-filter-choice[data-source-status="review"] { border-style: dashed; }
 #slow-insert-panel .si-footer { padding: 11px 12px; color: var(--si-muted); border-top: 1px solid var(--si-line); font-size: 10px; line-height: 1.4; }
 #slow-insert-panel .si-resize { position: absolute; top: 8px; bottom: 8px; left: -4px; width: 8px; cursor: ew-resize; touch-action: none; border-radius: 4px; }
 #slow-insert-panel .si-resize:hover, #slow-insert-panel .si-resize:focus-visible { background: #a7d6c566; }

@@ -34,8 +34,8 @@ const env = {
 };
 const item = { uuid: "Compendium.test-module.spells.Item.abc", documentType: "Item", package: "test-module.spells" };
 
-test("item source takes precedence over module metadata", () => {
-  const result = resolveSource({ ...item, system: { source: { book: "PHB", rules: "2014", page: "241" } } }, env);
+test("explicit item edition takes precedence over container metadata", () => {
+  const result = resolveSource({ ...item, system: { source: { book: "PHB 2014", rules: "2014", page: "241" } } }, env);
   assert.equal(result.label, "PHB'14");
   assert.equal(result.kind, "book");
   assert.match(result.title, /p\. 241/);
@@ -43,7 +43,7 @@ test("item source takes precedence over module metadata", () => {
 });
 
 test("custom and legacy source strings are supported", () => {
-  assert.equal(resolveSource({ ...item, system: { source: { book: "PHB", custom: "My setting" } } }, env).label, "My setting");
+  assert.match(resolveSource({ ...item, system: { source: { book: "PHB", custom: "My setting" } } }, env).title, /My setting/);
   assert.equal(resolveSource({ ...item, system: { source: "PHB 2014" } }, env).label, "PHB'14");
 });
 
@@ -60,20 +60,23 @@ test("pack sourcebook wins over module sourcebook", () => {
 test("a module with multiple books is ambiguous, not arbitrarily assigned", () => {
   const modules = new Map([["test-module", { flags: { dnd5e: { sourceBooks: { PHB: "PHB", DMG: "DMG" } } } }]]);
   const result = resolveSource(item, { ...env, modules });
-  assert.equal(result.label, "Spells");
+  assert.equal(result.label, "Sourcebook unknown");
+  assert.match(result.title, /Spells/);
   assert.equal(result.kind, "fallback");
   assert.match(result.title, /Sourcebook unknown/);
 });
 
 test("missing data is not mislabeled as homebrew or a particular edition", () => {
-  assert.equal(resolveSource({ uuid: "Item.abc" }).label, "World entry");
-  assert.equal(resolveSource({ uuid: "Compendium.unknown.spells.Item.abc" }).label, "Compendium");
+  assert.equal(resolveSource({ uuid: "Item.abc" }).label, "Sourcebook unknown");
+  assert.equal(resolveSource({ uuid: "Compendium.unknown.spells.Item.abc" }).label, "Sourcebook unknown");
   assert.equal(resolveSource({ ...item, system: { source: { rules: "2024" } } }).kind, "fallback");
 });
 
 test("source data stays text, never trusted HTML", () => {
   const book = '<img src=x onerror="alert(1)">';
-  assert.equal(resolveSource({ system: { source: { book } } }).label, book);
+  const result = resolveSource({ system: { source: { book } } });
+  assert.equal(result.label, "Sourcebook unknown");
+  assert.ok(result.title.includes(book));
 });
 
 test("index requests include only the small source metadata fields", () => {
@@ -102,7 +105,8 @@ test("narrow-screen fallback and width limits stay inside the viewport", () => {
 
 test("external integration handles are not mislabeled as world documents", () => {
   const result = resolveSource({ uuid: "@spell[forcecage|xphb|Forcecage]", source: "xphb" });
-  assert.equal(result.kind, "external");
+  assert.equal(result.origin, "external");
+  assert.equal(result.kind, "book");
   assert.match(result.label, /PHB'24/);
 });
 

@@ -1,14 +1,11 @@
 import { QUICK_REFERENCE } from "../data/quick-reference.mjs";
+import { DEFAULT_PUBLICATION_CATALOG } from "./publications.mjs";
 
 export const normalizeName = value => typeof value === "string"
   ? value.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "") : "";
-const BOOK_ALIASES = new Map([
-  ["tcoe", "tce"], ["xgte", "xge"], ["ftod", "ftd"], ["ggtr", "ggr"], ["egtw", "egw"],
-  ["scoc", "scc"], ["motm", "mpmm"], ["mmom", "mpmm"], ["xphb", "phb24"], ["xdmg", "dmg24"], ["xmm", "mm25"]
-]);
 export function referenceBook(value) {
-  const key = normalizeName(value).replace(/(phb|dmg|mm)20(14|24|25)$/, "$1$2");
-  return BOOK_ALIASES.get(key) || key;
+  const books = DEFAULT_PUBLICATION_CATALOG.lookup(value);
+  return books.length === 1 ? books[0].id : normalizeName(value);
 }
 
 /** Exact factual lookup only: no fuzzy joins, no cross-edition guesses. */
@@ -23,12 +20,15 @@ export function makeReferenceLookup(records = QUICK_REFERENCE) {
     }
   }
   return (item, source) => {
-    if (source.kind !== "book") return null;
+    if (source.status && source.status !== "confirmed") return null;
+    if (!source.referenceIds?.length && source.kind !== "book") return null;
     const kind = item.subType === "spell" ? "spell" : "magic";
     const candidates = new Map();
     for (const name of [item.name, item.system?.identifier]) {
-      const key = `${kind}:${referenceBook(source.label)}:${normalizeName(name)}`;
-      for (const [signature, record] of index.get(key) ?? []) candidates.set(signature, record);
+      for (const book of source.referenceIds ?? [referenceBook(source.label)]) {
+        const key = `${kind}:${book}:${normalizeName(name)}`;
+        for (const [signature, record] of index.get(key) ?? []) candidates.set(signature, record);
+      }
     }
     return candidates.size === 1 ? candidates.values().next().value : null;
   };

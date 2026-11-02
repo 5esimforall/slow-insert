@@ -150,14 +150,15 @@ test("catalogs use the full permitted index and keep source lists scheme-specifi
   assert.ok(options.spells.source.some(x => x.value === "book:tce"));
   assert.ok(!options.spells.source.some(x => x.value === "book:mm25"));
   assert.ok(options.monsters.source.some(x => x.value === "book:mm25"));
-  assert.equal(options.spells.source.find(x => x.value === "pack:a.spells").count, 120);
+  assert.equal(options.spells.source.find(x => x.value === "review:unknown").count, 120);
   assert.equal(dataCache.get(npc).monster, true);
 });
 test("untrusted names and type labels remain text, never prototype properties", () => {
   const item = spell({ source: { book: '<img onerror="bad()">' } }, { subType: "constructor" });
   const { options } = buildFilterOptions([{ item }]);
   assert.equal(options.items.type[0].label, "constructor");
-  assert.equal(options.items.source[0].label, '<img onerror="bad()">');
+  assert.equal(options.items.source[0].value, "review:unknown");
+  assert.ok(filterItemData(item).source.raw.some(entry => entry.value === '<img onerror="bad()">'));
 });
 test("index extensions are metadata only and include NPC fields", () => {
   assert.ok(FILTER_INDEX_FIELDS.includes("system.materials.cost"));

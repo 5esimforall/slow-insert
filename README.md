@@ -68,3 +68,10 @@ node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
 
 归并专用浏览器夹具：`http://127.0.0.1:4178/tests/fixture.html?grouping=1&lang=cn`。
 运行时注册表由 `node tools/build-grouping-registry.mjs` 生成，只含身份、别名和校验元数据，不含规则正文。
+
+
+## v0.2.0 规范来源书目
+
+书目数据、引用／版次判定和 UI 分层；复用系统／模块声明并支持可选导入器字典与声明式扩展。页码只保留在提示，模块／实现版本不再进入书目；冲突和未知单列，不改原始文档。只迁移来源筛选，其余偏好保留。
+
+完整扩展契约与元数据判定边界见模块说明。只读重放已有审计：`node tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classification-v0.2.0`。

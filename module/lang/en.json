@@ -196,5 +196,22 @@
   "SLOWINSERT.Grouping.Review.unverified": "Audit stamp unavailable · kept separate",
   "SLOWINSERT.Grouping.ReviewHint": "This entry is not auto-grouped. Reindex if fields are missing; changed packages or documents require a new audit. No data is repaired automatically.",
   "SLOWINSERT.Source.External": "External · {book}",
-  "SLOWINSERT.Source.ExternalHint": "External integration entry, not a world document. Kept separate from audited compendium groups."
+  "SLOWINSERT.Source.ExternalHint": "External integration entry, not a world document. Kept separate from audited compendium groups.",
+  "SLOWINSERT.Source.EditionUnknown": "{book} · edition unconfirmed",
+  "SLOWINSERT.Source.Ambiguous": "Source identity ambiguous",
+  "SLOWINSERT.Source.EditionConflict": "Conflicting editions",
+  "SLOWINSERT.Source.EditionConflictHint": "Source citations and rules metadata disagree; not assigned to either edition.",
+  "SLOWINSERT.Source.SourceConflict": "Conflicting source books",
+  "SLOWINSERT.Source.SourceConflictHint": "Structured and custom source fields name different publications; no source is silently preferred.",
+  "SLOWINSERT.Source.UnknownHint": "No publication could be confirmed. Original source and provider remain in the item tooltip.",
+  "SLOWINSERT.Source.Partial": "Partially unresolved source",
+  "SLOWINSERT.Source.PartialHint": "Some citations were recognized; other source text remains unresolved.",
+  "SLOWINSERT.Source.RulesEvidence": "Edition determined from the item’s rules metadata, not the page number.",
+  "SLOWINSERT.Source.Original": "Original source: {value}",
+  "SLOWINSERT.Source.Location": "Compendium: {location}",
+  "SLOWINSERT.Source.Provider": "Provider: {name}",
+  "SLOWINSERT.Source.FilterHelp": "Publication identities only. Pages, module names and implementation versions remain in item tooltips; unresolved sources are listed separately.",
+  "SLOWINSERT.Source.BooksSection": "Books & publications",
+  "SLOWINSERT.Source.ReviewSection": "Needs verification",
+  "SLOWINSERT.Grouping.Review.source": "Source evidence conflict"
 }

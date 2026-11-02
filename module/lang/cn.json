@@ -196,5 +196,22 @@
   "SLOWINSERT.Grouping.Review.unverified": "缺少审计校验信息 · 保持独立",
   "SLOWINSERT.Grouping.ReviewHint": "此条目不自动归并。缺少索引字段时可重建索引；包版本或文档变化后需重新审计，不会自动修复数据。",
   "SLOWINSERT.Source.External": "外部 · {book}",
-  "SLOWINSERT.Source.ExternalHint": "集成模块提供的外部检索条目，不是世界文档；与已审计的合集条目保持独立。"
+  "SLOWINSERT.Source.ExternalHint": "集成模块提供的外部检索条目，不是世界文档；与已审计的合集条目保持独立。",
+  "SLOWINSERT.Source.EditionUnknown": "{book} · 版次待确认",
+  "SLOWINSERT.Source.Ambiguous": "书目身份待确认",
+  "SLOWINSERT.Source.EditionConflict": "版本证据冲突",
+  "SLOWINSERT.Source.EditionConflictHint": "来源引用与规则版本证据不一致；不归入任一确定版本。",
+  "SLOWINSERT.Source.SourceConflict": "书目证据冲突",
+  "SLOWINSERT.Source.SourceConflictHint": "结构化来源与自定义来源指向不同出版物；不擅自选择其中一个。",
+  "SLOWINSERT.Source.UnknownHint": "无法确认具体出版物；原始来源与提供方保留在条目提示中。",
+  "SLOWINSERT.Source.Partial": "部分来源待确认",
+  "SLOWINSERT.Source.PartialHint": "部分引用已识别，其他来源文本仍待确认。",
+  "SLOWINSERT.Source.RulesEvidence": "版次依据条目规则元数据判断，不由页码推断。",
+  "SLOWINSERT.Source.Original": "原始来源：{value}",
+  "SLOWINSERT.Source.Location": "合集：{location}",
+  "SLOWINSERT.Source.Provider": "提供方：{name}",
+  "SLOWINSERT.Source.FilterHelp": "仅列出版物。页码、模块名和实现版本保留在条目提示；无法确认的来源单列。",
+  "SLOWINSERT.Source.BooksSection": "规则书与出版物",
+  "SLOWINSERT.Source.ReviewSection": "待确认",
+  "SLOWINSERT.Grouping.Review.source": "书目证据冲突"
 }

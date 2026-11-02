@@ -49,6 +49,8 @@ Hooks.once("ready", () => {
   panel = new SlowInsertPanel();
   panel.mount();
   game.modules.get(MODULE_ID).api = Object.freeze({
-    open: () => panel.open(), close: () => panel.close(), toggle: () => panel.toggle()
+    open: () => panel.open(), close: () => panel.close(), toggle: () => panel.toggle(),
+    registerPublications: (providerId, records) => panel.registerPublications(providerId, records),
+    unregisterPublications: providerId => panel.unregisterPublications(providerId)
   });
 });

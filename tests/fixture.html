@@ -47,7 +47,7 @@
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
     system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.1.3" }]]),
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.2.0" }]]),
     packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
       register(id, key, config) { if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
@@ -120,6 +120,27 @@
       async show() { fixtureState.opened.push(this.name); } });
   }
   items.push({ name: "Player character", uuid: "Actor.pc", documentType: "Actor", subType: "character", system: {} });
+  if (new URL(location.href).searchParams.has("sources")) {
+    const examples = [
+      ["Source test — PHB page 153", { book: "PHB", custom: "PHB pg. 153", rules: "2014" }],
+      ["Source test — PHB page 150", { book: "PHB", custom: "PHB pg. 150", rules: "2014" }],
+      ["Source test — PHB revised", { book: "PHB 2024", page: "232", rules: "2024" }],
+      ["Source test — edition conflict", { book: "PHB 2014", rules: "2024", page: "153" }],
+      ["Source test — edition unknown", { custom: "PHB pg. 153" }],
+      ["Source test — module version", { custom: "2.1.38", rules: "2024" }],
+      ["Source test — Tasha long title", { custom: "Tasha’s Cauldron of Everything pg 108" }],
+      ["Source test — TCE abbreviation", { book: "TCE" }],
+      ["Source test — multi source", { custom: "VGM/MPMM" }],
+      ["Source test — addon publication", { custom: "My Test Almanac" }]
+    ];
+    examples.forEach(([name, source], i) => items.push({ name, uuid: `Item.source${i}`, documentType: "Item", subType: "equipment", img: icon,
+      system: { source }, async show() { document.querySelector("#opened").textContent = `Opened UUID: ${this.uuid}`; } }));
+    for (const source of ["phb", "xphb"]) items.push({ name: `Source test — external ${source}`, uuid: `@spell[external|${source}]`, documentType: "Item", subType: "spell", source, img: icon,
+      async show() { document.querySelector("#opened").textContent = `Opened UUID: ${this.uuid}`; } });
+    const provider = document.createElement("button"); provider.textContent = "Register test publication";
+    provider.onclick = () => game.modules.get("slow-insert").api.registerPublications("fixture", [{ id: "my-almanac", label: "MTA", title: "My Test Almanac" }]);
+    document.querySelector("main").append(provider);
+  }
   if (new URL(location.href).searchParams.has("grouping")) {
     const { GROUPING_REGISTRY } = await import("/module/data/grouping-registry.mjs");
     const exact = Object.entries(GROUPING_REGISTRY.groups).find(([,g]) => g.kind === "exact")[0];

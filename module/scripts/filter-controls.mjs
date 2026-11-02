@@ -144,12 +144,21 @@ export class FilterControls {
           this.sourceSearch.value = query;
           this.sourceSearch.addEventListener("input", () => this.filterSources());
           details.append(this.sourceSearch);
+          details.append(node("p", "si-filter-help", t("Source.FilterHelp")));
         }
         if (id === "classes") details.append(node("p", "si-filter-help", t("Filter.ClassesHelp")));
         const choices = node("div", "si-filter-options");
+        let sourceSection;
         for (const option of this.options[this.state.scheme][id] ?? []) {
+          if (id === "source" && option.section !== sourceSection) {
+            sourceSection = option.section;
+            const heading = node("div", "si-source-section", t(sourceSection === "review" ? "Source.ReviewSection" : "Source.BooksSection"));
+            heading.dataset.section = sourceSection;
+            choices.append(heading);
+          }
           const label = node("label", "si-filter-choice");
           label.title = t("Filter.OptionHint", { title: option.title, count: option.count });
+          if (id === "source") label.dataset.sourceStatus = option.section;
           const input = node("input", "");
           input.type = "checkbox";
           input.setAttribute("aria-label", t("Filter.OptionLabel", { group: t(group.label), option: option.label }));
@@ -176,7 +185,10 @@ export class FilterControls {
   filterSources() {
     const query = this.sourceSearch?.value.trim().toLocaleLowerCase() || "";
     for (const { id, option, label } of this.checks ?? []) {
-      if (id === "source") label.hidden = !`${option.label} ${option.title}`.toLocaleLowerCase().includes(query);
+      if (id === "source") label.hidden = !`${option.label} ${option.title} ${option.searchText || ""}`.toLocaleLowerCase().includes(query);
+    }
+    for (const heading of this.body.querySelectorAll(".si-source-section")) {
+      heading.hidden = !this.checks.some(({ id, option, label }) => id === "source" && option.section === heading.dataset.section && !label.hidden);
     }
   }
   changeGroup(id, selected) {

@@ -4,9 +4,10 @@ import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, activeFilters, buil
 import { FilterControls } from "./filter-controls.mjs";
 import { hasPriorityEscapeTarget } from "./escape.mjs";
 import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
+import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.1.3";
+export const MODULE_VERSION = "0.2.0";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -39,6 +40,7 @@ export class SlowInsertPanel {
     this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, "grouping"));
     this.expandedGroups = new Set();
     this.rowElements = [];
+    this.publicationProviders = new Map();
     this.dnd5e = game.system.id === "dnd5e";
     if (!this.dnd5e) this.filters = setScheme(this.filters, "items");
   }
@@ -296,21 +298,51 @@ export class SlowInsertPanel {
   sourceEnvironment() {
     return {
       packs: game.packs, modules: game.modules, system: game.system, world: game.world,
-      localize: key => game.i18n.localize(key), lang: game.i18n.lang
+      localize: key => game.i18n.localize(key), lang: game.i18n.lang,
+      sourceBooks: CONFIG.DND5E?.sourceBooks,
+      publications: this.dnd5e ? undefined : [],
+      publicationProviders: this.publicationProviders,
+      // Optional importer metadata adapter. No required dependency, method calls,
+      // private index access or full-document reads.
+      externalPublications: {
+        titles: globalThis.Parser?.SOURCE_JSON_TO_FULL,
+        abbreviations: globalThis.Parser?.SOURCE_JSON_TO_ABV,
+        dates: globalThis.Parser?.SOURCE_JSON_TO_DATE
+      }
     };
+  }
+
+  registerPublications(providerId, records) {
+    if (typeof providerId !== "string" || !providerId.trim() || !Array.isArray(records)) throw new TypeError("Expected a provider id and publication records");
+    const registered = structuredClone(records);
+    this.publicationProviders.set(providerId, registered);
+    this.filterCatalog = null;
+    if (this.visible) this.refresh();
+    return () => this.publicationProviders.get(providerId) === registered && this.unregisterPublications(providerId);
+  }
+
+  unregisterPublications(providerId) {
+    const removed = this.publicationProviders.delete(providerId);
+    if (removed) {
+      this.filterCatalog = null;
+      if (this.visible) this.refresh();
+    }
+    return removed;
   }
 
   ensureFilterCatalog(qi, environment) {
     const index = qi.searchLib?.index;
-    if (this.filterCatalog && this.filterCatalog.index === index) return;
+    if (this.filterCatalog && this.filterCatalog.index === index) return this.filterCatalog.environment;
+    environment = prepareSourceEnvironment(environment);
     const allResults = qi.search("", isSupportedResult, Number.MAX_SAFE_INTEGER);
     const { options, dataCache } = buildFilterOptions(allResults, environment, {
       typeLabels: CONFIG.Item.typeLabels,
       spellSchools: CONFIG.DND5E?.spellSchools,
       activationTypes: CONFIG.DND5E?.abilityActivationTypes
     });
-    this.filterCatalog = { index, dataCache, grouping: buildGroupingCatalog(allResults, environment) };
+    this.filterCatalog = { index, dataCache, environment, grouping: buildGroupingCatalog(allResults, environment) };
     this.filterControls.setOptions(options);
+    return environment;
   }
 
   refresh() {
@@ -324,8 +356,7 @@ export class SlowInsertPanel {
     const query = this.input.value.trim();
     this.renderedQuery = this.input.value;
     try {
-      const environment = this.sourceEnvironment();
-      this.ensureFilterCatalog(qi, environment);
+      const environment = this.ensureFilterCatalog(qi, this.sourceEnvironment());
       const filtered = this.filters.scheme !== "items" || activeFilters(this.filters).length > 0;
       if (!query && !filtered) { this.clearResults(t("Status.Start")); return; }
       const accept = result => {
@@ -468,7 +499,8 @@ export class SlowInsertPanel {
       warning.title = t("Grouping.ReviewHint");
       label.append(warning);
     }
-    const badge = element("span", `si-source si-source--${source.kind}`, source.label);
+    const badge = element("span", `si-source si-source--${source.kind}${source.external ? " si-source--external" : ""}`, source.label);
+    badge.dataset.sourceStatus = source.status;
     badge.title = group.members.length > 1 && !member ? t("Grouping.DefaultSource", { source: source.title }) : source.title;
     row.append(image, label, badge);
     this.rowElements.push(row);
