@@ -36,6 +36,18 @@ export function editionEvidence(item, environment={}) {
     ...[source.book,source.custom,pack?.metadata?.flags?.dnd5e?.sourceBook,books.length===1?books[0]:null].map(bookEdition).filter(Boolean)]);
   return {rules:years.size===1?[...years][0]:null,conflict:years.size>1};
 }
+export function isSrdSource(item, environment={}) {
+  const packId=item.package || canonicalUuid(item).match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1];
+  const pack=environment.packs?.get(packId);
+  const pkg=pack?.metadata?.packageType==="system"?environment.system:environment.modules?.get(pack?.metadata?.packageName);
+  const books=Object.keys(pkg?.flags?.dnd5e?.sourceBooks??{});
+  const source=item.system?.source ?? item.system?.details?.source;
+  // Identify the actual source, not all content shipped by a publisher. A
+  // third-party SRD copy is still SRD; an SRD license flag alone is not a source.
+  return [source,source?.book,source?.custom,pack?.metadata?.flags?.dnd5e?.sourceBook,
+    books.length===1?books[0]:null,pack?.title,pack?.metadata?.label,item.packageName]
+    .some(value=>/\bsrd(?:\b|\d)|\bsystem reference document\b/i.test(text(value)));
+}
 const normalName = value => text(value).normalize("NFKC").toLowerCase().replace(/[\s()（）]/g,"");
 function nameMatches(name, names) {
   const normalized=normalName(name);
@@ -74,24 +86,27 @@ export function buildGroupingCatalog(results,environment={},registry=GROUPING_RE
       warning=currentMember(item,member,environment);
       if(!warning&&registry.groups[member.group])key=member.group;
     }
-    const entry={result,uuid,key,warning,rules:edition.rules,tags:member?.tags??[],names:member&&!warning?member.names:[],
+    const entry={result,uuid,key,warning,rules:edition.rules,srd:isSrdSource(item,environment),tags:member?.tags??[],names:member&&!warning?member.names:[],
       kind:key?registry.groups[key].kind:null};
     entries.set(uuid,entry);
     if(key) {if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);}
   }
   return {entries,groups};
 }
-function representative(entries,key,preferences,lang) {
+function prioritizeMembers(entries,key,preferences,lang) {
   const pin=preferences.pins[key];
-  const pinned=entries.find(entry=>entry.uuid===pin);if(pinned)return pinned;
   const chinese=/^(cn|zh)/i.test(lang??"");
   const publisher=entry=>{
     const pack=entry.result.item.package || entry.uuid.match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1] || "";
     return /^(dnd-players-handbook|dnd-monster-manual|dnd-dungeon-masters-guide)\./.test(pack)?0:pack.startsWith("dnd5e.")?1:2;
   };
-  return entries.slice().sort((a,b)=>publisher(a)-publisher(b)
+  // An explicit client pin wins; otherwise every non-SRD implementation ranks
+  // above SRD, regardless of publisher or language. Never remove a fallback.
+  return entries.slice().sort((a,b)=>Number(b.uuid===pin)-Number(a.uuid===pin)
+    || Number(Boolean(a.srd))-Number(Boolean(b.srd))
+    || publisher(a)-publisher(b)
     || (chinese?Number(!/[\u3400-\u9fff]/.test(a.result.item.name))-Number(!/[\u3400-\u9fff]/.test(b.result.item.name)):0)
-    || a.uuid.localeCompare(b.uuid))[0];
+    || a.uuid.localeCompare(b.uuid));
 }
 export function groupSearchResults(matches,catalog,{preferences=normalizeGrouping(),accept=()=>true,query="",lang="en"}={}) {
   const seeds=[],seen=new Set();
@@ -108,8 +123,9 @@ export function groupSearchResults(matches,catalog,{preferences=normalizeGroupin
     const grouped=preferences.enabled&&entry.key&&!split.has(entry.key);
     const key=grouped?entry.key:entry.uuid;
     if(emitted.has(key))continue;emitted.add(key);
-    const members=grouped?(catalog.groups.get(entry.key)??[entry]).filter(e=>accept(e.result)):[entry];
-    const preferred=representative(members,key,preferences,lang);
+    const eligible=grouped?(catalog.groups.get(entry.key)??[entry]).filter(e=>accept(e.result)):[entry];
+    const members=prioritizeMembers(eligible,key,preferences,lang);
+    const preferred=members[0];
     output.push({key,kind:members.length>1?entry.kind:null,rules:entry.rules,members,representative:preferred,
       warning:entry.warning,splitKey:entry.key,pinned:preferences.pins[key]===preferred.uuid});
   }

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { GROUPING_REGISTRY } from "../module/data/grouping-registry.mjs";
-import { buildGroupingCatalog, groupSearchResults, normalizeGrouping, canonicalUuid, editionEvidence, GROUP_INDEX_FIELDS } from "../module/scripts/grouping.mjs";
+import { buildGroupingCatalog, groupSearchResults, normalizeGrouping, canonicalUuid, editionEvidence, isSrdSource, GROUP_INDEX_FIELDS } from "../module/scripts/grouping.mjs";
 
 function fixture(uuids=Object.keys(GROUPING_REGISTRY.members)) {
   const environment={system:{id:"dnd5e"},modules:new Map(),packs:new Map()};
@@ -10,6 +10,7 @@ function fixture(uuids=Object.keys(GROUPING_REGISTRY.members)) {
     if(record.package==="dnd5e")environment.system.version=record.packageVersion;
     else environment.modules.set(record.package,{version:record.packageVersion});
     if(!environment.packs.has(packId))environment.packs.set(packId,{index:new Map(),metadata:{packageType:record.package==="dnd5e"?"system":"module",packageName:record.package}});
+    if(record.package==="dnd5e")environment.packs.get(packId).metadata.flags={dnd5e:{sourceBook:record.rules==="2024"?"SRD 5.2":"SRD 5.1"}};
     environment.packs.get(packId).index.set(id,{_stats:{modifiedTime:record.modifiedTime}});
     return {item:{uuid,package:packId,name:record.names[0],documentType:"Item",subType:record.type,
       system:{identifier:record.identifier,source:{rules:record.rules},level:record.level,school:record.school},
@@ -31,6 +32,38 @@ test("Forcecage forms two edition groups with all 2+4 original implementations",
   assert.deepEqual(output.groups.map(g=>[g.rules,g.members.length]).sort(),[["2014",2],["2024",4]]);
   assert.equal(output.rawCount,6);
   assert.equal(new Set(output.groups.flatMap(g=>g.members.map(e=>e.uuid))).size,6);
+});
+test("SRD is last within each edition group and PHB 2014 becomes the default",()=>{
+  for(const lang of ["en","cn"]) {
+    const f=fixture(forceIds),output=groupSearchResults(f.results,f.catalog(),{lang});
+    const old=output.groups.find(g=>g.rules==="2014"),revised=output.groups.find(g=>g.rules==="2024");
+    assert.equal(old.representative.result.item.package,"dnd5e_classpack.new-icon");
+    assert.equal(revised.representative.result.item.package,"dnd-players-handbook.spells");
+    assert.equal(old.members.at(-1).result.item.package,"dnd5e.spells");
+    assert.equal(revised.members.at(-1).result.item.package,"dnd5e.spells24");
+    assert.equal(output.rawCount,6);
+  }
+});
+test("manual SRD pins still win, while filters can leave SRD as the only fallback",()=>{
+  const f=fixture(forceIds),catalog=f.catalog(),key="spell:2014:forcecage";
+  const srd=forceIds.find(id=>id.startsWith("Compendium.dnd5e.spells."));
+  const preferences=normalizeGrouping({version:1,pins:{[key]:srd}});
+  const pinned=groupSearchResults(f.results,catalog,{preferences}).groups.find(g=>g.key===key);
+  assert.equal(pinned.representative.uuid,srd);
+  assert.equal(pinned.members[0].uuid,srd);
+  const onlySrd=groupSearchResults(f.results,catalog,{accept:r=>r.item.package==="dnd5e.spells"});
+  assert.equal(onlySrd.groups.length,1);
+  assert.equal(onlySrd.groups[0].representative.uuid,srd);
+  assert.equal(onlySrd.rawCount,1);
+});
+test("SRD detection uses source and pack metadata, not publisher IDs or license flags",()=>{
+  assert.equal(isSrdSource({system:{source:{book:"SRD 5.1"}}}),true);
+  assert.equal(isSrdSource({system:{source:{custom:"srd5.2"}}}),true);
+  assert.equal(isSrdSource({system:{source:"System Reference Document"}}),true);
+  assert.equal(isSrdSource({packageName:"法术 (SRD)"}),true);
+  assert.equal(isSrdSource({package:"dnd5e.custom",system:{source:{book:"PHB"}},flags:{dnd5e:{srd:true}}}),false);
+  const packs=new Map([["vendor.copy",{metadata:{flags:{dnd5e:{sourceBook:"SRD 5.2"}}}}]]);
+  assert.equal(isSrdSource({package:"vendor.copy",system:{source:{book:"PHB"}}},{packs}),true);
 });
 test("translated aliases find a family while retaining only permitted index members",()=>{
   const f=fixture(forceIds),catalog=f.catalog();
