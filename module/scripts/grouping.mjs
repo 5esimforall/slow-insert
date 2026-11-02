@@ -17,8 +17,7 @@ export function canonicalUuid(item) {
 export function normalizeGrouping(value) {
   const saved=value?.version===1?value:{};
   const pins=Object.fromEntries(Object.entries(saved.pins??{}).filter(([key,uuid])=>key.length<300&&typeof uuid==="string"&&uuid.length<500).slice(0,2000));
-  const split=Array.isArray(saved.split)?[...new Set(saved.split.filter(key=>typeof key==="string"&&key.length<300))].slice(0,2000):[];
-  return {version:1,enabled:saved.enabled!==false,pins,split};
+  return {version:1,enabled:saved.enabled!==false,pins};
 }
 export function editionEvidence(item, environment={}) {
   const source=identifySource(item,environment);
@@ -107,19 +106,19 @@ export function groupSearchResults(matches,catalog,{preferences=normalizeGroupin
   // Exact substring aliases supplement QI's name search without fuzzy name joins.
   const needle=normalName(query);
   if(needle)for(const entry of catalog.entries.values())if(entry.names.some(name=>normalName(name).includes(needle)))add(entry.result);
-  // Showing copies or splitting a group changes presentation, not which family
+  // Showing copies changes presentation, not which family
   // aliases matched. Keep the same permitted, filter-matching member set.
   for(const entry of seeds)if(entry.key)for(const sibling of catalog.groups.get(entry.key)??[])add(sibling.result);
-  const output=[],emitted=new Set(),split=new Set(preferences.split);
+  const output=[],emitted=new Set();
   for(const entry of seeds) {
-    const grouped=preferences.enabled&&entry.key&&!split.has(entry.key);
+    const grouped=preferences.enabled&&entry.key;
     const key=grouped?entry.key:entry.uuid;
     if(emitted.has(key))continue;emitted.add(key);
     const eligible=grouped?(catalog.groups.get(entry.key)??[entry]).filter(e=>accept(e.result)):[entry];
     const members=prioritizeMembers(eligible,key,preferences,lang);
     const preferred=members[0];
     output.push({key,kind:members.length>1?entry.kind:null,rules:entry.rules,members,representative:preferred,
-      warning:entry.warning,splitKey:entry.key,pinned:preferences.pins[key]===preferred.uuid});
+      warning:entry.warning,pinned:preferences.pins[key]===preferred.uuid});
   }
   return {groups:output,rawCount:new Set(output.flatMap(g=>g.members.map(e=>e.uuid))).size};
 }

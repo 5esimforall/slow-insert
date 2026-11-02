@@ -1,4 +1,4 @@
-# Slow Insert v0.2.1
+# Slow Insert v0.2.2
 
 依赖 Quick Insert 的右侧常驻速查面板。显示来源徽标，支持打开条目和原生拖放，不修改 Quick Insert 本身。
 
@@ -164,3 +164,7 @@ node tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classif
 ## v0.2.1：简化界面文案
 
 以书目、版次、来源选择为中心；删去常驻技术说明和底部操作提示。筛选帮助移至悬停提示，冲突与未知保留短标签。归类与筛选行为不变。
+
+## v0.2.2：移除手动分拆
+
+移除保持独立、恢复分组按钮及手动分拆逻辑；旧 split 偏好不再生效。展开、首选与显示全部副本保持不变。

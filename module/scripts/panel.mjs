@@ -7,7 +7,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.2.1";
+export const MODULE_VERSION = "0.2.2";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -98,17 +98,9 @@ export class SlowInsertPanel {
     this.groupToggle = element("button", "si-group-button", t("Grouping.ShowCopies"));
     this.groupToggle.type = "button";
     this.groupToggle.title = t("Grouping.ToggleHint");
-    this.restoreGroups = element("button", "si-group-button", t("Grouping.Restore"));
-    this.restoreGroups.type = "button";
-    this.restoreGroups.title = t("Grouping.RestoreHint");
-    this.groupingBar.append(this.groupToggle, this.restoreGroups);
+    this.groupingBar.append(this.groupToggle);
     this.listen(this.groupToggle, "click", () => {
       this.grouping.enabled = !this.grouping.enabled;
-      void this.save("grouping", this.grouping);
-      this.refresh();
-    });
-    this.listen(this.restoreGroups, "click", () => {
-      this.grouping.split = [];
       void this.save("grouping", this.grouping);
       this.refresh();
     });
@@ -347,7 +339,6 @@ export class SlowInsertPanel {
   refresh() {
     if (!this.visible) return;
     this.groupToggle.setAttribute("aria-pressed", String(!this.grouping.enabled));
-    this.restoreGroups.hidden = this.grouping.split.length === 0;
     if (!this.allowed()) { this.clearResults(t("Status.Unavailable")); return; }
     if (this.indexing) { this.clearResults(t("Status.Indexing")); return; }
     const qi = globalThis.QuickInsert;
@@ -407,7 +398,7 @@ export class SlowInsertPanel {
         toggle.title = t(group.kind === "exact" ? "Grouping.ExactHint" : "Grouping.FamilyHint");
         const childrenId = `slow-insert-members-${this.results.length}`;
         toggle.setAttribute("aria-controls", childrenId);
-        controls.append(toggle, this.groupAction("split", group, t("Grouping.Split")));
+        controls.append(toggle);
         wrapper.append(controls);
         const children = element("div", "si-group-members");
         children.id = childrenId;
@@ -444,8 +435,7 @@ export class SlowInsertPanel {
     if (action === "expand") {
       if (this.expandedGroups.has(group.key)) this.expandedGroups.delete(group.key);
       else this.expandedGroups.add(group.key);
-    } else if (action === "split") {
-      this.grouping.split = [...new Set([...this.grouping.split, group.key])];
+
     } else if (action === "pin" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
       this.grouping.pins = { ...this.grouping.pins, [group.key]: control.dataset.uuid };
     } else if (action === "unpin") {

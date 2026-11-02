@@ -123,10 +123,10 @@ test("preferred and expanded implementations must obey source filters",()=>{
   assert.equal(group.members.length,1);assert.equal(group.representative.result.item.package,"dnd-players-handbook.spells");
   assert.equal(preferences.pins[key],pin);
 });
-test("all-copies toggle and group splits preserve original rows and IDs",()=>{
+test("all-copies toggle preserves rows while legacy split preferences are ignored",()=>{
   const f=fixture(forceIds),catalog=f.catalog();
   assert.equal(groupSearchResults(f.results,catalog,{preferences:normalizeGrouping({version:1,enabled:false})}).groups.length,6);
-  assert.equal(groupSearchResults(f.results,catalog,{preferences:normalizeGrouping({version:1,split:["spell:2024:forcecage"]})}).groups.length,5);
+  assert.equal(groupSearchResults(f.results,catalog,{preferences:normalizeGrouping({version:1,split:["spell:2024:forcecage"]})}).groups.length,groupSearchResults(f.results,catalog).groups.length);
 });
 test("package updates, document changes and absent index stamps fail open",()=>{
   for(const mode of ["package","document","missing"]) {
@@ -167,9 +167,9 @@ test("missing version is not guessed and package/title metadata conflicts stay v
   assert.ok(GROUP_INDEX_FIELDS.every(field=>!/(description|effects|activities)/.test(field)));
 });
 test("grouping settings sanitize old state and do not inherit prototype preferences",()=>{
-  assert.deepEqual(normalizeGrouping({version:0,enabled:false}),{version:1,enabled:true,pins:{},split:[]});
+  assert.deepEqual(normalizeGrouping({version:0,enabled:false}),{version:1,enabled:true,pins:{}});
   const state=normalizeGrouping({version:1,pins:{good:4,valid:"Compendium.a.b.Item.x"},split:["a","a",null]});
-  assert.deepEqual(state.split,["a"]);assert.deepEqual(state.pins,{valid:"Compendium.a.b.Item.x"});
+  assert.equal(Object.hasOwn(state,"split"),false);assert.deepEqual(state.pins,{valid:"Compendium.a.b.Item.x"});
 });
 
 test("panel opening and dragging use the selected original member, including provider payloads", async () => {
