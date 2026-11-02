@@ -2,7 +2,7 @@ import { t } from './i18n.mjs';
 
 export function browseWindowPosition(viewport, anchor, previous) {
   const width = Math.min(previous?.width || 740, Math.max(280, viewport.width - 24));
-  const height = Math.min(previous?.height || 660, Math.max(240, viewport.height - 32));
+  const height = Math.min(previous?.height || 760, Math.max(240, viewport.height - 32));
   const left = Math.max(12, Math.min(previous?.left ?? ((anchor?.left ?? viewport.width) - width - 16), viewport.width - width - 12));
   const top = Math.max(16, Math.min(previous?.top ?? 64, viewport.height - height - 16));
   return { width, height, left, top };
@@ -14,7 +14,7 @@ export function createBrowseWindow(panel) {
     static DEFAULT_OPTIONS = {
       classes: ['si-browse-window'],
       window: { title: 'SLOWINSERT.Browse.Title', icon: 'fa-solid fa-sliders', resizable: true, minimizable: false },
-      position: { width: 740, height: 660 }
+      position: { width: 740, height: 760 }
     };
     async _renderHTML() { return panel.browseContent; }
     _replaceHTML(content, host) { host.replaceChildren(content); }

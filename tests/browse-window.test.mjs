@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { browseWindowPosition, createBrowseWindow } from '../module/scripts/browse-window.mjs';
 import { SlowInsertPanel } from '../module/scripts/panel.mjs';
 test('floating window opens beside sidebar and clamps saved bounds to current viewport',()=>{
- assert.deepEqual(browseWindowPosition({width:1384,height:988},{left:1084}),{width:740,height:660,left:328,top:64});
+ assert.deepEqual(browseWindowPosition({width:1384,height:988},{left:1084}),{width:740,height:760,left:328,top:64});
  const p=browseWindowPosition({width:600,height:500},{left:300},{width:900,height:800,left:2000,top:1000});
  assert.deepEqual(p,{width:576,height:468,left:12,top:16});
  const saved={width:680,height:580,left:100,top:80};assert.deepEqual(browseWindowPosition({width:1384,height:988},null,saved),saved);
