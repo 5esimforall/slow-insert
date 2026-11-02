@@ -1,4 +1,4 @@
-# Slow Insert v0.2.3
+# Slow Insert v0.2.4
 
 依赖 Quick Insert 的右侧常驻速查面板。显示来源徽标，支持打开条目和原生拖放，不修改 Quick Insert 本身。
 
@@ -172,3 +172,7 @@ node tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classif
 ## v0.2.3：行内展开
 
 多项入口改为结果行右侧的数量＋箭头；名称打开条目，箭头展开。单条不显示箭头。保留键盘操作和完整无障碍标签。
+
+## v0.2.4：连续浏览
+
+接近列表底部追加100组，保留已有结果、展开状态及滚动位置。搜索或筛选变化回到首批。展开入口采用轻量数字和CSS箭头。

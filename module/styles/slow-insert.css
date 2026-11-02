@@ -242,3 +242,10 @@
 #slow-insert-panel .si-member > .si-group-button { margin-left: 49px; }
 #slow-insert-panel .si-pack { color: var(--si-muted); font-size: 10px; overflow-wrap: anywhere; }
 #slow-insert-panel .si-warning { color: #edc38c; font-size: 10px; }
+
+/* Compact inline disclosure: quiet at rest, clear on hover and keyboard focus. */
+#slow-insert-panel .si-group-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 40px; min-height: 32px; margin: 0 2px 3px 0; padding: 5px 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--si-muted); }
+#slow-insert-panel .si-group-toggle:hover, #slow-insert-panel .si-group-toggle[aria-expanded="true"] { background: #a7d6c50d; border-color: #a7d6c526; color: var(--si-accent); }
+#slow-insert-panel .si-toggle-count { font: 500 11px/1 var(--font-body, sans-serif); font-variant-numeric: tabular-nums; }
+#slow-insert-panel .si-toggle-chevron { width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
+#slow-insert-panel .si-group-toggle[aria-expanded="true"] .si-toggle-chevron { transform: rotate(45deg); }

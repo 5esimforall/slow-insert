@@ -7,7 +7,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.2.3";
+export const MODULE_VERSION = "0.2.4";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -151,6 +151,9 @@ export class SlowInsertPanel {
       const row = event.target.closest(".si-result");
       if (row) void this.openItem(Number(row.dataset.index));
     });
+    this.listen(this.list, "scroll", () => {
+      if (this.list.scrollHeight - this.list.scrollTop - this.list.clientHeight < 160) this.loadMore();
+    });
     this.listen(this.list, "dragstart", event => this.onDragStart(event));
     this.listen(this.resizeHandle, "pointerdown", event => {
       if (event.button !== 0) return;
@@ -277,6 +280,7 @@ export class SlowInsertPanel {
   }
 
   clearResults(message) {
+    this.page = null;
     this.results = [];
     this.rowElements = [];
     this.selected = -1;
@@ -336,7 +340,9 @@ export class SlowInsertPanel {
     return environment;
   }
 
-  refresh() {
+  refresh(preservePage = false) {
+    const previousCount = preservePage ? this.page?.shown : 0;
+    const scrollTop = preservePage ? this.list.scrollTop : 0;
     if (!this.visible) return;
     this.groupToggle.setAttribute("aria-pressed", String(!this.grouping.enabled));
     if (!this.allowed()) { this.clearResults(t("Status.Unavailable")); return; }
@@ -364,13 +370,11 @@ export class SlowInsertPanel {
       const { groups, rawCount } = groupSearchResults(matches, this.filterCatalog.grouping, {
         preferences: this.grouping, accept, query, lang: environment.lang
       });
-      this.renderGroups(groups.slice(0, LIMIT), environment);
-      const grouped = groups.some(group => group.members.length > 1);
-      this.status.textContent = groups.length
-        ? t(grouped ? "Grouping.Status" : groups.length > LIMIT ? "Status.ResultsLimited" : "Status.Results", {
-          count: Math.min(groups.length, LIMIT), total: groups.length, raw: rawCount, scheme: t(SCHEMES[this.filters.scheme].label)
-        })
-        : t("Status.NoResults");
+      this.page = { groups, environment, rawCount, shown: Math.min(groups.length, previousCount || LIMIT),
+        query, scheme: this.filters.scheme };
+      this.renderGroups(groups.slice(0, this.page.shown), environment);
+      this.updateResultCount();
+      this.list.scrollTop = scrollTop;
       this.input.setAttribute("aria-expanded", String(this.results.length > 0));
       this.select(this.results.length ? 0 : -1, false);
     } catch (error) {
@@ -379,11 +383,32 @@ export class SlowInsertPanel {
     }
   }
 
-  renderGroups(groups, environment) {
-    this.results = [];
-    this.rowElements = [];
-    this.renderedGroups = new Map(groups.map(group => [group.key, group]));
-    this.list.replaceChildren();
+  updateResultCount() {
+    const page = this.page;
+    this.status.textContent = page.groups.length ? t("Grouping.Status", {
+      count: page.shown, total: page.groups.length, raw: page.rawCount, scheme: t(SCHEMES[page.scheme].label)
+    }) : t("Status.NoResults");
+  }
+
+  loadMore() {
+    const page = this.page;
+    if (!this.visible || !page || page.shown >= page.groups.length
+      || this.input.value.trim() !== page.query || this.filters.scheme !== page.scheme) return;
+    const end = Math.min(page.shown + LIMIT, page.groups.length);
+    const next = page.groups.slice(page.shown, end);
+    page.shown = end;
+    this.renderGroups(next, page.environment, true);
+    this.updateResultCount();
+  }
+
+  renderGroups(groups, environment, append = false) {
+    if (!append) {
+      this.results = [];
+      this.rowElements = [];
+      this.renderedGroups = new Map();
+      this.list.replaceChildren();
+    }
+    for (const group of groups) this.renderedGroups.set(group.key, group);
     const fragment = document.createDocumentFragment();
     for (const group of groups) {
       const wrapper = element("div", "si-result-group");
@@ -397,7 +422,12 @@ export class SlowInsertPanel {
         const toggle = this.groupAction("expand", group, t(expanded ? "Grouping.Collapse" : "Grouping.Expand", { count: group.members.length }));
         toggle.setAttribute("aria-label", toggle.textContent);
         toggle.classList.add("si-group-toggle");
-        toggle.textContent = `${group.members.length} ${expanded ? "▾" : "▸"}`;
+        toggle.replaceChildren();
+        const count = element("span", "si-toggle-count", String(group.members.length));
+        const chevron = element("span", "si-toggle-chevron");
+        count.setAttribute("aria-hidden", "true");
+        chevron.setAttribute("aria-hidden", "true");
+        toggle.append(count, chevron);
         toggle.setAttribute("aria-expanded", String(expanded));
         toggle.title = t(group.kind === "exact" ? "Grouping.ExactHint" : "Grouping.FamilyHint");
         const childrenId = `slow-insert-members-${this.results.length}`;
@@ -445,7 +475,7 @@ export class SlowInsertPanel {
       delete this.grouping.pins[group.key];
     }
     if (action !== "expand") void this.save("grouping", this.grouping);
-    this.refresh();
+    this.refresh(true);
     const index = this.results.findIndex(result => result.group?.key === group.key);
     if (index >= 0) this.select(index, false);
     this.input.focus();
