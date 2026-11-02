@@ -95,7 +95,9 @@ export class FilterControls {
       const group = GROUPS[id];
       const details = node("details", "si-filter-group");
       details.dataset.group = id;
-      details.open = sameScheme && hadGroups ? opened.has(id) : true;
+      // Sources can be long: start collapsed, but keep the user's choice when
+      // the current scheme's options are refreshed (e.g. after reindexing).
+      details.open = sameScheme && hadGroups ? opened.has(id) : id !== "source";
       details.append(node("summary", "", t(group.label)));
       if (group.range) {
         const row = node("div", "si-cr-range");

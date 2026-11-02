@@ -8,6 +8,7 @@ async (page) => {
   const input = page.getByRole("combobox", { name: "搜索物品、法术或怪物" });
   const scheme = page.getByRole("combobox", { name: "速查方案" });
   const drawer = page.getByRole("region", { name: "速查筛选" });
+  const sourceGroup = drawer.locator('details[data-group="source"]');
   const rows = page.getByRole("listbox", { name: "搜索结果" }).getByRole("option");
   const box = name => page.getByRole("checkbox", { name, exact: true });
   const action = name => page.getByRole("button", { name, exact: true }).click();
@@ -19,6 +20,7 @@ async (page) => {
   check(await box("环阶：零环／戏法").isChecked() && !await box("特殊：仪式").isChecked(), "ordinary checkboxes default to all, special requirements to none");
   const groupNames = await drawer.locator("summary").allTextContents();
   check(groupNames.join("/") === "特殊/凡骨/时间/环阶/学派/职业/来源", "spell groups follow 本书速查 order");
+  check(await sourceGroup.getAttribute("open") === null, "source group starts collapsed while other spell groups stay open");
 
   await input.fill("fire");
   await waitRows(6);
@@ -31,6 +33,8 @@ async (page) => {
   await box("环阶：3环").check();
   await waitRows(4);
   check(true, "multiple selections in one group use OR");
+  await sourceGroup.locator("summary").click();
+  check(await box("来源：PHB'24").isVisible(), "source group can be expanded on demand");
   await action("来源：清空");
   await box("来源：PHB'24").check();
   await waitRows(2);
@@ -73,6 +77,7 @@ async (page) => {
   await waitRows(2);
   check((await rows.allTextContents()).every(x => /Test Wand|Test Potion/.test(x)), "万器 excludes mundane weapons and spells");
   check((await drawer.locator("summary").allTextContents()).join("/") === "稀有度/类别/同调/来源", "magic-item groups follow 本书速查");
+  check(await sourceGroup.getAttribute("open") === null, "switching schemes starts source group collapsed");
   await action("稀有度：清空");
   await box("稀有度：珍稀").check();
   await waitRows(1);
@@ -117,6 +122,8 @@ async (page) => {
   check(await page.evaluate(() => fixtureState.drop?.type === "Actor" && fixtureState.drop.uuid === "Actor.dragon"), "monster drag uses Actor, not Item");
   await rows.first().click();
   check(await page.evaluate(() => fixtureState.opened.at(-1) === "Dragon"), "clicking a monster opens its Actor document");
+  check(await sourceGroup.getAttribute("open") === null, "monster sources also default to collapsed");
+  await sourceGroup.locator("summary").click();
   check(await box("来源：MM'25").isVisible() && await box("来源：PHB'24").count() === 0, "source options are specific to the selected scheme");
 
   await scheme.selectOption("magic");
@@ -134,6 +141,8 @@ async (page) => {
   check(await scheme.inputValue() === "spells", "scheme and profiles restore on fresh module initialization");
   await page.getByRole("button", { name: /^显示筛选/ }).click();
   await reset();
+  check(await sourceGroup.getAttribute("open") === null, "fresh initialization restores collapsed source default");
+  await sourceGroup.locator("summary").click();
   const finder = page.getByRole("searchbox", { name: "查找来源筛选" });
   await finder.fill("phb");
   check(await box("来源：PHB'14").isVisible() && !await box("来源：TCoE").isVisible(), "source finder only narrows the options list");
