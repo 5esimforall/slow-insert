@@ -7,7 +7,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.3.0";
+export const MODULE_VERSION = "0.3.1";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -485,7 +485,14 @@ export class SlowInsertPanel {
           const pinned = this.grouping.pins[group.key] === entry.uuid;
           const pin = this.groupAction(pinned ? "unpin" : "pin", group, t(pinned ? "Grouping.Unpin" : "Grouping.Pin"));
           pin.dataset.uuid = entry.uuid;
-          pin.title = t("Grouping.PinHint");
+          pin.classList.add("si-pin");
+          pin.setAttribute("aria-label", pin.textContent);
+          pin.setAttribute("aria-pressed", String(pinned));
+          pin.title = pin.textContent;
+          pin.replaceChildren();
+          const star = element("i", `${pinned ? "fa-solid" : "fa-regular"} fa-star`);
+          star.setAttribute("aria-hidden", "true");
+          pin.append(star);
           member.append(pin);
           children.append(member);
         }
