@@ -10,7 +10,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.5.0";
+export const MODULE_VERSION = "0.5.1";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -42,6 +42,7 @@ export class SlowInsertPanel {
     this.filters = normalizeFilters(game.settings.get(MODULE_ID, "filters"));
     this.sorting = normalizeSorting(game.settings.get(MODULE_ID, "sorting"));
     this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, "grouping"));
+    this.browsePosition = game.settings.get(MODULE_ID, "browsePosition");
     this.expandedGroups = new Set();
     this.rowElements = [];
     this.publicationProviders = new Map();
@@ -101,6 +102,8 @@ export class SlowInsertPanel {
 
     this.filterControls = new FilterControls({
       state: this.filters, dnd5e: this.dnd5e,
+      expansion: game.settings.get(MODULE_ID, "filterExpansion"),
+      onExpansionChange: state => { void this.save("filterExpansion", state); },
       onChange: state => {
         this.filters = state;
         clearTimeout(this.searchTimer);

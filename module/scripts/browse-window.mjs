@@ -1,6 +1,17 @@
 import { t } from './i18n.mjs';
 
+/** Store only geometry, never transient z-index/scale/native frame state. */
+export function normalizeBrowsePosition(value) {
+  const result = {};
+  for (const key of ['width', 'height', 'left', 'top']) {
+    const number = value?.[key];
+    if (typeof number === 'number' && Number.isFinite(number) && (!['width', 'height'].includes(key) || number > 0)) result[key] = number;
+  }
+  return result;
+}
+
 export function browseWindowPosition(viewport, anchor, previous) {
+  previous = normalizeBrowsePosition(previous);
   const width = Math.min(previous?.width || 740, Math.max(280, viewport.width - 24));
   const height = Math.min(previous?.height || 760, Math.max(240, viewport.height - 32));
   const left = Math.max(12, Math.min(previous?.left ?? ((anchor?.left ?? viewport.width) - width - 16), viewport.width - width - 12));
@@ -25,9 +36,20 @@ export function createBrowseWindow(panel) {
       panel.browseButton.setAttribute('aria-expanded', 'true');
       if (options.isFirstRender) panel.filterControls.scheme.focus();
     }
+    _onPosition(position) {
+      super._onPosition(position);
+      // Save as geometry changes, not only on close: reload can happen while open.
+      this.rememberPosition(position);
+    }
+    rememberPosition(position) {
+      const next = normalizeBrowsePosition(position);
+      if (Object.keys(next).length !== 4 || JSON.stringify(next) === JSON.stringify(panel.browsePosition)) return;
+      panel.browsePosition = next;
+      void panel.save('browsePosition', next);
+    }
     _onClose(options) {
       super._onClose(options);
-      panel.browsePosition = { ...this.position };
+      this.rememberPosition(this.position);
       panel.browseButton.setAttribute('aria-expanded', 'false');
       if (!panel.destroyed && (panel.visible && (!panel.sidebarHost || panel.sidebarHost.app.isPopout || globalThis.ui?.sidebar?.expanded)) && options.restoreFocus !== false) panel.browseButton.focus();
     }

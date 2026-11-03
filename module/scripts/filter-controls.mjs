@@ -28,11 +28,22 @@ export function createFilterSwitch({ label, ariaLabel = label, hint }) {
   return { root, input, state };
 }
 
+export function normalizeFilterExpansion(value) {
+  const result = {};
+  for (const [scheme, { groups }] of Object.entries(SCHEMES)) {
+    result[scheme] = {};
+    for (const id of groups) if (typeof value?.[scheme]?.[id] === "boolean") result[scheme][id] = value[scheme][id];
+  }
+  return result;
+}
+
 /** The 本书速查 interaction: scheme-specific checkbox groups with All/Clear. */
 export class FilterControls {
-  constructor({ state, dnd5e, onChange }) {
+  constructor({ state, dnd5e, onChange, expansion, onExpansionChange }) {
     this.state = normalizeFilters(state);
     this.onChange = onChange;
+    this.expansion = normalizeFilterExpansion(expansion);
+    this.onExpansionChange = onExpansionChange;
     this.options = {};
     this.root = node("div", "si-filters");
     const schemeRow = node("label", "si-scheme-row");
@@ -108,8 +119,8 @@ export class FilterControls {
 
   renderGroups() {
     const sameScheme = this.renderedScheme === this.state.scheme;
-    const hadGroups = Boolean(this.body.querySelector("details"));
-    const opened = new Set([...this.body.querySelectorAll("details[open]")].map(el => el.dataset.group));
+    // Snapshot before replacement as native toggle events may still be queued.
+    for (const details of this.body.querySelectorAll("details")) this.rememberExpansion(this.renderedScheme, details.dataset.group, details.open);
     const query = sameScheme ? this.sourceSearch?.value || "" : "";
     this.renderedScheme = this.state.scheme;
     this.body.replaceChildren();
@@ -125,9 +136,14 @@ export class FilterControls {
       const group = GROUPS[id];
       const details = node("details", "si-filter-group");
       details.dataset.group = id;
-      // Start source and property requirements collapsed; preserve disclosure
-      // choices when the current scheme's options are refreshed.
-      details.open = sameScheme && hadGroups ? opened.has(id) : !["source", "special", "mundane"].includes(id);
+      const scheme = this.state.scheme;
+      details.open = this.expansion[scheme][id] ?? !["source", "special", "mundane"].includes(id);
+      let lastOpen = details.open;
+      details.addEventListener("toggle", () => {
+        if (!this.body.contains(details) || details.open === lastOpen) return;
+        lastOpen = details.open;
+        this.rememberExpansion(scheme, id, details.open);
+      });
       details.append(node("summary", "", t(group.label)));
       if (group.range) {
         const row = node("div", "si-cr-range");
@@ -210,6 +226,12 @@ export class FilterControls {
     }
     this.filterSources();
     this.updateState();
+  }
+
+  rememberExpansion(scheme, id, open) {
+    if (!SCHEMES[scheme]?.groups.includes(id) || this.expansion[scheme][id] === open) return;
+    this.expansion[scheme][id] = open;
+    this.onExpansionChange?.(structuredClone(this.expansion));
   }
 
   filterSources() {

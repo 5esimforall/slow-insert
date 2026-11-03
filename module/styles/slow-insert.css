@@ -349,3 +349,15 @@
   .si-browse-content .si-browse-right { border-left: 0; border-top: 1px solid var(--si-line); }
   .si-browse-content .si-browse-top { flex-direction: column; align-items: stretch; gap: 8px; }
 }
+
+/* Source occupies the card's upper-right; disclosure stays in its lower-right.
+   Reserve the full source column so labels and the sibling button never overlap. */
+.slow-insert .si-result > .si-source { align-self: flex-start; }
+.slow-insert .si-group-heading { position: relative; display: block; }
+.slow-insert .si-group-heading > .si-result { width: 100%; }
+.slow-insert .si-group-heading:has(> .si-group-toggle) > .si-result > .si-source { margin-bottom: 25px; }
+.slow-insert .si-group-heading > .si-group-toggle {
+  position: absolute; right: 8px; bottom: 6px; align-self: auto;
+  min-width: 32px; min-height: 22px; height: 22px; width: auto;
+  margin: 0; padding: 3px 5px; border-radius: 4px;
+}
