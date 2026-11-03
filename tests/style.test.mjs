@@ -32,3 +32,12 @@ test('variant count is not repeated in result subtitles', () => {
     assert.equal(labels['SLOWINSERT.Grouping.Family'], undefined);
   }
 });
+
+test('native selects share an inset chevron and reserve space for it', () => {
+  assert.match(css, /\.slow-insert select\.si-scheme,\s*\.slow-insert select\.si-sort-select,\s*\.slow-insert \.si-cr-range select \{\s*appearance: none;/);
+  assert.match(css, /padding-right: 30px;/);
+  assert.match(css, /background-position: right 10px center;/);
+  assert.match(css, /background-size: 12px 8px;/);
+  assert.match(css, /stroke-linecap='round'/);
+  assert.match(css, /@media \(forced-colors: active\)/);
+});

@@ -385,3 +385,27 @@
 .slow-insert :is(button, input, select, label) { text-shadow: none; }
 .slow-insert .si-filter-choice input { color-scheme: inherit; }
 .slow-insert .si-group-action:hover { background: var(--si-hover); color: var(--si-text); }
+
+/* A small inset chevron instead of the browser's edge-hugging select arrow.
+   Keep native selects: keyboard navigation and the option popup are unchanged. */
+.slow-insert select.si-scheme,
+.slow-insert select.si-sort-select,
+.slow-insert .si-cr-range select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M2 2L6 6L10 2' fill='none' stroke='%23706976' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 8px;
+  cursor: pointer;
+}
+@media (forced-colors: active) {
+  .slow-insert select.si-scheme,
+  .slow-insert select.si-sort-select,
+  .slow-insert .si-cr-range select {
+    appearance: auto;
+    -webkit-appearance: auto;
+    background-image: none;
+  }
+}
