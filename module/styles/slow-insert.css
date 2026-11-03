@@ -1,17 +1,21 @@
 /* Intentionally scoped: no Quick Insert, sheet, or core sidebar overrides. */
 .slow-insert,
+.si-browse-window,
 #slow-insert-toggle {
-  /* Same restrained surface and interaction palette as Quick Insert. */
-  --si-bg: var(--qiBackground, #302831e3);
-  --si-line: #ffffff1c;
-  --si-text: var(--color-text-primary, #eeeaf0);
-  --si-muted: #aaa3af;
-  --si-accent: #c4b1d6;
-  --si-field: #0002;
-  --si-hover: var(--qiItemHoverColor, #9979b924);
-  --si-selected: var(--qiItemSelectedColor, #b3a0c624);
-  --si-focus: #9b80b3;
-  color-scheme: dark;
+  /* A self-contained light surface, independent of Foundry's global theme. */
+  --si-bg: #eeecef;
+  --si-line: #30283124;
+  --si-text: #302b35;
+  --si-muted: #706976;
+  --si-accent: #725785;
+  --si-field: #ffffff80;
+  --si-hover: #80639312;
+  --si-selected: #80639322;
+  --si-focus: #89659f;
+  color-scheme: light;
+}
+.slow-insert,
+#slow-insert-toggle {
   position: fixed;
   z-index: var(--z-index-app, 30);
   color: var(--si-text);
@@ -170,7 +174,7 @@
 }
 .slow-insert .si-filter-source-search:focus { outline: 1px solid var(--si-accent); }
 .slow-insert [data-mode="include"] { color: var(--si-accent); border-color: transparent; background: var(--si-selected); }
-.slow-insert [data-mode="exclude"] { color: #f3a9ac; border-color: #f3a9ac66; background: #f3a9ac0c; }
+.slow-insert [data-mode="exclude"] { color: #9a4352; border-color: #9a435266; background: #9a43520c; }
 .slow-insert .si-filter-drawer[hidden],
 .slow-insert .si-filter-active[hidden],
 .slow-insert .si-filter-chip[hidden] { display: none; }
@@ -220,9 +224,9 @@
   text-overflow: ellipsis;
 }
 .slow-insert .si-source--fallback { color: var(--si-muted); border-color: var(--si-line); background: transparent; font-weight: 400; }
-.slow-insert .si-source--conflict { color: #edc38c; border-color: #edc38c55; background: transparent; }
+.slow-insert .si-source--conflict { color: #8b5b25; border-color: #8b5b2555; background: transparent; }
 .slow-insert .si-source-section { flex: 0 0 100%; padding: 5px 0 2px; color: var(--si-muted); font-size: 10px; font-weight: 600; }
-.slow-insert .si-source-section[data-section="review"] { margin-top: 5px; color: #edc38c; }
+.slow-insert .si-source-section[data-section="review"] { margin-top: 5px; color: #8b5b25; }
 .slow-insert .si-source-section[hidden] { display: none; }
 .slow-insert .si-filter-choice[data-source-status="review"] { border-style: dashed; }
 .slow-insert .si-footer { padding: 11px 12px; color: var(--si-muted); border-top: 1px solid var(--si-line); font-size: 10px; line-height: 1.4; }
@@ -249,10 +253,10 @@
 .slow-insert .si-member > .si-result { flex: 1; min-width: 0; width: 0; margin: 0; border: 0; background: transparent; }
 .slow-insert .si-member > .si-pin { display: grid; place-items: center; flex: 0 0 28px; align-self: stretch; min-height: 32px; margin: 0; padding: 4px; border: 0; border-radius: 0 4px 4px 0; font-size: 12px; color: var(--si-muted); }
 .slow-insert .si-member > .si-pin:hover { color: var(--si-accent); background: var(--si-selected); }
-.slow-insert .si-member > .si-pin[aria-pressed="true"] { color: #e6c578; }
+.slow-insert .si-member > .si-pin[aria-pressed="true"] { color: #88631f; }
 .slow-insert .si-member > .si-pin:focus-visible { outline-offset: -2px; }
 .slow-insert .si-pack { color: var(--si-muted); font-size: 10px; overflow-wrap: anywhere; }
-.slow-insert .si-warning { color: #edc38c; font-size: 10px; }
+.slow-insert .si-warning { color: #8b5b25; font-size: 10px; }
 
 /* Compact inline disclosure: quiet at rest, clear on hover and keyboard focus. */
 .slow-insert .si-group-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 40px; min-height: 32px; margin: 0 2px 3px 0; padding: 5px 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--si-muted); }
@@ -264,7 +268,7 @@
 /* Native sidebar owns geometry and visibility; the search page owns its list. */
 .slow-insert-sidebar { min-height: 0; overflow: hidden; }
 .slow-insert-sidebar.active { display: flex; flex-direction: column; }
-.slow-insert.si-native { position: relative; inset: auto; z-index: auto; width: 100%; height: 100%; flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.slow-insert.si-native { position: relative; inset: auto; z-index: auto; width: 100%; height: 100%; flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; background: var(--si-bg); }
 .slow-insert.si-native .si-version { display: none; }
 .slow-insert .si-group-heading { border: 1px solid transparent; border-radius: 4px; gap: 0; margin-bottom: 0; }
 .slow-insert .si-group-heading:hover { background: var(--si-hover); }
@@ -278,7 +282,7 @@
 .slow-insert .si-filter-switch { display: flex; flex: none; align-items: center; gap: 8px; margin: 0; padding: 8px 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; }
 .slow-insert .si-filter-switch-title { flex: 1; min-width: 0; font-size: 11px; color: var(--si-text); }
 .slow-insert .si-filter-switch-state { font-size: 10px; color: var(--si-muted); white-space: nowrap; }
-.slow-insert .si-filter-switch input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 30px; height: 18px; margin: 0; padding: 0; border: 1px solid #ffffff30; border-radius: 12px; background: #ffffff12; cursor: pointer; box-shadow: none; }
+.slow-insert .si-filter-switch input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 30px; height: 18px; margin: 0; padding: 0; border: 1px solid var(--si-line); border-radius: 12px; background: #30283112; cursor: pointer; box-shadow: none; }
 .slow-insert .si-filter-switch input::before { content: ""; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: var(--si-muted); transform: none; transition: left .15s ease; }
 .slow-insert .si-filter-switch input::after { content: none; }
 .slow-insert .si-filter-switch input:checked { background: var(--si-selected); border-color: var(--si-accent); }
@@ -370,20 +374,12 @@
   margin: 0; padding: 3px 5px; border-radius: 4px;
 }
 
-/* Theme variants stay scoped; never restyle Quick Insert or Foundry itself. */
-.theme-light .slow-insert,
-.theme-light #slow-insert-toggle {
-  --si-bg: var(--qiBackground, #dddddde3);
-  --si-line: #00000026;
-  --si-text: var(--color-text-primary, #302831);
-  --si-muted: #68616d;
-  --si-accent: #624670;
-  --si-field: #00000008;
-  --si-hover: var(--qiItemHoverColor, #99944e29);
-  --si-selected: var(--qiItemSelectedColor, #99944e29);
-  --si-focus: #624670;
-  color-scheme: light;
-}
+/* Only this native window gets a light frame; other Foundry windows are untouched. */
+.si-browse-window { background: var(--si-bg); border: 1px solid var(--si-line); }
+.si-browse-window .window-header { background: #e3dfe7; color: var(--si-text); border-bottom: 1px solid var(--si-line); }
+.si-browse-window .window-header :is(.window-title, .header-control) { color: var(--si-text); text-shadow: none; }
+.si-browse-window .window-header .header-control:hover { background: var(--si-hover); }
+.si-browse-window .window-resize-handle { color: var(--si-muted); }
 .slow-insert :is(button, input, select, label) { text-shadow: none; }
 .slow-insert .si-filter-choice input { color-scheme: inherit; }
 .slow-insert .si-group-action:hover { background: var(--si-hover); color: var(--si-text); }
