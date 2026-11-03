@@ -9,7 +9,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.5.3";
+export const MODULE_VERSION = "0.5.4";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -687,7 +687,10 @@ export class SlowInsertPanel {
         for (const tag of entry.tags) details.push(t(`Grouping.Tag.${tag}`));
       }
     }
-    label.append(element("span", "si-type", details.filter(Boolean).join(" · ")));
+    const detailText = details.filter(Boolean).join(" · ");
+    const typeLabel = element("span", "si-type", detailText);
+    typeLabel.title = detailText;
+    label.append(typeLabel);
     if (member) label.append(element("span", "si-pack", item.packageName || item.package || entry.uuid));
     if (entry.warning) {
       const warning = element("span", "si-warning", t(`Grouping.Review.${entry.warning}`));
