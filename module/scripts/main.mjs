@@ -27,16 +27,6 @@ Hooks.once("init", () => {
     onDown: () => { panel?.toggle(); return Boolean(panel); },
     precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL
   });
-  game.keybindings.register(MODULE_ID, "dismiss", {
-    name: "SLOWINSERT.Panel.Close",
-    hint: "SLOWINSERT.DismissHint",
-    uneditable: [{ key: "Escape" }],
-    onDown: context => panel?.onEscape(context.event) ?? false,
-    // Core dismiss is DEFERRED and always consumes Escape (opening the menu
-    // when no windows remain). Run before that fallback, but yield explicitly
-    // to all native windows, dialogs, menus, tours and drag workflows.
-    precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL
-  });
 });
 
 Hooks.once("setup", () => {

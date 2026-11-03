@@ -5,12 +5,11 @@ import { t } from "./i18n.mjs";
 import { getDockLayout, resolveSource, documentDragData } from "./source.mjs";
 import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls, createFilterSwitch } from "./filter-controls.mjs";
-import { hasPriorityEscapeTarget } from "./escape.mjs";
 import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.5.2";
+export const MODULE_VERSION = "0.5.3";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -176,9 +175,6 @@ export class SlowInsertPanel {
       this.refresh();
     });
     this.listen(this.root, "keydown", event => this.onKeydown(event));
-    // Bubble after window/dialog-local handlers, but before Foundry's global
-    // keyboard manager skips shortcuts because an unrelated input has focus.
-    this.listen(document, "keydown", event => this.onDocumentKeydown(event));
     this.listen(this.list, "click", event => {
       const action = event.target.closest("[data-group-action]");
       if (action) { this.onGroupAction(action); return; }
@@ -714,39 +710,6 @@ export class SlowInsertPanel {
     row.setAttribute("aria-selected", "true");
     this.input.setAttribute("aria-activedescendant", row.id);
     if (scroll) row.scrollIntoView({ block: "nearest" });
-  }
-
-  onEscape(event, { forwardNative = false } = {}) {
-    if (!this.browseWindow?.rendered && this.sidebarHost && !this.sidebarHost.app.isPopout && !ui.sidebar.expanded) return false;
-    if ((!this.visible && !this.browseWindow?.rendered) || event.defaultPrevented || event.isComposing
-      || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
-    if (hasPriorityEscapeTarget()) {
-      if (!forwardNative) return false;
-      // Preserve the real event (including target) for native window dismissal.
-      // emulateKeypress creates a target-less event which crashes Plutonium's
-      // Escape handler. Redispatching all keybindings also lets its input-blur
-      // shortcut consume the press instead of closing the open window.
-      const keyboardClass = game.keyboard?.constructor;
-      const dismiss = game.keybindings?.actions?.get("core.dismiss");
-      if (typeof keyboardClass?.getKeyboardEventContext !== "function" || typeof dismiss?.onDown !== "function") return false;
-      const context = keyboardClass.getKeyboardEventContext(event);
-      event.preventDefault();
-      event.stopPropagation();
-      // Invoke the original native action, not another synthetic keyboard event.
-      // Never close our panel when this promise completes: that needs a new press.
-      Promise.resolve(dismiss.onDown(context)).catch(error => console.error("Slow Insert | Native dismiss failed", error));
-      return true;
-    }
-    this.close();
-    return true;
-  }
-
-  onDocumentKeydown(event) {
-    if (event.key !== "Escape") return;
-    if (this.onEscape(event, { forwardNative: true })) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
   }
 
   onKeydown(event) {

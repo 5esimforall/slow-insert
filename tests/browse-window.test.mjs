@@ -28,17 +28,6 @@ test('existing floating window is raised rather than duplicated',async()=>{
  const panel={allowed:()=>true,browseWindow:{rendered:true,bringToFront(){raised++;}}};
  await SlowInsertPanel.prototype.openBrowseWindow.call(panel);assert.equal(raised,1);
 });
-test('native Escape priority also applies when the owning sidebar is inactive or collapsed',t=>{
- const old={ui:globalThis.ui,foundry:globalThis.foundry,game:globalThis.game};t.after(()=>Object.assign(globalThis,old));
- const app={rendered:true,hasFrame:true};let dismissed=0;
- globalThis.ui={sidebar:{expanded:false},windows:{}};
- globalThis.foundry={applications:{instances:new Map([['browse',app]])}};
- globalThis.game={keyboard:{constructor:{getKeyboardEventContext:event=>({event})}},keybindings:{actions:new Map([['core.dismiss',{onDown(){dismissed++;}}]])}};
- const panel={visible:false,sidebarHost:{app:{isPopout:false}},browseWindow:app,close(){throw Error('sidebar must not close');}};
- const event={preventDefault(){},stopPropagation(){}};
- assert.equal(SlowInsertPanel.prototype.onEscape.call(panel,event,{forwardNative:true}),true);assert.equal(dismissed,1);
-});
-
 test('geometry normalization drops transient native state and invalid numbers',()=>{
  assert.deepEqual(normalizeBrowsePosition({left:42,top:0,width:740,height:760,zIndex:99,scale:2}),{width:740,height:760,left:42,top:0});
  assert.deepEqual(normalizeBrowsePosition({left:NaN,top:Infinity,width:-1,height:'760'}),{});

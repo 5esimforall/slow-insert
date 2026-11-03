@@ -1,4 +1,4 @@
-# Slow Insert v0.5.2
+# Slow Insert v0.5.3
 
 依赖 Quick Insert 的右侧常驻速查面板。显示来源徽标，支持打开条目和原生拖放，不修改 Quick Insert 本身。
 
@@ -236,3 +236,7 @@ Slow Insert 注册为 Foundry V13 原生搜索标签。侧栏控制切换与收�
 ## v0.5.2
 
 移除浮窗底部说明文字及页脚，内容区直接延伸到底部。
+
+## v0.5.3
+
+移除自定义 Esc 快捷键、全局键盘监听、窗口优先级判断和原生 dismiss 转发。Esc 完全由 Foundry 及其原生窗口框架处理；Slow Insert 不再主动收起侧栏或干预其他窗口。

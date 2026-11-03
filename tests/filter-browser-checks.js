@@ -152,8 +152,7 @@ async (page) => {
   await finder.fill("");
   check(await page.evaluate(() => !window.pwned && !document.querySelector(".si-filter-choice img")), "source names remain inert text");
   await input.press("Escape");
-  check(!await drawer.isVisible() && !await input.isVisible(), "Escape closes the entire panel even with filters expanded");
-  await page.getByRole("button", { name: "Slow Insert — 合集搜索" }).click();
+  check(await input.isVisible(), "Escape does not close the panel");
   await scheme.selectOption("monsters");
   await waitRows(1);
   await page.evaluate(() => {

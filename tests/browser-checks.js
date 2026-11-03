@@ -57,7 +57,8 @@ async (page) => {
   await input.press("Enter");
   check(await page.evaluate(() => fixtureState.opened.at(-1) === "剑 / Sword"), "Enter flushes a pending search");
   await input.press("Escape");
-  check(!await panel.isVisible(), "Escape collapses the panel");
+  check(await panel.isVisible(), "Escape does not collapse the panel");
+  await page.getByRole("button", { name: "Close Slow Insert", exact: true }).click();
   check(await page.evaluate(() => game.settings.get("slow-insert", "query") === "剑"), "closing remembers the query");
   await page.getByRole("button", { name: "Slow Insert — compendium search" }).click();
   check(await input.inputValue() === "剑", "reopening retains the query");
