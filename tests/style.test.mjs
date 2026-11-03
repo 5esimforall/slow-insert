@@ -16,3 +16,19 @@ test('compact rows keep source and disclosure separate and expose truncated deta
   assert.match(css, /\.si-group-heading:has\(> \.si-group-toggle\) > \.si-result > \.si-source \{ margin-bottom: 21px;/);
   assert.match(panel, /typeLabel.title = detailText;/);
 });
+
+test('minimum window dimensions do not clamp native close or minimize transitions', () => {
+  assert.match(css, /\.si-browse-window:not\(\.minimizing, \.minimized, \.maximizing\) \{ min-width: 300px; min-height: 320px; \}/);
+  assert.doesNotMatch(css, /\.si-browse-window\s*\{[^}]*min-(height|width):/);
+  const nativeWindow = readFileSync(new URL('../module/scripts/browse-window.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(nativeWindow, /(?:async\s+)?close\s*\(|_tearDown\s*\(|_removeElement\s*\(/);
+});
+
+test('variant count is not repeated in result subtitles', () => {
+  assert.doesNotMatch(panel, /t\("Grouping\.Family"\)/);
+  assert.match(panel, /"Grouping.FamilyHint"/);
+  for (const lang of ['en', 'cn']) {
+    const labels = JSON.parse(readFileSync(new URL(`../module/lang/${lang}.json`, import.meta.url), 'utf8'));
+    assert.equal(labels['SLOWINSERT.Grouping.Family'], undefined);
+  }
+});

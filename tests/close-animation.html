@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>Slow Insert close animation regression</title>
+<style>
+/* Relevant Foundry ApplicationV2 rules, preserving the core cascade layer. */
+@layer core {
+.application { position:relative; display:flex; flex-direction:column; box-sizing:border-box; overflow:hidden; width:300px; height:600px; max-height:600px; }
+.application.minimizing,.application.minimized,.application.maximizing { min-width:unset; min-height:unset; }
+.application.minimizing { transition:max-height .25s ease-out,max-width .25s ease-out; }
+}
+body { font:14px system-ui; margin:32px; } main { display:flex; gap:30px; height:620px; }
+</style>
+<link rel="stylesheet" href="../module/styles/slow-insert.css">
+<style>.baseline.si-browse-window { min-height:320px; }</style>
+<button id="run">Run close regression</button><pre id="result">Ready</pre>
+<main><section><p>Previous constraint</p><div id="old" class="application si-browse-window baseline"></div></section><section><p>Fixed constraint</p><div id="fixed" class="application si-browse-window"></div></section></main>
+<script>
+const result=document.querySelector('#result');
+document.querySelector('#run').onclick=async()=>{
+ const old=document.querySelector('#old'), fixed=document.querySelector('#fixed');
+ const initial=getComputedStyle(fixed).minHeight;
+ for(const el of [old,fixed]){el.classList.add('minimizing');el.style.maxHeight='0px';}
+ const frames=[];const start=performance.now();
+ await new Promise(resolve=>{function sample(){frames.push({ms:Math.round(performance.now()-start),old:old.getBoundingClientRect().height,fixed:fixed.getBoundingClientRect().height});if(performance.now()-start<330)requestAnimationFrame(sample);else resolve();}requestAnimationFrame(sample);});
+ const last=frames.at(-1);const pass=initial==='320px'&&last.old===320&&last.fixed<=2&&frames.some(f=>f.fixed>2&&f.fixed<300);
+ result.textContent=JSON.stringify({pass,initial,final:last,frames},null,2);
+ document.title=pass?'PASS — close animation':'FAIL — close animation';
+};
+</script>

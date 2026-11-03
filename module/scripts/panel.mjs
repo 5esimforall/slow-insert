@@ -9,7 +9,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.5.5";
+export const MODULE_VERSION = "0.5.6";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -681,8 +681,8 @@ export class SlowInsertPanel {
     }
     if (group.members.length > 1) {
       details.push(group.rules);
-      if (!member) details.push(t(group.kind === "exact" ? "Grouping.Exact" : "Grouping.Family"));
-      else {
+      if (!member && group.kind === "exact") details.push(t("Grouping.Exact"));
+      if (member) {
         if (entry.uuid === group.representative.uuid) details.push(t("Grouping.Default"));
         for (const tag of entry.tags) details.push(t(`Grouping.Tag.${tag}`));
       }

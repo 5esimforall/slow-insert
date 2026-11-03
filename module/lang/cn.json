@@ -179,7 +179,6 @@
   "SLOWINSERT.Grouping.PinHint": "优先显示此条目（当前客户端）",
   "SLOWINSERT.Grouping.Default": "默认",
   "SLOWINSERT.Grouping.Exact": "相同副本",
-  "SLOWINSERT.Grouping.Family": "可选版本",
   "SLOWINSERT.Grouping.ExactHint": "展开选择来源",
   "SLOWINSERT.Grouping.FamilyHint": "展开选择版本，查看各自的来源与自动化配置。",
   "SLOWINSERT.Grouping.DefaultSource": "当前来源：{source}",

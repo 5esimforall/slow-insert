@@ -179,7 +179,6 @@
   "SLOWINSERT.Grouping.PinHint": "Show this entry first on this client",
   "SLOWINSERT.Grouping.Default": "Default",
   "SLOWINSERT.Grouping.Exact": "Matching copies",
-  "SLOWINSERT.Grouping.Family": "Variants",
   "SLOWINSERT.Grouping.ExactHint": "Expand to choose a source",
   "SLOWINSERT.Grouping.FamilyHint": "Expand to choose a variant and compare sources and automation.",
   "SLOWINSERT.Grouping.DefaultSource": "Current source: {source}",

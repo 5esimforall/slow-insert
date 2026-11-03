@@ -2,7 +2,7 @@
   "id": "slow-insert",
   "title": "Slow Insert",
   "description": "A persistent right-side compendium browser with source badges and 5e quick-reference filter schemes, powered by Quick Insert.",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "compatibility": {
     "minimum": "13.347",
     "verified": "13.351",
