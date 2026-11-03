@@ -241,7 +241,6 @@
   "SLOWINSERT.Browse.Filters": "Filters",
   "SLOWINSERT.Browse.Sorting": "Sorting",
   "SLOWINSERT.Browse.Display": "Display options",
-  "SLOWINSERT.Browse.Live": "Changes apply immediately · Settings are retained when closed",
   "SLOWINSERT.Browse.Summary": "{scheme} · {count} filters",
   "SLOWINSERT.Browse.FilterCount": "{count} filters"
 }

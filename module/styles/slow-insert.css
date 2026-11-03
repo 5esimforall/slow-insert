@@ -343,7 +343,6 @@
 .si-browse-content .si-display-options { padding: 0; border: 0; }
 .si-browse-content .si-filter-switch-title { font-size: 12px; }
 .si-browse-content .si-filter-switch { padding: 9px 0; }
-.si-browse-content .si-browse-footer { flex: none; padding: 12px 20px; color: var(--si-muted); font-size: 11px; border-top: 1px solid var(--si-line); }
 @container (max-width: 570px) {
   .si-browse-content .si-browse-columns { grid-template-columns: minmax(0,1fr); }
   .si-browse-content .si-browse-right { border-left: 0; border-top: 1px solid var(--si-line); }

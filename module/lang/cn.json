@@ -241,7 +241,6 @@
   "SLOWINSERT.Browse.Filters": "筛选条件",
   "SLOWINSERT.Browse.Sorting": "排序方式",
   "SLOWINSERT.Browse.Display": "显示选项",
-  "SLOWINSERT.Browse.Live": "更改即时生效 · 关闭窗口后保留设置",
   "SLOWINSERT.Browse.Summary": "{scheme} · {count} 项筛选",
   "SLOWINSERT.Browse.FilterCount": "{count} 项筛选"
 }

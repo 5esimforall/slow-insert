@@ -10,7 +10,7 @@ import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./g
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.5.1";
+export const MODULE_VERSION = "0.5.2";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -265,8 +265,7 @@ export class SlowInsertPanel {
     display.append(element("h3", "", t("Browse.Display")), filters.displayOptions);
     right.append(sortSection, display);
     columns.append(left, right);
-    const footer = element("div", "si-browse-footer", t("Browse.Live"));
-    this.browseContent.append(top, columns, footer);
+    this.browseContent.append(top, columns);
   }
 
   async openBrowseWindow() {
