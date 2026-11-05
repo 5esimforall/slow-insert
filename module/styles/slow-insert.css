@@ -245,16 +245,25 @@
 .slow-insert .si-group-heading > .si-result { flex: 1; min-width: 0; width: 0; }
 .slow-insert .si-group-toggle { flex: none; min-width: 38px; min-height: 36px; padding: 4px; border-color: transparent; font-variant-numeric: tabular-nums; }
 .slow-insert .si-group-toggle:focus-visible { outline: 2px solid var(--si-accent); outline-offset: -2px; }
-.slow-insert .si-group-members { margin: 0 3px 10px 13px; padding-left: 5px; border-left: 1px solid var(--si-line); }
+.slow-insert .si-group-members { margin: 0 0 10px 13px; padding-left: 5px; border-left: 1px solid var(--si-line); }
 .slow-insert .si-group-members[hidden] { display: none; }
-.slow-insert .si-member { display: flex; align-items: center; gap: 0; margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; }
+.slow-insert .si-member { position: relative; margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; }
 .slow-insert .si-member:hover { background: var(--si-hover); }
 .slow-insert .si-member:has(> .si-result[aria-selected="true"]) { background: var(--si-selected); border-color: transparent; }
-.slow-insert .si-member > .si-result { flex: 1; min-width: 0; width: 0; margin: 0; border: 0; background: transparent; }
-.slow-insert .si-member > .si-pin { display: grid; place-items: center; flex: 0 0 28px; align-self: stretch; min-height: 32px; margin: 0; padding: 4px; border: 0; border-radius: 0 4px 4px 0; font-size: 12px; color: var(--si-muted); }
-.slow-insert .si-member > .si-pin:hover { color: var(--si-accent); background: var(--si-selected); }
+.slow-insert .si-member > .si-result { width: 100%; min-width: 0; margin: 0; border: 0; background: transparent; }
+.slow-insert .si-member .si-source { min-width: 24px; margin-bottom: 24px; text-align: right; }
+.slow-insert .si-member > .si-pin {
+  position: absolute; right: 6px; bottom: 4px;
+  display: grid; place-items: center;
+  width: 24px; height: 24px; min-width: 24px; min-height: 24px;
+  margin: 0; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; box-shadow: none; color: var(--si-muted);
+  font-size: 13px; line-height: 1; cursor: pointer;
+}
+.slow-insert .si-pin > i { margin: 0; pointer-events: none; }
+.slow-insert .si-member > .si-pin:is(:hover, :focus-visible) { background: var(--si-selected); color: var(--si-accent); }
 .slow-insert .si-member > .si-pin[aria-pressed="true"] { color: #88631f; }
-.slow-insert .si-member > .si-pin:focus-visible { outline-offset: -2px; }
+.slow-insert .si-member > .si-pin:focus-visible { outline: 2px solid var(--si-accent); outline-offset: -2px; }
 .slow-insert .si-pack { color: var(--si-muted); font-size: 10px; overflow-wrap: anywhere; }
 .slow-insert .si-warning { color: #8b5b25; font-size: 10px; }
 

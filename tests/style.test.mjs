@@ -41,3 +41,11 @@ test('native selects share an inset chevron and reserve space for it', () => {
   assert.match(css, /stroke-linecap='round'/);
   assert.match(css, /@media \(forced-colors: active\)/);
 });
+
+test('preferred-member star uses a compact hit target below the source', () => {
+  const pin = css.match(/\.si-member > \.si-pin \{([^}]+)\}/)[1];
+  assert.match(pin, /background: transparent;/);
+  assert.match(pin, /width: 24px; height: 24px;/);
+  assert.match(css, /\.si-member \.si-source \{[^}]*margin-bottom: 24px;/);
+  assert.match(css, /\.si-pin:focus-visible \{ outline: 2px solid/);
+});

@@ -1,4 +1,4 @@
-# Slow Insert v0.6.0
+# Slow Insert v0.6.1
 
 依赖 Quick Insert 的右侧常驻速查面板。显示来源徽标，支持打开条目和原生拖放，不修改 Quick Insert 本身。
 
