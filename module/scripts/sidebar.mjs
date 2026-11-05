@@ -28,8 +28,13 @@ export function registerSidebar() {
     }
   }
   CONFIG.ui[SIDEBAR_TAB] = SlowInsertSidebar;
-  CONFIG.ui.sidebar.TABS[SIDEBAR_TAB] = {
+  const definition = {
     tooltip: "SLOWINSERT.Panel.Launcher", icon: "fa-solid fa-magnifying-glass",
     gmOnly: game.settings.get("quick-insert", "gmOnly")
   };
+  // Foundry renders tabs in insertion order; keep search directly before settings.
+  const tabs = Object.entries(CONFIG.ui.sidebar.TABS).filter(([name]) => name !== SIDEBAR_TAB);
+  const settingsIndex = tabs.findIndex(([name]) => name === "settings");
+  tabs.splice(settingsIndex < 0 ? tabs.length : settingsIndex, 0, [SIDEBAR_TAB, definition]);
+  CONFIG.ui.sidebar.TABS = Object.fromEntries(tabs);
 }

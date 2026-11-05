@@ -28,6 +28,8 @@ export function checker() {
 export async function runBrowserChecks() {
   const { checks, check } = checker();
   const tab = ui.slowinsert, panel = tab.panel;
+  check([...document.querySelectorAll('#sidebar [role=tab]')].map(button => button.dataset.tab).join(',') === 'chat,slowinsert,settings',
+    'search tab appears immediately before settings');
   check(tab instanceof CONFIG.ui.slowinsert && panel.sidebarHost.app === tab, 'production registration mounts the panel inside the sidebar host');
   check(panel.root.parentElement === tab.content && !document.querySelector('#slow-insert-toggle, .si-resize'), 'no body-mounted search panel, launcher or resize handle');
   document.querySelector('[role=tab][data-tab=slowinsert]').click();

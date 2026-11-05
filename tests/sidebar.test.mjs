@@ -3,6 +3,26 @@ import assert from 'node:assert/strict';
 import { registerSidebar, SIDEBAR_TAB } from '../module/scripts/sidebar.mjs';
 import { SlowInsertPanel } from '../module/scripts/panel.mjs';
 
+test('search precedes settings without reordering other tabs, including repeated registration', t => {
+  const previous = { foundry: globalThis.foundry, CONFIG: globalThis.CONFIG, game: globalThis.game };
+  t.after(() => Object.assign(globalThis, previous));
+  globalThis.foundry = { applications: { sidebar: { AbstractSidebarTab: class {} } } };
+  globalThis.game = { settings: { get: () => false } };
+  for (const names of [['chat', 'compendium', 'settings'], ['chat', 'custom', 'settings', 'other'], ['chat']]) {
+    const original = Object.fromEntries(names.map(name => [name, { tooltip: name }]));
+    globalThis.CONFIG = { ui: { sidebar: { TABS: { ...original } } } };
+    const expected = [...names];
+    const settingsIndex = expected.indexOf('settings');
+    expected.splice(settingsIndex < 0 ? expected.length : settingsIndex, 0, SIDEBAR_TAB);
+    for (let pass = 0; pass < 2; pass++) {
+      registerSidebar();
+      assert.deepEqual(Object.keys(CONFIG.ui.sidebar.TABS), expected);
+      for (const name of names) assert.equal(CONFIG.ui.sidebar.TABS[name], original[name]);
+      assert.equal(CONFIG.ui.sidebar.TABS[SIDEBAR_TAB].gmOnly, false);
+    }
+  }
+});
+
 test('native sidebar registration preserves core tabs and respects GM-only discovery',()=>{
   const previous={foundry:globalThis.foundry,CONFIG:globalThis.CONFIG,game:globalThis.game};
   try {

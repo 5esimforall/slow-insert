@@ -3,7 +3,7 @@
  * Production registerSidebar supplies the subclass and all panel lifecycle code.
  */
 export function installSidebarFixture(Application) {
-  CONFIG.ui = { sidebar: { TABS: { chat: { tooltip: 'Chat' } } } };
+  CONFIG.ui = { sidebar: { TABS: { chat: { tooltip: 'Chat' }, settings: { tooltip: 'Settings' } } } };
   const sidebar = document.querySelector('#sidebar');
   const content = sidebar.querySelector('.sidebar-content');
   ui.sidebar = {
