@@ -1,4 +1,4 @@
-import { t } from "./i18n.mjs";
+import { t, localizeValue } from "./i18n.mjs";
 import { resolveSource } from "./source.mjs";
 import { crLabel, itemTypeLabel } from "./filters.mjs";
 import { sortValueLabel } from "./sorting.mjs";
@@ -166,7 +166,7 @@ export class ResultsView {
     label.append(typeLabel);
     if (member) label.append(element("span", "si-pack", item.packageName || item.package || entry.uuid));
     if (entry.warning && globalThis.game?.user?.isGM === true) {
-      const warning = element("span", "si-warning", t(`Grouping.Review.${entry.warning}`));
+      const warning = element("span", "si-warning", localizeValue(`TRUESIGHT.Grouping.Review.${entry.warning}`, environment));
       warning.title = t("Grouping.ReviewHint");
       label.append(warning);
     }

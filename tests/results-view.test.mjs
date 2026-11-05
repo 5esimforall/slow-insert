@@ -81,3 +81,19 @@ test('players retain expansion and personal pins but have no identity-exclusion 
   game.user.isGM=true;view.render([group],{environment:{},pins:{}});
   assert.deepEqual(actions(),['expand','pin','exclude','pin','exclude']);
 });
+
+test('GM identity warnings use shared Truesight localization rather than a consumer-owned copy', t => {
+  const before={document:globalThis.document,game:globalThis.game};t.after(()=>Object.assign(globalThis,before));
+  const element=()=>({children:[],dataset:{},setAttribute(){},addEventListener(){},append(...children){this.children.push(...children);}});
+  globalThis.document={createElement:element};globalThis.game={user:{isGM:true},i18n:{localize:k=>k}};
+  const view=new ResultsView({list:element(),input:element(),idPrefix:'test'});
+  const environment={localize:key=>key==='TRUESIGHT.Grouping.Review.owner-context'?'SHARED OWNER DIAGNOSTIC':key};
+  view.context={environment,dataFor:()=>null,typeLabels:{Item:{}},sortKeys:[]};
+  const entry={uuid:'Item.a',warning:'owner-context',tags:[],result:{item:{uuid:'Item.a',documentType:'Item',subType:'feat',name:'Indomitable',system:{}}}};
+  const group={members:[entry],representative:entry};
+  const row=view.renderRow(entry,group,environment);
+  const descendants=n=>[n,...n.children.flatMap(descendants)];
+  assert.equal(descendants(row).find(n=>n.className==='si-warning').textContent,'SHARED OWNER DIAGNOSTIC');
+  game.user.isGM=false;
+  assert.equal(descendants(view.renderRow(entry,group,environment)).some(n=>n.className==='si-warning'),false);
+});

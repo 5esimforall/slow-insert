@@ -149,7 +149,8 @@ test('bilingual names without original metadata require whole-segment identifier
 
 test('other systems do not inherit dnd5e spell identity rules',()=>{
  const rows=[spell('a'),spell('b')];const snap=calculated(rows,{system:{id:'other'}});
- assert.equal(Object.keys(snap.groups).length,0);assert.equal(Object.keys(snap.records).length,0);
+ assert.equal(Object.keys(snap.groups).length,0);assert.equal(Object.keys(snap.records).length,2);
+ assert.ok(Object.values(snap.records).every(record=>record.reason==='origin'));
 });
 
 test('review reapplication reconciles pins by shared membership, drops ambiguous merged pins and never creates groups', async () => {
@@ -158,4 +159,15 @@ test('review reapplication reconciles pins by shared membership, drops ambiguous
  assert.deepEqual(reconcilePins({old:'a'},entries),{merged:'a'});
  assert.deepEqual(reconcilePins({old:'a',other:'b',third:'c',lost:'gone'},entries),{separate:'c'});
  assert.deepEqual([...entries.keys()],['a','b','c']);
+});
+
+
+test('reviewed class features collapse through the public grouping consumer without changing selected names or UUIDs',()=>{
+ const parent=spell('fighter',{name:'Fighter',originalName:'Fighter',subType:'class',system:{identifier:'fighter',source:{rules:'2024'}}});
+ const rows=[parent,...['不屈','不屈 Indomitable','Indomitable'].map((name,index)=>spell('feature'+index,{name,originalName:'Indomitable',subType:'feat',system:{identifier:'indomitable',source:{rules:'2024'},type:{value:'class'},requirements:'Fighter',prerequisites:{level:9}}}))];
+ const reviewed=catalog(rows),features=rows.slice(1);
+ const output=groupSearchResults(features,reviewed,{query:'不屈'});
+ assert.equal(output.groups.length,1);assert.equal(output.groups[0].kind,'feat');
+ assert.deepEqual(output.groups[0].members.map(e=>e.result.item.name).sort(),features.map(e=>e.item.name).sort());
+ assert.deepEqual(output.groups[0].members.map(e=>e.uuid).sort(),features.map(e=>e.item.uuid).sort());
 });
