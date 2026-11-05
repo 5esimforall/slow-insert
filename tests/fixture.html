@@ -264,17 +264,25 @@
     try {
       const { runBrowserChecks, runLayoutBrowserChecks } = await import("./browser-checks.js");
       const { runFilterBrowserChecks } = await import("./filter-browser-checks.js");
-      const checks = [...await runBrowserChecks(), ...await runFilterBrowserChecks(), ...await runLayoutBrowserChecks()];
       const { runThemeBrowserChecks } = await import('./theme-browser-checks.js');
-      checks.push(...await runThemeBrowserChecks());
       const { runDiagnosticsBrowserChecks } = await import('./diagnostics-browser-checks.js');
-      checks.push(...await runDiagnosticsBrowserChecks());
-      if (new URL(location.href).searchParams.has('grouping')) {
-        const {runTruesightRefreshChecks} = await import('./truesight-refresh-browser-checks.js');
-        checks.push(...await runTruesightRefreshChecks());
-        const {runGroupingInspectionChecks} = await import('./grouping-inspection-browser-checks.js');
-        checks.push(...await runGroupingInspectionChecks());
+      const checks = [];
+      const collapseDiagnostics = game.settings.get('slow-insert', 'collapseDiagnostics');
+      // General browsing checks use inline results so every matching row is actionable.
+      try {
+        await game.settings.set('slow-insert', 'collapseDiagnostics', false);
+        checks.push(...await runBrowserChecks(), ...await runFilterBrowserChecks(), ...await runLayoutBrowserChecks());
+        checks.push(...await runThemeBrowserChecks());
+        if (new URL(location.href).searchParams.has('grouping')) {
+          const {runTruesightRefreshChecks} = await import('./truesight-refresh-browser-checks.js');
+          checks.push(...await runTruesightRefreshChecks());
+          const {runGroupingInspectionChecks} = await import('./grouping-inspection-browser-checks.js');
+          checks.push(...await runGroupingInspectionChecks());
+        }
+      } finally {
+        await game.settings.set('slow-insert', 'collapseDiagnostics', collapseDiagnostics);
       }
+      checks.push(...await runDiagnosticsBrowserChecks());
       report.textContent = `PASS: ${checks.length} checks\n${checks.join("\n")}`;
     } catch (error) { report.textContent = `FAIL: ${error.stack}`; }
     finally { event.target.disabled = false; }

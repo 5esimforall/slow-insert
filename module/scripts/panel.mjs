@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.23";
+export const MODULE_VERSION = "0.6.24";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -147,11 +147,11 @@ export class SlowInsertPanel {
       this.refresh();
     });
 
-    const diagnostics = createFilterSwitch({ label: t("Diagnostics.Option"), hint: t("Diagnostics.Hint") });
+    const diagnostics = createFilterSwitch({ label: t("Diagnostics.Option"), hint: t("Diagnostics.OptionHint") });
     this.diagnosticsControl = diagnostics;
     this.filterControls.displayOptions.append(diagnostics.root);
     this.listen(diagnostics.input, "change", () => {
-      this.collapseDiagnostics = diagnostics.input.checked;
+      this.collapseDiagnostics = !diagnostics.input.checked;
       void this.save("collapseDiagnostics", this.collapseDiagnostics);
       this.refresh();
     });
@@ -329,7 +329,7 @@ export class SlowInsertPanel {
   updateBrowseSummary() {
     const count = activeFilters(this.filters).length;
     const custom = this.sorting.profiles[this.filters.scheme].mode === "manual";
-    this.browseButton?.classList.toggle("si-browse-active", count > 0 || custom || this.filters.includeExternal || !this.grouping.enabled || this.collapseDiagnostics);
+    this.browseButton?.classList.toggle("si-browse-active", count > 0 || custom || this.filters.includeExternal || !this.grouping.enabled || !this.collapseDiagnostics);
     if (this.browseSummary) this.browseSummary.textContent = t("Browse.Summary", {
       scheme: t(SCHEMES[this.filters.scheme].label), count
     });
@@ -423,7 +423,7 @@ export class SlowInsertPanel {
     const scrollTop = preservePage ? this.list.scrollTop : 0;
     if (!this.visible && !this.browseWindow?.rendered) return;
     if (!preservePage) this.diagnosticsExpanded = false;
-    this.diagnosticsControl.input.checked = this.collapseDiagnostics;
+    this.diagnosticsControl.input.checked = !this.collapseDiagnostics;
     this.diagnosticsControl.state.textContent = t(this.collapseDiagnostics ? "Diagnostics.Collapsed" : "Diagnostics.Inline");
     this.updateBrowseSummary();
     this.groupToggle.checked = !this.grouping.enabled;

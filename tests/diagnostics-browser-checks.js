@@ -30,13 +30,19 @@ export async function runDiagnosticsBrowserChecks() {
       warning: result.item.name.startsWith('Diagnostic') ? 'identifier' : null
     }])), groups: new Map() });
     panel.session.invalidate();
-    await game.settings.set('slow-insert', 'collapseDiagnostics', false);
     panel.refresh();
-    const baseline = panel.session.page.groups.map(group => group.key);
     const control = panel.diagnosticsControl;
+    check(saved.preference === true && !control.input.checked && !panel.view.diagnosticBody?.children.length
+      && panel.view.diagnosticToggle?.getAttribute('aria-expanded') === 'false',
+      'expand diagnostics is off by default and diagnostics are collapsed at the bottom');
     control.input.click();
-    check(game.settings.get('slow-insert', 'collapseDiagnostics') === true && panel.collapseDiagnostics,
-      'diagnostic switch saves the client preference');
+    check(game.settings.get('slow-insert', 'collapseDiagnostics') === false && control.input.checked
+      && panel.session.page.groups.length === 490 && !panel.view.diagnosticToggle,
+      'turning expand diagnostics on saves the preference and shows every result inline');
+    const baseline = panel.session.page.groups.map(group => group.key);
+    control.input.click();
+    check(game.settings.get('slow-insert', 'collapseDiagnostics') === true && !control.input.checked,
+      'turning expand diagnostics off saves the collapsed preference');
     check(panel.session.page.groups.length === 245 && panel.session.page.diagnosticGroups.length === 245
       && panel.view.results.length === 100 && !panel.list.querySelector('.si-warning'),
       'collapsed diagnostics never enter selection or drag mappings');
@@ -108,7 +114,7 @@ export async function runDiagnosticsBrowserChecks() {
     check(!panel.list.children.length && panel.session.page.rawCount === 0, 'truly empty searches retain the empty-result state');
     panel.input.value = ''; panel.refresh(); control.input.click();
     check(panel.session.page.groups.map(group => group.key).join() === baseline.join()
-      && !panel.list.querySelector('.si-diagnostics'), 'switching off restores original ordering');
+      && !panel.list.querySelector('.si-diagnostics'), 'switching on restores inline ordering');
     await game.settings.set('slow-insert', 'collapseDiagnostics', true);
     game.user.isGM = false; panel.refresh();
     check(getComputedStyle(control.root).display !== 'none' && panel.list.querySelector('.si-diagnostics')
@@ -118,10 +124,10 @@ export async function runDiagnosticsBrowserChecks() {
     check(panel.view.diagnosticBody.querySelectorAll('.si-result').length === 100
       && !panel.view.diagnosticBody.querySelector('.si-warning'), 'expanded player results still omit GM-only diagnostic reasons');
     const popout = await ui.slowinsert.renderPopout();
-    check(popout.panel.collapseDiagnostics && popout.panel.diagnosticsControl.input.checked,
-      'fresh panel restores the saved disclosure preference for players');
+    check(popout.panel.collapseDiagnostics && !popout.panel.diagnosticsControl.input.checked,
+      'fresh panel restores the saved collapsed preference for players');
     control.input.click();
-    check(!popout.panel.collapseDiagnostics && !popout.panel.diagnosticsControl.input.checked,
+    check(!popout.panel.collapseDiagnostics && popout.panel.diagnosticsControl.input.checked,
       'saved display preference changes synchronize existing sidebar and popout');
     await popout.close(); delete ui.slowinsert.popout;
   } finally {

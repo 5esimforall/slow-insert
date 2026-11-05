@@ -25,7 +25,7 @@ Hooks.once("init", () => {
     game.settings.register(MODULE_ID, key, { scope: "client", config: false, type, default: value });
   }
   game.settings.register(MODULE_ID, "collapseDiagnostics", { scope: "client", config: false,
-    type: Boolean, default: false,
+    type: Boolean, default: true,
     onChange: value => Hooks.callAll("slowInsertDiagnosticsChanged", value === true)
   });
   game.keybindings.register(MODULE_ID, "toggle", {
