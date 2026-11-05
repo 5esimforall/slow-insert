@@ -422,8 +422,10 @@
   color: var(--ts-muted); font: inherit; font-size: 11px; line-height: 1.4;
   white-space: normal; text-align: center; cursor: pointer;
 }
-.slow-insert .si-diagnostics-toggle:hover { background: transparent; box-shadow: none; color: var(--ts-text); }
-.slow-insert .si-diagnostics-toggle:focus-visible { outline-offset: -2px; }
+.slow-insert .si-diagnostics-toggle:is(:hover, :focus, :focus-visible, :active) {
+  border: 0; outline: none; background: transparent; box-shadow: none; color: var(--ts-text);
+}
+.slow-insert .si-diagnostics-toggle:focus-visible { text-decoration: underline; text-underline-offset: 2px; }
 /* The visible stroke is centered in its box in both disclosure states. */
 .slow-insert .si-diagnostics-chevron {
   display: block; flex: 0 0 8px; width: 8px; height: 8px;

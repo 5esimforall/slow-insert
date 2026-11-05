@@ -60,6 +60,11 @@ export async function runDiagnosticsBrowserChecks() {
     check(panel.view.results.length === 200 && document.activeElement === panel.view.diagnosticToggle
       && panel.view.diagnosticBody.querySelectorAll('.si-warning').length === 100,
       'expansion renders a bounded diagnostic page and restores disclosure focus');
+    const focusStyle = getComputedStyle(panel.view.diagnosticToggle);
+    check(focusStyle.outlineStyle === 'none' && focusStyle.boxShadow === 'none'
+      && parseFloat(focusStyle.borderTopWidth) === 0 && focusStyle.backgroundColor === 'rgba(0, 0, 0, 0)'
+      && (!panel.view.diagnosticToggle.matches(':focus-visible') || focusStyle.textDecorationLine.includes('underline')),
+      'focused diagnostic disclosure has no frame or fill and uses text-only keyboard feedback');
     checkChevronCenter();
     const diagnosticRow = panel.view.diagnosticBody.querySelector('.si-result');
     const selectedItem = panel.view.results[Number(diagnosticRow.dataset.index)].item;

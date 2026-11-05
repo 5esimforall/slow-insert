@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.19";
+export const MODULE_VERSION = "0.6.20";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
