@@ -425,3 +425,19 @@
     background-image: none;
   }
 }
+
+/* Explicit grouping workflow; native ApplicationV2 owns focus and geometry. */
+.si-grouping-controls { border-top: 1px solid var(--si-border, #53535a); margin-top: 14px; padding-top: 10px; }
+.si-grouping-controls p { font-size: 12px; line-height: 1.5; }
+.si-grouping-controls button { width: 100%; margin-block: 3px; }
+.si-grouping-pending { box-shadow: inset 0 -2px #cfa34c; }
+.si-grouping-window .window-content { overflow: auto; }
+.si-grouping-preview { position: static; width: auto; min-width: 0; height: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+.si-grouping-preview label { display: flex; gap: 8px; align-items: center; }
+.si-grouping-preview details { padding: 7px; border: 1px solid #6666; border-radius: 4px; }
+.si-grouping-preview details details { margin-top: 5px; }
+.si-grouping-preview summary { cursor: pointer; }
+.si-grouping-preview p { margin: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.si-grouping-preview footer { display: flex; justify-content: flex-end; gap: 10px; }
+.si-grouping-preview footer button { flex: 1; }
+.si-grouping-preview [role=alert]:not(:empty) { color: #e6b45b; }

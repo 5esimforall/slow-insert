@@ -1,11 +1,15 @@
-import { GROUPING_REGISTRY } from "../data/grouping-registry.mjs";
 import { identifySource, prepareSourceEnvironment } from "./source-resolution.mjs";
 
-// Small index fields only. No descriptions, activities, effects or full-document reads.
-export const GROUP_INDEX_FIELDS = Object.freeze(["_stats.modifiedTime", "system.source.revision"]);
+// Metadata only: never load documents, descriptions, activities or effects.
+export const GROUP_INDEX_FIELDS = Object.freeze(["originalName", "flags.babele.originalName", "flags.chris-premades.info.identifier", "flags.gambits-premades.gpsUuid"]);
 export const GROUP_ACTOR_INDEX_FIELDS = Object.freeze(["system.details.source"]);
+export const GROUP_RULE_VERSION = 1;
 const text = value => typeof value === "string" ? value.trim() : "";
-const own = (value,key) => Object.hasOwn(value ?? {},key);
+const normalName = value => text(value).normalize("NFKC").toLowerCase().replace(/[\s()（）]/g, "");
+const english = value => /^[A-Za-z][A-Za-z0-9\s'’:,()&.!+/-]*$/.test(text(value));
+const nameKey = value => text(value).normalize("NFKC").toLowerCase().replace(/’/g,"'").replace(/\s+/g," ");
+const slug = value => nameKey(value).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+const identifier = value => /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(text(value)) && !["none","unknown","undefined","null","spell","item"].includes(value) ? value : null;
 export function canonicalUuid(item) {
   const uuid = text(typeof item === "string" ? item : item?.uuid);
   const type = typeof item === "string" ? "Item" : item?.documentType;
@@ -15,9 +19,10 @@ export function canonicalUuid(item) {
   return uuid;
 }
 export function normalizeGrouping(value) {
-  const saved=value?.version===1?value:{};
-  const pins=Object.fromEntries(Object.entries(saved.pins??{}).filter(([key,uuid])=>key.length<300&&typeof uuid==="string"&&uuid.length<500).slice(0,2000));
-  return {version:1,enabled:saved.enabled!==false,pins};
+  const saved=[1,2].includes(value?.version)?value:{};
+  const pins=Object.fromEntries(Object.entries(saved.pins??{}).filter(([key,uuid])=>key.length<500&&typeof uuid==="string"&&uuid.length<500).slice(0,5000));
+  const excluded=[...new Set((Array.isArray(saved.excluded)?saved.excluded:[]).filter(id=>typeof id==="string"&&id.length<500))];
+  return {version:2,enabled:saved.enabled!==false,pins,excluded};
 }
 export function editionEvidence(item, environment={}) {
   const source=identifySource(item,environment);
@@ -29,60 +34,126 @@ export function isSrdSource(item, environment={}) {
   const pkg=pack?.metadata?.packageType==="system"?environment.system:environment.modules?.get(pack?.metadata?.packageName);
   const books=Object.keys(pkg?.flags?.dnd5e?.sourceBooks??{});
   const source=item.system?.source ?? item.system?.details?.source;
-  // Identify the actual source, not all content shipped by a publisher. A
-  // third-party SRD copy is still SRD; an SRD license flag alone is not a source.
   return [source,source?.book,source?.custom,pack?.metadata?.flags?.dnd5e?.sourceBook,
     books.length===1?books[0]:null,pack?.title,pack?.metadata?.label,item.packageName]
     .some(value=>/\bsrd(?:\b|\d)|\bsystem reference document\b/i.test(text(value)));
 }
-const normalName = value => text(value).normalize("NFKC").toLowerCase().replace(/[\s()（）]/g,"");
-function nameMatches(name, names) {
-  const normalized=normalName(name);
-  // Bilingual converters concatenate translation + original even when a
-  // translation keeps the original English name. Accept exactly two audited
-  // names, including identical ones; never strip arbitrary repeated text.
-  return names.some(a=>normalName(a)===normalized) || names.some(a=>names.some(b=>normalName(a+b)===normalized));
-}
-function currentMember(item,record,environment) {
-  if(item.documentType!=="Item"||item.subType!==record.type)return "stale";
+function indexEntry(item, environment) {
   const packId=item.package || canonicalUuid(item).match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1];
-  const pack=environment.packs?.get(packId);
-  const pkg=record.package===environment.system?.id?environment.system:environment.modules?.get(record.package);
-  if(!pkg || pkg.version!==record.packageVersion)return "stale";
-  const id=canonicalUuid(item).split(".").at(-1);
-  const entry=pack?.index?.get(id);
-  if(!entry || !own(entry._stats,"modifiedTime"))return "unverified";
-  if(entry._stats.modifiedTime!==record.modifiedTime)return "stale";
-  const system=item.system??{};
-  if(!nameMatches(item.name,record.names)||system.identifier!==record.identifier||system.source?.rules!==record.rules)return "stale";
-  if(record.type==="spell"&&(system.level!==record.level||system.school!==record.school))return "spell";
-  return null;
+  return environment.packs?.get(packId)?.index?.get(canonicalUuid(item).split(".").at(-1)) ?? item;
+}
+function originalName(item, entry) {
+  const original=[entry.originalName,entry.flags?.babele?.originalName,item.originalName,item.flags?.babele?.originalName].find(english);
+  if(original)return text(original);
+  // A whole untranslated English name may corroborate its identifier. Never
+  // extract an English tail from a localized/bilingual display name.
+  return english(item.name)&&slug(item.name)===item.system?.identifier?text(item.name):"";
+}
+function describe(result, environment) {
+  const item=result.item,uuid=canonicalUuid(item),source=identifySource(item,environment),system=item.system??{},indexed=indexEntry(item,environment);
+  const id=identifier(system.identifier),name=originalName(item,indexed);
+  const suffix=name.match(/^(.+?)\s+\(([^()]+)\)$/);
+  let base=nameKey(name),suffixBook=null;
+  if(suffix) {
+    const candidates=environment.sourceCatalog.lookup(suffix[2]);
+    const references=source.references.filter(ref=>ref.record).map(ref=>ref.record.id);
+    const matched=candidates.filter(book=>references.includes(book.id));
+    if(matched.length===1){base=nameKey(suffix[1]);suffixBook=matched[0].id;}
+  }
+  const spell=item.documentType==="Item"&&item.subType==="spell";
+  const warning=source.status==="edition-conflict"?"edition":source.status==="source-conflict"?"source":
+    !spell?null:!source.rules?"rules":!id?"identifier":
+    !Number.isInteger(system.level)||system.level<0||system.level>9||!["abj","con","div","enc","evo","ill","nec","trs"].includes(system.school)?"spell":null;
+  const fingerprint=JSON.stringify([item.documentType,item.subType,id,source.rules,system.level??null,system.school??null,
+    source.status==="edition-conflict"||source.status==="source-conflict"?source.status:null]);
+  const nameFingerprint=JSON.stringify([base,suffixBook]);
+  const automated=Boolean(indexed.flags?.["chris-premades"]?.info?.identifier || indexed.flags?.["gambits-premades"]?.gpsUuid);
+  return {result,uuid,spell,id,rules:source.rules,level:system.level,school:system.school,warning,fingerprint,nameFingerprint,
+    base,suffixBook,names:[item.name,name].filter(Boolean),tags:automated?["automation"]:[],srd:isSrdSource(item,environment),key:null,risk:null,kind:null};
+}
+export function describeGroupingIndex(results, environment={}) {
+  environment=prepareSourceEnvironment(environment);
+  return new Map(results.map(result=>{const entry=describe(result,environment);return [entry.uuid,entry];}));
+}
+function addTo(map,key,value) {if(!map.has(key))map.set(key,[]);map.get(key).push(value);}
+
+/** Explicit computation, never invoked by ordinary search/index refresh. */
+export function calculateGrouping(results,environment={},preferences=normalizeGrouping(),{includeRisk=false}={}) {
+  const entries=describeGroupingIndex(results,environment),buckets=new Map(),excluded=new Set(preferences.excluded??[]);
+  for(const entry of entries.values()) if(entry.spell&&!entry.warning&&!excluded.has(entry.uuid))addTo(buckets,`spell:${entry.rules}:${entry.id}`,entry);
+  const candidates=new Map(),names=new Map();
+  for(const [key,members] of buckets) {
+    if(new Set(members.map(e=>`${e.level}:${e.school}`)).size!==1){for(const e of members)e.warning="spell";continue;}
+    const candidate={key,members,risk:null,reason:"identifier"};candidates.set(key,candidate);
+    for(const base of new Set(members.map(e=>e.base).filter(Boolean)))addTo(names,`${members[0].rules}:${base}`,candidate);
+  }
+  if(includeRisk) for(const related of names.values()) {
+    const clusters=[...new Set(related)].filter(c=>candidates.has(c.key));
+    if(clusters.length<2)continue;
+    const members=clusters.flatMap(c=>c.members);
+    // No transitive name chains or ambiguous roots. Every member must have
+    // the same traceable full base name; at least one corroborated suffix and
+    // exactly one unsuffixed identifier family are required.
+    if(members.some(e=>!e.base)||new Set(members.map(e=>e.base)).size!==1||new Set(members.map(e=>`${e.level}:${e.school}`)).size!==1)continue;
+    const roots=clusters.filter(c=>c.members.some(e=>!e.suffixBook));
+    if(roots.length!==1||!members.some(e=>e.suffixBook))continue;
+    if(clusters.filter(c=>c!==roots[0]).some(c=>c.members.some(e=>!e.suffixBook)))continue;
+    const root=roots[0];
+    for(const c of clusters)if(c!==root)candidates.delete(c.key);
+    root.members=members;root.risk="implementation";root.reason="source-suffix";
+  }
+  const groups=Object.create(null),records=Object.create(null);
+  for(const candidate of candidates.values())if(candidate.members.length>1) {
+    groups[candidate.key]={kind:"spell",risk:candidate.risk,reason:candidate.reason,members:candidate.members.map(e=>e.uuid).sort()};
+    for(const e of candidate.members){e.key=candidate.key;e.risk=candidate.risk;}
+  }
+  for(const e of entries.values())if(e.spell)records[e.uuid]={fingerprint:e.fingerprint,nameFingerprint:e.risk?e.nameFingerprint:null,key:e.key,warning:excluded.has(e.uuid)?"excluded":e.warning};
+  return {version:1,ruleVersion:GROUP_RULE_VERSION,createdAt:Date.now(),includeRisk,records,groups};
 }
 
-/** Only records present in Quick Insert's permitted index can enter a group.
- * The audit registry is bounded, not a global name/identifier equivalence rule.
- * Package versions + modification stamps invalidate stale approvals; search never
- * loads full documents, runs migrations, mutates indexes or invents a new UUID.
- */
-export function buildGroupingCatalog(results,environment={},registry=GROUPING_REGISTRY) {
-  environment=prepareSourceEnvironment(environment);
-  const entries=new Map(),groups=new Map();
-  for(const result of results) {
-    const item=result.item,uuid=canonicalUuid(item);
-    if(entries.has(uuid))continue;
-    const member=registry.members[uuid],edition=editionEvidence(item,environment);
-    let warning=edition.conflict?"edition":identifySource(item,environment).status==="source-conflict"?"source":registry.review[uuid]??null;
-    let key=null;
-    if(member&&!warning) {
-      warning=currentMember(item,member,environment);
-      if(!warning&&registry.groups[member.group])key=member.group;
-    }
-    const entry={result,uuid,key,warning,risk:member?registry.groups[member.group]?.risk??null:null,rules:edition.rules,srd:isSrdSource(item,environment),tags:member?.tags??[],names:member&&!warning?member.names:[],
-      kind:key?registry.groups[key].kind:null};
-    entries.set(uuid,entry);
-    if(key) {if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);}
+/** Applied membership only. New/changed/unauthorized records never acquire a
+ * family during refresh; names and package versions are not identities. */
+export function buildGroupingCatalog(results,environment={},snapshot=null,preferences=normalizeGrouping()) {
+  const entries=describeGroupingIndex(results,environment),groups=new Map(),excluded=new Set(preferences.excluded??[]);
+  let changed=0;
+  for(const entry of entries.values()) {
+    const previous=snapshot?.records?.[entry.uuid];
+    const current=previous&&previous.fingerprint===entry.fingerprint&&(!previous.nameFingerprint||previous.nameFingerprint===entry.nameFingerprint);
+    if(entry.spell&&(!current||snapshot?.ruleVersion!==GROUP_RULE_VERSION||(previous?.warning==="excluded")!==excluded.has(entry.uuid)))changed++;
+    if(previous&&!current)entry.warning=entry.warning||"identity";
+    if(excluded.has(entry.uuid))entry.warning="excluded";
+    const group=previous?.key&&snapshot?.groups?.[previous.key];
+    if(snapshot?.ruleVersion===GROUP_RULE_VERSION&&current&&!entry.warning&&!excluded.has(entry.uuid)&&group?.members.includes(entry.uuid)) {
+      entry.key=previous.key;entry.risk=group.risk;entry.kind=group.kind;addTo(groups,entry.key,entry);
+    } else if(previous?.warning&&previous.warning!=="excluded"&&!entry.warning)entry.warning=previous.warning;
   }
-  return {entries,groups};
+  for(const uuid of Object.keys(snapshot?.records??{}))if(!entries.has(uuid))changed++;
+  return {entries,groups,changed};
+}
+
+export function groupingDiff(previous,next,preferences=normalizeGrouping()) {
+  const old=previous?.groups??{},groups=next.groups;
+  const membership=snapshot=>new Map(Object.entries(snapshot).flatMap(([key,g])=>g.members.map(id=>[id,key])));
+  const before=membership(old),after=membership(groups);
+  let added=0,merged=0,split=0;
+  for(const g of Object.values(groups)) {
+    const parents=new Set(g.members.map(id=>before.get(id)).filter(Boolean));
+    if(!parents.size)added++;
+    if(parents.size>1)merged++;
+  }
+  for(const g of Object.values(old))if(new Set(g.members.map(id=>after.get(id)??id)).size>1)split++;
+  const lostPins=Object.values(preferences.pins??{}).filter(id=>!after.has(id));
+  return {added,merged,split,groups:Object.keys(groups).length,joined:after.size,
+    independent:Object.values(next.records).filter(r=>!r.key).length,risky:Object.values(groups).filter(g=>g.risk).length,lostPins};
+}
+export function migratePins(pins,snapshot) {
+  const result=Object.create(null),conflicts=new Set();
+  for(const uuid of Object.values(pins??{})) {
+    const key=snapshot.records[uuid]?.key;
+    if(!key||conflicts.has(key))continue;
+    if(result[key]&&result[key]!==uuid){delete result[key];conflicts.add(key);}else result[key]=uuid;
+  }
+  return result;
 }
 function prioritizeMembers(entries,key,preferences,lang) {
   const pin=preferences.pins[key];
@@ -93,7 +164,7 @@ function prioritizeMembers(entries,key,preferences,lang) {
     return /^(dnd-players-handbook|dnd-monster-manual|dnd-dungeon-masters-guide)\./.test(pack)?0:pack.startsWith("dnd5e.")?1:2;
   };
   // An explicit client pin wins; otherwise every non-SRD implementation ranks
-  // above SRD. Within non-SRD, audited automation markers outrank publisher
+  // above SRD. Within non-SRD, indexed automation markers outrank publisher
   // and language. Dependency tags alone do not imply automation.
   return entries.slice().sort((a,b)=>Number(b.uuid===pin)-Number(a.uuid===pin)
     || Number(Boolean(a.srd))-Number(Boolean(b.srd))

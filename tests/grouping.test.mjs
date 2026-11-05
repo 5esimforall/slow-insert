@@ -1,177 +1,139 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import { GROUPING_REGISTRY } from "../module/data/grouping-registry.mjs";
-import { buildGroupingCatalog, groupSearchResults, normalizeGrouping, canonicalUuid, editionEvidence, isSrdSource, GROUP_INDEX_FIELDS } from "../module/scripts/grouping.mjs";
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { buildGroupingCatalog, calculateGrouping, groupSearchResults, normalizeGrouping, canonicalUuid, editionEvidence, isSrdSource, GROUP_INDEX_FIELDS, groupingDiff, migratePins } from '../module/scripts/grouping.mjs';
+import { groupingSettingKey, normalizeGroupingState, applyGroupingState, undoGroupingState, validSnapshot } from '../module/scripts/grouping-state.mjs';
+import { spell, groupingFixture } from './grouping-fixture.mjs';
+const calculated=(rows,environment={},preferences=normalizeGrouping(),includeRisk=true)=>calculateGrouping(rows,environment,preferences,{includeRisk});
+const catalog=(rows,environment={},preferences=normalizeGrouping(),includeRisk=true)=>buildGroupingCatalog(rows,environment,calculated(rows,environment,preferences,includeRisk),preferences);
+const count=(rows,cat)=>groupSearchResults(rows,cat).groups.length;
 
-function fixture(uuids=Object.keys(GROUPING_REGISTRY.members)) {
-  const environment={system:{id:"dnd5e"},modules:new Map(),packs:new Map()};
-  const results=uuids.map(uuid=>{
-    const record=GROUPING_REGISTRY.members[uuid],parts=uuid.split("."),packId=parts.slice(1,3).join("."),id=parts.at(-1);
-    if(record.package==="dnd5e")environment.system.version=record.packageVersion;
-    else environment.modules.set(record.package,{version:record.packageVersion});
-    if(!environment.packs.has(packId))environment.packs.set(packId,{index:new Map(),metadata:{packageType:record.package==="dnd5e"?"system":"module",packageName:record.package}});
-    if(record.package==="dnd5e")environment.packs.get(packId).metadata.flags={dnd5e:{sourceBook:record.rules==="2024"?"SRD 5.2":"SRD 5.1"}};
-    environment.packs.get(packId).index.set(id,{_stats:{modifiedTime:record.modifiedTime}});
-    return {item:{uuid,package:packId,name:record.names[0],documentType:"Item",subType:record.type,
-      system:{identifier:record.identifier,source:{rules:record.rules},level:record.level,school:record.school},
-      get(){throw new Error("Searching must not load full documents");},show(){return uuid;}}};
-  });
-  return {results,environment,catalog:()=>buildGroupingCatalog(results,environment)};
-}
-const forceIds=Object.entries(GROUPING_REGISTRY.members).filter(([,r])=>r.identifier==="forcecage").map(([uuid])=>uuid);
-test("registry is bounded to audited compendium records, with 179 exact groups and 810 spell families",()=>{
-  assert.equal(Object.values(GROUPING_REGISTRY.groups).filter(g=>g.kind==="exact").length,179);
-  assert.equal(Object.values(GROUPING_REGISTRY.groups).filter(g=>g.kind==="spell").length,810);
-  assert.ok(Object.keys(GROUPING_REGISTRY.members).every(uuid=>uuid.startsWith("Compendium.")));
-  const f=fixture(),catalog=f.catalog();
-  assert.equal([...catalog.entries.values()].filter(e=>e.warning).length,0);
-  assert.equal(groupSearchResults(f.results,catalog).groups.length,989);
+test('no initial cache means no grouping; computation does not mutate or apply',()=>{
+ const {rows,environment}=groupingFixture(),before=JSON.stringify(rows);
+ assert.equal(count(rows,buildGroupingCatalog(rows,environment)),6);
+ const snapshot=calculated(rows,environment);assert.equal(Object.keys(snapshot.groups).length,3);
+ assert.equal(JSON.stringify(rows),before);assert.equal(count(rows,buildGroupingCatalog(rows,environment)),6);
 });
-test("Forcecage forms two edition groups with all 2+4 original implementations",()=>{
-  const f=fixture(forceIds),output=groupSearchResults(f.results,f.catalog());
-  assert.deepEqual(output.groups.map(g=>[g.rules,g.members.length]).sort(),[["2014",2],["2024",4]]);
-  assert.equal(output.rawCount,6);
-  assert.equal(new Set(output.groups.flatMap(g=>g.members.map(e=>e.uuid))).size,6);
+test('unlisted spell copies and world spells use general identity rules and separate generations',()=>{
+ const {rows,environment}=groupingFixture();rows.push(spell('world',{uuid:'Item.new-world-copy'}));
+ const result=groupSearchResults(rows,catalog(rows,environment));
+ assert.equal(result.groups.length,3);assert.equal(result.rawCount,7);
+ assert.deepEqual(result.groups.filter(g=>g.key.endsWith('example-spell')).map(g=>[g.rules,g.members.length]),[['2014',3],['2024',2]]);
 });
-test("SRD is last within each edition group and PHB 2014 becomes the default",()=>{
-  for(const lang of ["en","cn"]) {
-    const f=fixture(forceIds),output=groupSearchResults(f.results,f.catalog(),{lang});
-    const old=output.groups.find(g=>g.rules==="2014"),revised=output.groups.find(g=>g.rules==="2024");
-    assert.equal(old.representative.result.item.package,"dnd5e_classpack.new-icon");
-    assert.equal(revised.representative.result.item.package,"dnd-players-handbook.spells");
-    assert.equal(old.members.at(-1).result.item.package,"dnd5e.spells");
-    assert.equal(revised.members.at(-1).result.item.package,"dnd5e.spells24");
-    assert.equal(output.rawCount,6);
-  }
+test('unknown rules, generic identifiers, missing level/school and conflicting sources stay independent',()=>{
+ const invalid=[{identifier:'-'},{identifier:'spell'},{identifier:''},{identifier:'unknown'}, {level:null},{level:10},{school:'wrong'},{source:{}},{source:{rules:'2024',book:'PHB 2014'}},{source:{rules:'2014',book:'TCE',custom:'XGE'}}];
+ for(const patch of invalid){const rows=[spell('a'),spell('b',{system:patch})],cat=catalog(rows);assert.equal(count(rows,cat),2,JSON.stringify(patch));assert.ok(cat.entries.get(rows[1].item.uuid).warning);}
 });
-test("manual SRD pins still win, while filters can leave SRD as the only fallback",()=>{
-  const f=fixture(forceIds),catalog=f.catalog(),key="spell:2014:forcecage";
-  const srd=forceIds.find(id=>id.startsWith("Compendium.dnd5e.spells."));
-  const preferences=normalizeGrouping({version:1,pins:{[key]:srd}});
-  const pinned=groupSearchResults(f.results,catalog,{preferences}).groups.find(g=>g.key===key);
-  assert.equal(pinned.representative.uuid,srd);
-  assert.equal(pinned.members[0].uuid,srd);
-  const onlySrd=groupSearchResults(f.results,catalog,{accept:r=>r.item.package==="dnd5e.spells"});
-  assert.equal(onlySrd.groups.length,1);
-  assert.equal(onlySrd.groups[0].representative.uuid,srd);
-  assert.equal(onlySrd.rawCount,1);
+test('identifier clusters with conflicting levels or schools reject the entire cluster',()=>{
+ for(const patch of [{level:5},{school:'evo'}]) {const rows=[spell('a'),spell('b'),spell('c',{system:patch})],snap=calculated(rows);assert.equal(Object.keys(snap.groups).length,0);assert.ok(Object.values(snap.records).every(r=>r.warning==='spell'));}
 });
-test("SRD detection uses source and pack metadata, not publisher IDs or license flags",()=>{
-  assert.equal(isSrdSource({system:{source:{book:"SRD 5.1"}}}),true);
-  assert.equal(isSrdSource({system:{source:{custom:"srd5.2"}}}),true);
-  assert.equal(isSrdSource({system:{source:"System Reference Document"}}),true);
-  assert.equal(isSrdSource({packageName:"法术 (SRD)"}),true);
-  assert.equal(isSrdSource({package:"dnd5e.custom",system:{source:{book:"PHB"}},flags:{dnd5e:{srd:true}}}),false);
-  const packs=new Map([["vendor.copy",{metadata:{flags:{dnd5e:{sourceBook:"SRD 5.2"}}}}]]);
-  assert.equal(isSrdSource({package:"vendor.copy",system:{source:{book:"PHB"}}},{packs}),true);
+test('nonspell, external incomplete and equal Chinese display names never imply grouping',()=>{
+ const rows=[spell('a',{subType:'equipment'}),spell('b',{subType:'equipment'}),spell('c',{name:'同名',system:{identifier:'different'}}),spell('d',{name:'同名'}),{item:{uuid:'@spell[example|phb]',name:'同名',documentType:'Item',subType:'spell'}}];
+ assert.equal(count(rows,catalog(rows)),5);
 });
-test("audited non-SRD automation outranks publisher and language in default and expanded order",()=>{
-  const key="spell:2024:acid-splash",ids=GROUPING_REGISTRY.groups[key].members;
-  for(const lang of ["en","cn"]) {
-    const f=fixture(ids),group=groupSearchResults(f.results,f.catalog(),{lang}).groups[0];
-    assert.equal(group.representative.result.item.package,"chris-premades.CPRSpells2024");
-    assert.equal(group.members[0].uuid,group.representative.uuid);
-    assert.equal(group.members[1].result.item.package,"dnd-players-handbook.spells");
-    assert.equal(group.members.at(-1).result.item.package,"dnd5e.spells24");
-    assert.equal(group.members.length,ids.length);
-    assert.ok(group.members.find(e=>e.result.item.package==="aaatransfer.classes").tags.includes("dependency"));
-  }
+test('source suffix matching requires original-name provenance, known matching citation, fields and unique unsuffixed root',()=>{
+ const {rows}=groupingFixture();const base=rows.slice(4);assert.equal(count(base,catalog(base)),1);
+ assert.equal(count(base,catalog(base,{},normalizeGrouping(),false)),2);
+ for(const patch of [{originalName:'Conjure Example (XGE)'},{originalName:'Greater Conjure Example (TCE)'},{originalName:'Conjure Example (Greater)'},{originalName:'',name:'例示召唤 Conjure Example (TCE)'},{system:{...base[1].item.system,source:{rules:'2014',book:'XGE'}}},{system:{...base[1].item.system,level:5}}]){
+   const changed=[base[0],{item:{...base[1].item,...patch}}];assert.equal(count(changed,catalog(changed)),2,JSON.stringify(patch));
+ }
+ const ambiguous=[...base,spell('extra',{name:'Conjure Example',originalName:'Conjure Example',system:{identifier:'another-id',source:{rules:'2014',book:'TCE'}}})];
+ assert.equal(count(ambiguous,catalog(ambiguous)),3);
 });
-test("manual ordinary or SRD preferences still outrank automation",()=>{
-  const key="spell:2024:acid-splash",f=fixture(GROUPING_REGISTRY.groups[key].members),catalog=f.catalog();
-  for(const pack of ["dnd-players-handbook.spells","dnd5e.spells24"]) {
-    const pin=f.results.find(r=>r.item.package===pack).item.uuid;
-    const preferences=normalizeGrouping({version:1,pins:{[key]:pin}});
-    const group=groupSearchResults(f.results,catalog,{preferences}).groups[0];
-    assert.equal(group.representative.uuid,pin);
-    assert.equal(group.members[0].uuid,pin);
-    assert.equal(group.pinned,true);
-  }
+test('Babele index originalName is available even when QI omits it',()=>{
+ const {rows,environment}=groupingFixture(),pair=rows.slice(4);
+ const target=pair[1].item;delete target.originalName;
+ environment.packs.set('fixture.spells',{index:new Map([['risk2',{originalName:'Conjure Example (TCE)'}]])});
+ assert.equal(count(pair,catalog(pair,environment)),1);
+ environment.packs.get('fixture.spells').index.get('risk2').originalName='';
+ assert.equal(count(pair,catalog(pair,environment)),2);
 });
-test("filtering automation out selects an eligible ordinary member without losing the saved pin",()=>{
-  const key="spell:2024:acid-splash",f=fixture(GROUPING_REGISTRY.groups[key].members),catalog=f.catalog();
-  const pin=f.results.find(r=>r.item.package==="chris-premades.CPRSpells2024").item.uuid;
-  const preferences=normalizeGrouping({version:1,pins:{[key]:pin}});
-  const group=groupSearchResults(f.results,catalog,{preferences,accept:r=>r.item.package!=="chris-premades.CPRSpells2024"}).groups[0];
-  assert.equal(group.representative.result.item.package,"dnd-players-handbook.spells");
-  assert.ok(group.members.every(e=>e.uuid!==pin));
-  assert.equal(preferences.pins[key],pin);
+test('risk markers survive filtering and all-copies view without becoming blocking warnings',()=>{
+ const {rows}=groupingFixture(),cat=catalog(rows),risk=rows.slice(4);
+ for(const row of risk){const e=cat.entries.get(row.item.uuid);assert.equal(e.risk,'implementation');assert.equal(e.warning,null);}
+ const only=groupSearchResults(rows,cat,{accept:r=>r===risk[1]});assert.equal(only.rawCount,1);assert.equal(only.groups[0].representative.risk,'implementation');
+ const all=groupSearchResults(rows,cat,{preferences:normalizeGrouping({version:2,enabled:false})});assert.equal(all.groups.length,6);
 });
-test("automation never promotes an SRD member above any non-SRD member",()=>{
-  const key="spell:2024:acid-splash",f=fixture(GROUPING_REGISTRY.groups[key].members),catalog=f.catalog();
-  // Simulate an audited automated implementation whose actual source is SRD.
-  catalog.groups.get(key).find(e=>e.tags.includes("automation")).srd=true;
-  const group=groupSearchResults(f.results,catalog).groups[0];
-  assert.equal(group.representative.result.item.package,"dnd-players-handbook.spells");
-  const firstSrd=group.members.findIndex(e=>e.srd);
-  assert.ok(group.members.slice(firstSrd).every(e=>e.srd));
+test('translation, bilingual concatenation, package versions and modification stamps do not change normal identity',()=>{
+ const {rows,environment}=groupingFixture(),snap=calculated(rows,environment);
+ rows[0].item.name='新译名 Example Spell Example Spell';rows[0].item._stats={modifiedTime:99};environment.modules.set('fixture',{version:'changed'});
+ const cat=buildGroupingCatalog(rows,environment,snap);assert.equal(count(rows,cat),3);assert.equal(cat.changed,0);
 });
-test("translated aliases find a family while retaining only permitted index members",()=>{
-  const f=fixture(forceIds),catalog=f.catalog();
-  assert.equal(groupSearchResults([],catalog,{query:"力场监牢"}).rawCount,6);
-  assert.equal(groupSearchResults([],catalog,{query:"力场监牢",preferences:normalizeGrouping({version:1,enabled:false})}).rawCount,6);
-  const permitted=f.results.filter(r=>r.item.package!=="aaatransfer.classes");
-  assert.equal(groupSearchResults([],buildGroupingCatalog(permitted,f.environment),{query:"力场监牢"}).rawCount,5);
+test('risk name evidence changes detach a member, translations with stable provenance do not',()=>{
+ const {rows}=groupingFixture(),snap=calculated(rows);rows[5].item.name='构装召唤术 新显示';
+ assert.equal(buildGroupingCatalog(rows,{},snap).changed,0);
+ rows[5].item.originalName='Changed Name (TCE)';const cat=buildGroupingCatalog(rows,{},snap);assert.equal(cat.entries.get(rows[5].item.uuid).key,null);assert.equal(cat.changed,1);
 });
-test("preferred and expanded implementations must obey source filters",()=>{
-  const f=fixture(forceIds),catalog=f.catalog(),key="spell:2024:forcecage";
-  const pin=forceIds.find(id=>id.includes("aaatransfer"));
-  const preferences=normalizeGrouping({version:1,pins:{[key]:pin}});
-  let group=groupSearchResults(f.results,catalog,{preferences}).groups.find(g=>g.key===key);
-  assert.equal(group.representative.uuid,pin);
-  group=groupSearchResults(f.results,catalog,{preferences,accept:r=>r.item.package==="dnd-players-handbook.spells"}).groups[0];
-  assert.equal(group.members.length,1);assert.equal(group.representative.result.item.package,"dnd-players-handbook.spells");
-  assert.equal(preferences.pins[key],pin);
+test('new members await application; changed identities detach without finding another group',()=>{
+ const {rows}=groupingFixture(),snap=calculated(rows);const newer=[...rows,spell('new-copy')];
+ let cat=buildGroupingCatalog(newer,{},snap);assert.equal(cat.entries.get(newer.at(-1).item.uuid).key,null);assert.equal(cat.changed,1);
+ rows[0].item.system.level=5;cat=buildGroupingCatalog(newer,{},snap);assert.equal(cat.entries.get(rows[0].item.uuid).key,null);assert.equal(cat.entries.get(rows[0].item.uuid).warning,'identity');
+ assert.equal(cat.changed,2);
 });
-test("all-copies toggle preserves rows while legacy split preferences are ignored",()=>{
-  const f=fixture(forceIds),catalog=f.catalog();
-  assert.equal(groupSearchResults(f.results,catalog,{preferences:normalizeGrouping({version:1,enabled:false})}).groups.length,6);
-  assert.equal(groupSearchResults(f.results,catalog,{preferences:normalizeGrouping({version:1,split:["spell:2024:forcecage"]})}).groups.length,groupSearchResults(f.results,catalog).groups.length);
+test('deleted or denied members disappear immediately; cached aliases cannot resurrect them',()=>{
+ const {rows}=groupingFixture(),snap=calculated(rows),allowed=rows.slice(1);const cat=buildGroupingCatalog(allowed,{},snap);
+ assert.equal(cat.changed,1);assert.equal(cat.entries.has(rows[0].item.uuid),false);
+ const found=groupSearchResults([],cat,{query:'Example Spell'});assert.equal(found.rawCount,3);assert.ok(found.groups.flatMap(g=>g.members).every(e=>e.uuid!==rows[0].item.uuid));
 });
-test("package updates, document changes and absent index stamps fail open",()=>{
-  for(const mode of ["package","document","missing"]) {
-    const f=fixture(forceIds),target=f.results.find(r=>r.item.package==="dnd-players-handbook.spells");
-    const entry=f.environment.packs.get(target.item.package).index.get(target.item.uuid.split(".").at(-1));
-    if(mode==="package")f.environment.modules.get("dnd-players-handbook").version="changed";
-    else if(mode==="document")entry._stats.modifiedTime=123456789;
-    else delete entry._stats.modifiedTime;
-    const catalog=f.catalog(),record=catalog.entries.get(target.item.uuid);
-    assert.equal(record.key,null);assert.equal(record.warning,mode==="missing"?"unverified":"stale");
-    const output=groupSearchResults(f.results,catalog);assert.equal(output.rawCount,6);assert.equal(output.groups.length,3);
-  }
+test('source filters and all-copies retain the same permitted matching family members',()=>{
+ const {rows}=groupingFixture(),cat=catalog(rows);rows[0].item.name='独特译名';
+ // Rebuild display aliases but not membership.
+ const fresh=buildGroupingCatalog(rows,{},calculated(rows));
+ for(const enabled of [true,false]){const output=groupSearchResults([],fresh,{query:'独特译名',preferences:normalizeGrouping({version:2,enabled}),accept:r=>r!==rows[1]});assert.equal(output.rawCount,1);assert.equal(output.groups[0].representative.uuid,rows[0].item.uuid);}
+ assert.equal(groupSearchResults([],cat,{query:'missing'}).groups.length,0);
 });
-test("changed school, edition conflicts and changed names are not silently hidden",()=>{
-  for(const patch of [item=>{item.system.school="wrong";},item=>{item.system.source.book="SRD 5.1";},item=>{item.name="Forcecage + custom variant";}]){
-    const f=fixture(forceIds),target=f.results.find(r=>r.item.package==="dnd-players-handbook.spells");patch(target.item);
-    const info=f.catalog().entries.get(target.item.uuid);assert.equal(info.key,null);assert.ok(info.warning);
-  }
+test('SRD sorts last unless manually preferred, indexed automation ranks ahead of ordinary non-SRD',()=>{
+ const rows=[spell('a'),spell('b',{flags:{'chris-premades':{info:{identifier:'spell'}}}}),spell('c',{system:{source:{book:'SRD 5.1',rules:'2014'}}})];
+ const cat=catalog(rows),key='spell:2014:example-spell';let group=groupSearchResults(rows,cat).groups[0];assert.equal(group.representative.uuid,rows[1].item.uuid);assert.equal(group.members.at(-1).uuid,rows[2].item.uuid);
+ const preferences=normalizeGrouping({version:2,pins:{[key]:rows[2].item.uuid}});group=groupSearchResults(rows,cat,{preferences}).groups[0];assert.equal(group.representative.uuid,rows[2].item.uuid);
+ group=groupSearchResults(rows,cat,{preferences,accept:r=>r!==rows[2]}).groups[0];assert.equal(group.representative.uuid,rows[1].item.uuid);assert.equal(preferences.pins[key],rows[2].item.uuid);
 });
-test("unreviewed entries, world copies and generic identifiers never join audited groups",()=>{
-  const f=fixture(forceIds),extra=[
-    {item:{...f.results[0].item,uuid:"Item.custom"}},
-    {item:{...f.results[0].item,uuid:"Compendium.new.pack.Item.custom"}},
-    {item:{...f.results[0].item,uuid:"Compendium.new.pack.Item.dash",subType:"feat",system:{identifier:"-"}}}
-  ];
-  const all=[...f.results,...extra],output=groupSearchResults(all,buildGroupingCatalog(all,f.environment));
-  assert.equal(output.groups.length,5);assert.equal(output.rawCount,9);
+test('SRD relies on source evidence, not publisher identity or license flags',()=>{
+ assert.equal(isSrdSource({system:{source:{book:'SRD 5.1'}}}),true);
+ assert.equal(isSrdSource({system:{source:{custom:'srd5.2'}}}),true);
+ assert.equal(isSrdSource({package:'dnd5e.custom',system:{source:{book:'PHB'}},flags:{dnd5e:{srd:true}}}),false);
 });
-test("legacy QI UUIDs normalize for lookup but original drag/open UUIDs remain untouched",()=>{
-  const f=fixture(forceIds);for(const r of f.results)r.item.uuid=r.item.uuid.replace(".Item.",".");
-  assert.equal(groupSearchResults(f.results,f.catalog()).groups.length,2);
-  assert.ok(f.results.every(r=>!r.item.uuid.includes(".Item.")));
-  assert.equal(canonicalUuid({uuid:"Compendium.a.b.doc",documentType:"Actor"}),"Compendium.a.b.Actor.doc");
+test('legacy UUIDs normalize for membership but original open/drag objects are untouched',()=>{
+ const {rows}=groupingFixture();for(const r of rows)r.item.uuid=r.item.uuid.replace('.Item.','.');
+ const cat=catalog(rows);assert.equal(count(rows,cat),3);assert.ok(rows.every(r=>!r.item.uuid.includes('.Item.')));
+ assert.equal(canonicalUuid({uuid:'Compendium.a.b.doc',documentType:'Actor'}),'Compendium.a.b.Actor.doc');
 });
-test("missing version is not guessed and package/title metadata conflicts stay visible",()=>{
-  assert.deepEqual(editionEvidence({system:{}}),{rules:null,conflict:false});
-  assert.equal(editionEvidence({system:{source:{rules:"2024",custom:"SRD 5.1"}}}).conflict,true);
-  assert.ok(GROUP_INDEX_FIELDS.every(field=>!/(description|effects|activities)/.test(field)));
+test('exclusions persist through recalculation; restoring them is explicit',()=>{
+ const {rows}=groupingFixture(),preferences=normalizeGrouping({version:2,excluded:[rows[0].item.uuid]});const snap=calculated(rows,{},preferences);
+ assert.equal(snap.records[rows[0].item.uuid].warning,'excluded');assert.equal(snap.records[rows[0].item.uuid].key,null);
+ const cat=buildGroupingCatalog(rows,{},calculated(rows),preferences);assert.equal(cat.entries.get(rows[0].item.uuid).key,null);
+ assert.ok(calculated(rows).records[rows[0].item.uuid].key);
 });
-test("grouping settings sanitize old state and do not inherit prototype preferences",()=>{
-  assert.deepEqual(normalizeGrouping({version:0,enabled:false}),{version:1,enabled:true,pins:{}});
-  const state=normalizeGrouping({version:1,pins:{good:4,valid:"Compendium.a.b.Item.x"},split:["a","a",null]});
-  assert.equal(Object.hasOwn(state,"split"),false);assert.deepEqual(state.pins,{valid:"Compendium.a.b.Item.x"});
+test('apply preserves viable legacy pins and exclusions; undo restores the previous snapshot and preferences',()=>{
+ const {rows}=groupingFixture(),uuid=rows[4].item.uuid;const legacy={version:1,pins:{'old-static-key':uuid},enabled:false};
+ const state=normalizeGroupingState(null,legacy),snapshot=calculated(rows);const applied=applyGroupingState(state,snapshot);
+ assert.equal(applied.preferences.pins['spell:2014:conjure-example'],uuid);assert.equal(applied.preferences.enabled,false);assert.equal(state.active,null);
+ const restored=undoGroupingState(applied);assert.equal(restored.active,null);assert.equal(restored.previous,null);assert.deepEqual(restored.preferences.pins,legacy.pins);
+ assert.deepEqual(normalizeGroupingState(JSON.parse(JSON.stringify(applied))),JSON.parse(JSON.stringify(applied)));
 });
-
+test('conflicting pins on merged families are reported and never arbitrarily moved',()=>{
+ const {rows}=groupingFixture(),snapshot=calculated(rows);const pins={a:rows[4].item.uuid,b:rows[5].item.uuid,c:'Item.deleted'};
+ assert.deepEqual(Object.keys(migratePins(pins,snapshot)),[]);
+ assert.deepEqual(groupingDiff(null,snapshot,{pins}).lostPins,['Item.deleted']);
+});
+test('diff counts new, merged, split and independent spells',()=>{
+ const {rows}=groupingFixture(),safe=calculated(rows,{},normalizeGrouping(),false),risk=calculated(rows);
+ assert.equal(groupingDiff(null,safe).added,2);assert.equal(groupingDiff(safe,risk).added,1);assert.equal(groupingDiff(risk,safe).split,1);
+ const old=structuredClone(risk);const ids=old.groups['spell:2014:example-spell'].members;old.groups.other={members:[ids[1]]};old.groups['spell:2014:example-spell'].members=[ids[0]];
+ assert.equal(groupingDiff(old,risk).merged,1);
+});
+test('cache corruption fails open, worlds are isolated, preferences sanitize malformed input',()=>{
+ const {rows}=groupingFixture(),snap=calculated(rows);assert.ok(validSnapshot(snap));
+ for(const value of [null,{}, {...snap,ruleVersion:99},{...snap,groups:{evil:{members:['Item.no']}}},{...snap,records:{bad:null}}])assert.equal(validSnapshot(value),null);
+ assert.notEqual(groupingSettingKey({id:'one'}),groupingSettingKey({id:'two'}));
+ assert.equal(normalizeGroupingState({version:2,active:{bad:1}}).active,null);
+ assert.deepEqual(normalizeGrouping({version:0,enabled:false}),normalizeGrouping());
+ assert.deepEqual(normalizeGrouping({version:2,pins:{bad:5},excluded:[null,'a','a']}).excluded,['a']);
+});
+test('search never loads documents; required metadata fields exclude payloads',()=>{
+ const rows=[spell('a'),spell('b')];for(const r of rows)r.item.get=()=>assert.fail('document read');
+ assert.equal(count(rows,catalog(rows)),1);assert.ok(GROUP_INDEX_FIELDS.every(f=>!/(description|effects|activities)/.test(f)));
+ assert.deepEqual(editionEvidence({system:{}}),{rules:null,conflict:false});
+});
 test("panel opening and dragging use the selected original member, including provider payloads", async () => {
   const { SlowInsertPanel } = await import("../module/scripts/panel.mjs");
   const opened=[];
@@ -190,56 +152,23 @@ test("panel opening and dragging use the selected original member, including pro
   assert.deepEqual(opened,[native.uuid,external.uuid]);
 });
 
-test("approved suffix families carry non-blocking risk through grouping, filters and copies",()=>{
-  const risky=Object.values(GROUPING_REGISTRY.groups).filter(g=>g.risk==="implementation");
-  assert.equal(risky.length,21);
-  assert.equal(risky.reduce((n,g)=>n+g.members.length,0),64);
-  const key="spell:2014:summon-construct";
-  const old=GROUPING_REGISTRY.groups[key].members,newer=GROUPING_REGISTRY.groups["spell:2024:summon-construct"].members;
-  const f=fixture([...old,...newer]),catalog=f.catalog();
-  const output=groupSearchResults(f.results,catalog);
-  assert.deepEqual(output.groups.map(g=>[g.rules,g.members.length]).sort(),[["2014",3],["2024",3]]);
-  for(const id of old) {
-    assert.equal(catalog.entries.get(id).key,key);
-    assert.equal(catalog.entries.get(id).risk,"implementation");
-    assert.equal(catalog.entries.get(id).warning,null);
-  }
-  for(const id of newer) assert.equal(catalog.entries.get(id).risk,null);
-  const suffix=f.results.find(r=>r.item.system.identifier==="summon-construct-tce");
-  assert.equal(suffix.item.name,"构装召唤术 Summon Construct (TCE)");
-  assert.equal(suffix.item.show(),suffix.item.uuid);
-  const filtered=groupSearchResults(f.results,catalog,{accept:r=>r===suffix});
-  assert.equal(filtered.groups.length,1);
-  assert.equal(filtered.groups[0].representative.risk,"implementation");
-  const copies=groupSearchResults(f.results,catalog,{preferences:normalizeGrouping({version:1,enabled:false})});
-  assert.equal(copies.groups.length,6);
-  assert.equal(copies.groups.filter(g=>g.representative.risk).length,3);
-  f.environment.packs.get(suffix.item.package).index.get(suffix.item.uuid.split(".").at(-1))._stats.modifiedTime=-1;
-  const stale=f.catalog().entries.get(suffix.item.uuid);
-  assert.equal(stale.key,null);
-  assert.equal(stale.warning,"stale");
-  assert.equal(stale.risk,"implementation");
+test('failed client persistence never replaces live snapshot or undo',async t=>{
+ const {SlowInsertPanel}=await import('../module/scripts/panel.mjs');
+ const before=normalizeGroupingState(),{rows}=groupingFixture(),next=applyGroupingState(before,calculated(rows));
+ const originalGame=globalThis.game,originalHooks=globalThis.Hooks;
+ t.after(()=>{globalThis.game=originalGame;globalThis.Hooks=originalHooks;});
+ globalThis.game={world:{id:'test'},settings:{set:async()=>{throw new Error('quota');}}};
+ globalThis.Hooks={callAll:()=>assert.fail('must not broadcast failed save')};
+ const panel={groupingState:before,grouping:before.preferences,refresh:()=>assert.fail('must not refresh failed save')};
+ await assert.rejects(SlowInsertPanel.prototype.commitGroupingState.call(panel,next),/quota/);
+ assert.equal(panel.groupingState,before);assert.equal(panel.groupingState.previous,null);
 });
-
-test("identical translation plus original name remains grouped without relaxing identity checks",()=>{
-  const ids=GROUPING_REGISTRY.groups["spell:2014:summon-construct"].members;
-  const uuid="Compendium.dnd-tashas-cauldron.tcoe-character-options.Item.tcoeSummonConstr";
-  const f=fixture(ids),target=f.results.find(r=>r.item.uuid===uuid);
-  target.item.name="Summon Construct Summon Construct";
-  let catalog=f.catalog();
-  assert.equal(catalog.entries.get(uuid).warning,null);
-  assert.equal(catalog.entries.get(uuid).risk,"implementation");
-  assert.equal(groupSearchResults(f.results,catalog).groups[0].members.length,3);
-  assert.equal(target.item.name,"Summon Construct Summon Construct");
-  assert.equal(target.item.show(),uuid);
-  for(const name of ["Summon Construct Summon Construct Summon Construct","Summon Construct Custom Construct","Summon Construct + homebrew"]) {
-    target.item.name=name;
-    assert.equal(f.catalog().entries.get(uuid).warning,"stale");
-  }
-  target.item.name="Summon Construct Summon Construct";
-  target.item.system.identifier="summon-construct-custom";
-  assert.equal(f.catalog().entries.get(uuid).warning,"stale");
-  target.item.system.identifier="summon-construct";
-  f.environment.packs.get(target.item.package).index.get(uuid.split(".").at(-1))._stats.modifiedTime=-1;
-  assert.equal(f.catalog().entries.get(uuid).warning,"stale");
+test('applied membership reloads and index refresh cannot silently recompute it',()=>{
+ const {rows}=groupingFixture(),state=applyGroupingState(normalizeGroupingState(),calculated(rows));
+ const restored=normalizeGroupingState(JSON.parse(JSON.stringify(state)));
+ const added=spell('additional'),current=[...rows,added];
+ const cat=buildGroupingCatalog(current,{},restored.active,restored.preferences);
+ assert.equal(cat.entries.get(added.item.uuid).key,null);
+ assert.equal(Object.keys(restored.active.groups).length,3);
+ assert.equal(cat.changed,1);
 });

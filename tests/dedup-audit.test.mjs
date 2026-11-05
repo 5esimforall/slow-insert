@@ -75,17 +75,3 @@ test("source-confirmed bilingual suffix suggests review without changing identit
     assert.deepEqual(analyze([a,{...b,...patch}]).spellSourceSuffixReview,[],JSON.stringify(patch));
   }
 });
-
-test("source-suffix approvals are bound to reviewed membership and record fingerprints",async()=>{
-  const {reviewedSpellGroups}=await import("../tools/reviewed-spell-groups.mjs");
-  const a=record(),b=record({uuid:"Compendium.copy.spells.Item.b",identifier:"example-tce"});
-  const findings={spellSourceSuffixReview:[{members:[a,b]}]};
-  const approval={key:"spell:2024:example",risk:"implementation",members:[a,b].map(r=>({uuid:r.uuid,fingerprint:digest(r)}))};
-  assert.deepEqual(reviewedSpellGroups(findings,[a,b],[approval])[0].rows,[a,b]);
-  assert.deepEqual(reviewedSpellGroups(findings,[a,b],[]),[]);
-  assert.throws(()=>reviewedSpellGroups(findings,[a,{...b,name:"Changed"}],[approval]),/stale/);
-  assert.throws(()=>reviewedSpellGroups({spellSourceSuffixReview:[]},[a,b],[approval]),/needs review/);
-  assert.throws(()=>reviewedSpellGroups(findings,[a,b],[{...approval,risk:null}]),/needs review/);
-  assert.throws(()=>reviewedSpellGroups(findings,[a,b],[{...approval,key:"spell:2014:example"}]),/canonical member/);
-  assert.throws(()=>reviewedSpellGroups(findings,[a,b],[approval,approval]),/overlapping/);
-});

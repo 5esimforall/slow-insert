@@ -1,3 +1,4 @@
+import { groupingSettingKey } from "./grouping-state.mjs";
 import { registerSidebar, SIDEBAR_TAB } from "./sidebar.mjs";
 import { t } from "./i18n.mjs";
 import { MODULE_ID } from "./panel.mjs";
@@ -18,6 +19,7 @@ Hooks.once("init", () => {
     const actorFields = CONFIG.Actor.compendiumIndexFields;
     for (const field of [...SOURCE_INDEX_FIELDS, ...ACTOR_FILTER_INDEX_FIELDS, ...GROUP_ACTOR_INDEX_FIELDS]) if (!actorFields.includes(field)) actorFields.push(field);
   }
+  game.settings.register(MODULE_ID, groupingSettingKey(game.world), { scope: "client", config: false, type: Object, default: null });
   game.settings.register(MODULE_ID, "grouping", { scope: "client", config: false, type: Object, default: normalizeGrouping() });
 
   for (const [key, type, value] of [["width", Number, 360], ["query", String, ""], ["filters", Object, {}], ["sorting", Object, {}], ["browsePosition", Object, {}], ["filterExpansion", Object, {}]]) {

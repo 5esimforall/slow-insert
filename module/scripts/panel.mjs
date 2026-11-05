@@ -1,3 +1,5 @@
+import { GroupingControls } from "./grouping-controls.mjs";
+import { groupingSettingKey, normalizeGroupingState } from "./grouping-state.mjs";
 import { createBrowseWindow, browseWindowPosition } from "./browse-window.mjs";
 import { normalizeSorting, sortGroups, effectiveSort, sortValueLabel } from "./sorting.mjs";
 import { SortControls } from "./sort-controls.mjs";
@@ -10,7 +12,7 @@ import { hidesRevisedContent, rulesPredicate, RULES_CHANGED } from "./rules-visi
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.4";
+export const MODULE_VERSION = "0.6.5";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -41,7 +43,8 @@ export class SlowInsertPanel {
     this.hooks = [];
     this.filters = normalizeFilters(game.settings.get(MODULE_ID, "filters"));
     this.sorting = normalizeSorting(game.settings.get(MODULE_ID, "sorting"));
-    this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, "grouping"));
+    this.groupingState = normalizeGroupingState(game.settings.get(MODULE_ID, groupingSettingKey(game.world)), game.settings.get(MODULE_ID, "grouping"));
+    this.grouping = this.groupingState.preferences;
     this.browsePosition = game.settings.get(MODULE_ID, "browsePosition");
     this.expandedGroups = new Set();
     this.rowElements = [];
@@ -129,11 +132,12 @@ export class SlowInsertPanel {
     this.groupToggleState = copies.state;
     this.filterControls.displayOptions.append(copies.root);
     this.listen(this.groupToggle, "change", () => {
-      this.grouping.enabled = !this.groupToggle.checked;
+      this.grouping = { ...this.grouping, enabled: !this.groupToggle.checked };
       void this.save("grouping", this.grouping);
       this.refresh();
     });
 
+    this.groupingControls = new GroupingControls(this);
     this.buildBrowseContent();
 
     this.status = element("div", "si-status");
@@ -223,6 +227,12 @@ export class SlowInsertPanel {
       this.hooks.push([hook, Hooks.on(hook, () => this.schedulePosition())]);
     }
     }
+    this.hooks.push(["slowInsertGroupingChanged", Hooks.on("slowInsertGroupingChanged", state => {
+      this.groupingState = normalizeGroupingState(state);
+      this.grouping = this.groupingState.preferences;
+      this.filterCatalog = null;
+      this.refresh();
+    })]);
     this.hooks.push([RULES_CHANGED, Hooks.on(RULES_CHANGED, () => {
       this.filterCatalog = null;
       this.page = null;
@@ -266,7 +276,7 @@ export class SlowInsertPanel {
     sorting.setExpanded(true);
     const display = element("section", "si-browse-display");
     display.append(element("h3", "", t("Browse.Display")), filters.displayOptions);
-    right.append(sortSection, display);
+    right.append(sortSection, display, this.groupingControls.root);
     columns.append(left, right);
     this.browseContent.append(top, columns);
   }
@@ -372,8 +382,22 @@ export class SlowInsertPanel {
   }
 
   async save(key, value) {
-    try { await game.settings.set(MODULE_ID, key, value); }
-    catch (error) { console.warn("Slow Insert | Could not save client preference", error); }
+    try {
+      if (key === "grouping") await this.commitGroupingState({ ...this.groupingState, preferences: normalizeGrouping(value) });
+      else await game.settings.set(MODULE_ID, key, value);
+    }
+    catch (error) { console.warn("Slow Insert | Could not save client preference", error); if (key === "grouping") { this.grouping = this.groupingState.preferences; ui.notifications.warn(t("Grouping.SaveFailed")); } }
+  }
+
+  async commitGroupingState(state) {
+    // Persist before changing live membership. Storage quota/errors must leave
+    // both the applied snapshot and its undo slot untouched.
+    await game.settings.set(MODULE_ID, groupingSettingKey(game.world), state);
+    this.groupingState = normalizeGroupingState(state);
+    this.grouping = this.groupingState.preferences;
+    this.filterCatalog = null;
+    Hooks.callAll("slowInsertGroupingChanged", this.groupingState);
+    this.refresh(true);
   }
 
   scheduleInitialIndex() {
@@ -492,14 +516,16 @@ export class SlowInsertPanel {
     const started = performance.now();
     environment = prepareSourceEnvironment(environment);
     const acceptRules = rulesPredicate(hidesRevisedContent(game, MODULE_ID), environment);
-    const allResults = qi.search("", acceptRules, Number.MAX_SAFE_INTEGER);
+    const permittedResults = qi.search("", () => true, Number.MAX_SAFE_INTEGER);
+    const allResults = permittedResults.filter(acceptRules);
     const { options, dataCache } = buildFilterOptions(allResults, environment, {
       typeLabels: CONFIG.Item.typeLabels,
       spellSchools: CONFIG.DND5E?.spellSchools,
       activationTypes: CONFIG.DND5E?.abilityActivationTypes
     });
-    this.filterCatalog = { index, acceptRules, dataCache, environment, grouping: buildGroupingCatalog(allResults, environment) };
+    this.filterCatalog = { index, acceptRules, dataCache, environment, grouping: buildGroupingCatalog(permittedResults, environment, this.groupingState?.active, this.grouping) };
     this.filterControls.setOptions(options);
+    this.groupingControls?.update(this.filterCatalog.grouping);
     console.debug(`Slow Insert | Catalog: ${allResults.length} entries in ${(performance.now() - started).toFixed(1)}ms`);
     return environment;
   }
@@ -509,6 +535,7 @@ export class SlowInsertPanel {
     const scrollTop = preservePage ? this.list.scrollTop : 0;
     if (!this.visible && !this.browseWindow?.rendered) return;
     this.updateBrowseSummary();
+    this.groupingControls?.update(this.filterCatalog?.grouping);
     this.groupToggle.checked = !this.grouping.enabled;
     this.groupToggleState.textContent = t(this.grouping.enabled ? "Grouping.CopiesGrouped" : "Grouping.CopiesShown");
     if (!this.allowed()) { this.clearResults(t("Status.Unavailable")); return; }
@@ -618,7 +645,9 @@ export class SlowInsertPanel {
           const star = element("i", `${pinned ? "fa-solid" : "fa-regular"} fa-star`);
           star.setAttribute("aria-hidden", "true");
           pin.append(star);
-          member.append(pin);
+          const exclude = this.groupAction("exclude", group, t("Grouping.Exclude"));
+          exclude.dataset.uuid = entry.uuid;
+          member.append(pin, exclude);
           children.append(member);
         }
         wrapper.append(children);
@@ -645,9 +674,12 @@ export class SlowInsertPanel {
       else this.expandedGroups.add(group.key);
 
     } else if (action === "pin" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
-      this.grouping.pins = { ...this.grouping.pins, [group.key]: control.dataset.uuid };
+      this.grouping = { ...this.grouping, pins: { ...this.grouping.pins, [group.key]: control.dataset.uuid } };
+    } else if (action === "exclude" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
+      this.grouping = { ...this.grouping, excluded: [...new Set([...this.grouping.excluded, control.dataset.uuid])] };
     } else if (action === "unpin") {
-      delete this.grouping.pins[group.key];
+      const pins = { ...this.grouping.pins }; delete pins[group.key];
+      this.grouping = { ...this.grouping, pins };
     }
     if (action !== "expand") void this.save("grouping", this.grouping);
     this.refresh(true);
@@ -784,6 +816,7 @@ export class SlowInsertPanel {
 
   destroy() {
     this.destroyed = true;
+    this.groupingControls?.destroy();
     void this.browseWindow?.close({ animate: false, restoreFocus: false });
     clearTimeout(this.initialIndexTimer);
     clearTimeout(this.indexTimeout);
