@@ -74,7 +74,7 @@ export function buildGroupingCatalog(results,environment={},registry=GROUPING_RE
       warning=currentMember(item,member,environment);
       if(!warning&&registry.groups[member.group])key=member.group;
     }
-    const entry={result,uuid,key,warning,rules:edition.rules,srd:isSrdSource(item,environment),tags:member?.tags??[],names:member&&!warning?member.names:[],
+    const entry={result,uuid,key,warning,risk:member?registry.groups[member.group]?.risk??null:null,rules:edition.rules,srd:isSrdSource(item,environment),tags:member?.tags??[],names:member&&!warning?member.names:[],
       kind:key?registry.groups[key].kind:null};
     entries.set(uuid,entry);
     if(key) {if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);}

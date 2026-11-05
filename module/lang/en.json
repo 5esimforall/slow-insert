@@ -245,5 +245,6 @@
   "SLOWINSERT.Rules.Hint": "5e hides confirmed 2024 content; 5r shows both 2014 and 2024 content. This affects only your Slow Insert results.",
   "SLOWINSERT.Rules.System": "Follow system rules",
   "SLOWINSERT.Rules.Legacy": "5e",
-  "SLOWINSERT.Rules.Revised": "5r"
+  "SLOWINSERT.Rules.Revised": "5r",
+  "SLOWINSERT.Grouping.Risk.implementation": "Use with caution: this spell family was approved for grouping, but implementations may differ in rule text, duration, materials, or automation. Check before use; opening and dragging still use the selected original item."
 }

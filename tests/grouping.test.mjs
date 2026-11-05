@@ -19,13 +19,13 @@ function fixture(uuids=Object.keys(GROUPING_REGISTRY.members)) {
   return {results,environment,catalog:()=>buildGroupingCatalog(results,environment)};
 }
 const forceIds=Object.entries(GROUPING_REGISTRY.members).filter(([,r])=>r.identifier==="forcecage").map(([uuid])=>uuid);
-test("registry is bounded to audited compendium records, with 179 exact groups and 808 spell families",()=>{
+test("registry is bounded to audited compendium records, with 179 exact groups and 810 spell families",()=>{
   assert.equal(Object.values(GROUPING_REGISTRY.groups).filter(g=>g.kind==="exact").length,179);
-  assert.equal(Object.values(GROUPING_REGISTRY.groups).filter(g=>g.kind==="spell").length,808);
+  assert.equal(Object.values(GROUPING_REGISTRY.groups).filter(g=>g.kind==="spell").length,810);
   assert.ok(Object.keys(GROUPING_REGISTRY.members).every(uuid=>uuid.startsWith("Compendium.")));
   const f=fixture(),catalog=f.catalog();
   assert.equal([...catalog.entries.values()].filter(e=>e.warning).length,0);
-  assert.equal(groupSearchResults(f.results,catalog).groups.length,987);
+  assert.equal(groupSearchResults(f.results,catalog).groups.length,989);
 });
 test("Forcecage forms two edition groups with all 2+4 original implementations",()=>{
   const f=fixture(forceIds),output=groupSearchResults(f.results,f.catalog());
@@ -188,4 +188,35 @@ test("panel opening and dragging use the selected original member, including pro
     if(index===1)assert.deepEqual(data,external.dragData);
   }
   assert.deepEqual(opened,[native.uuid,external.uuid]);
+});
+
+test("approved suffix families carry non-blocking risk through grouping, filters and copies",()=>{
+  const risky=Object.values(GROUPING_REGISTRY.groups).filter(g=>g.risk==="implementation");
+  assert.equal(risky.length,21);
+  assert.equal(risky.reduce((n,g)=>n+g.members.length,0),64);
+  const key="spell:2014:summon-construct";
+  const old=GROUPING_REGISTRY.groups[key].members,newer=GROUPING_REGISTRY.groups["spell:2024:summon-construct"].members;
+  const f=fixture([...old,...newer]),catalog=f.catalog();
+  const output=groupSearchResults(f.results,catalog);
+  assert.deepEqual(output.groups.map(g=>[g.rules,g.members.length]).sort(),[["2014",3],["2024",3]]);
+  for(const id of old) {
+    assert.equal(catalog.entries.get(id).key,key);
+    assert.equal(catalog.entries.get(id).risk,"implementation");
+    assert.equal(catalog.entries.get(id).warning,null);
+  }
+  for(const id of newer) assert.equal(catalog.entries.get(id).risk,null);
+  const suffix=f.results.find(r=>r.item.system.identifier==="summon-construct-tce");
+  assert.equal(suffix.item.name,"构装召唤术 Summon Construct (TCE)");
+  assert.equal(suffix.item.show(),suffix.item.uuid);
+  const filtered=groupSearchResults(f.results,catalog,{accept:r=>r===suffix});
+  assert.equal(filtered.groups.length,1);
+  assert.equal(filtered.groups[0].representative.risk,"implementation");
+  const copies=groupSearchResults(f.results,catalog,{preferences:normalizeGrouping({version:1,enabled:false})});
+  assert.equal(copies.groups.length,6);
+  assert.equal(copies.groups.filter(g=>g.representative.risk).length,3);
+  f.environment.packs.get(suffix.item.package).index.get(suffix.item.uuid.split(".").at(-1))._stats.modifiedTime=-1;
+  const stale=f.catalog().entries.get(suffix.item.uuid);
+  assert.equal(stale.key,null);
+  assert.equal(stale.warning,"stale");
+  assert.equal(stale.risk,"implementation");
 });

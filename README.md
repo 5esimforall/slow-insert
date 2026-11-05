@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.2**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.3**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -53,6 +53,8 @@ node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
 
 分析输出包括严格负载候选、保守包对白名单、法术家族候选、年代证据冲突与法术字段差异的 JSON/CSV。这些审计产物在 `output/` 下，不纳入 Git，也不会被运行模块直接加载；v0.1.0 使用由已审阅名单生成并随版本发布的元数据注册表。
 
+带来源后缀的法术另列于 `spell-source-suffix-review.csv`。只有条目的来源字段能印证括号中的书目简称，去掉后缀后的完整英文名与无后缀条目相同，且规则代际、环阶和学派一致时，分析器才提请审核。清单保留原名、identifier 和来源证据。经确认的候选记录于 `tools/grouping-approvals.json`，绑定具体 UUID 和审计指纹；生成器只放行仍匹配候选且指纹未变的审批，变化时停止生成并要求复核。已批准家族在界面中显示黄色风险三角。
+
 ## 部署与保存边界
 
 - 开发源码以本仓库为准，不直接在 Foundry 安装目录中开发。
@@ -67,7 +69,7 @@ node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
 加入可展开的审计白名单副本组与同版法术家族；支持客户端首选、拆分/恢复、全部副本视图。冲突或审计失效的成员自动保持独立。具体范围与失效检查见模块说明。
 
 归并专用浏览器夹具：`http://127.0.0.1:4178/tests/fixture.html?grouping=1&lang=cn`。
-运行时注册表由 `node tools/build-grouping-registry.mjs` 生成，只含身份、别名和校验元数据，不含规则正文。
+运行时注册表由 `node tools/build-grouping-registry.mjs output/dedup-audit-2026-11-04` 生成，只含身份、别名和校验元数据，不含规则正文。
 
 
 ## v0.2.0 规范来源书目

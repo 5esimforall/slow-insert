@@ -10,7 +10,7 @@ import { hidesRevisedContent, rulesPredicate, RULES_CHANGED } from "./rules-visi
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.2";
+export const MODULE_VERSION = "0.6.3";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -676,7 +676,19 @@ export class SlowInsertPanel {
     image.alt = ""; image.loading = "lazy"; image.draggable = false;
     image.addEventListener("error", () => { image.hidden = true; }, { once: true });
     const label = element("span", "si-label");
-    label.append(element("span", "si-name", item.name || t("Panel.Unnamed")));
+    const nameLine = element("span", "si-name-line");
+    if (entry.risk) {
+      const hint = t(`Grouping.Risk.${entry.risk}`);
+      const risk = element("span", "si-risk");
+      risk.setAttribute("role", "img");
+      risk.setAttribute("aria-label", hint);
+      risk.title = hint;
+      risk.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 19 18H1Z"/><path class="si-risk-mark" d="M10 7v5m0 2v1"/></svg>';
+      nameLine.append(risk);
+      row.title += `\n${hint}`;
+    }
+    nameLine.append(element("span", "si-name", item.name || t("Panel.Unnamed")));
+    label.append(nameLine);
     const data = this.filterCatalog.dataCache.get(item);
     const subtitle = data?.monster ? t("Panel.MonsterCR", { cr: data.cr === null ? t("Unknown") : crLabel(data.cr) })
       : itemTypeLabel(item.subType, CONFIG[item.documentType]?.typeLabels, environment) || t("Panel.Item");

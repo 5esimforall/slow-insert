@@ -146,7 +146,7 @@
     const { GROUPING_REGISTRY } = await import("/module/data/grouping-registry.mjs");
     const exact = Object.entries(GROUPING_REGISTRY.groups).find(([,g]) => g.kind === "exact")[0];
     for (const [uuid, record] of Object.entries(GROUPING_REGISTRY.members)) {
-      if (record.identifier !== "forcecage" && record.group !== exact) continue;
+      if (record.identifier !== "forcecage" && !record.identifier.startsWith("summon-construct") && record.group !== exact) continue;
       const packId = uuid.split(".").slice(1,3).join("."), id = uuid.split(".").at(-1);
       if (record.package === "dnd5e") game.system.version = record.packageVersion;
       else game.modules.set(record.package, {version:record.packageVersion,active:true});

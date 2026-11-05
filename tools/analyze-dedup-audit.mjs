@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { DEFAULT_PUBLICATION_CATALOG, parseCitations } from "../module/scripts/publications.mjs";
+
 export const validIdentifier = value => typeof value === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 export function bookEdition(value) {
   const text=String(value??"").toLowerCase();
@@ -25,6 +27,36 @@ export function groupBy(records, key) {
   for (const record of records) { const value=key(record); if (value==null) continue; const id=JSON.stringify(value); if(!groups.has(id))groups.set(id,[]);groups.get(id).push(record); }
   return [...groups.values()].filter(group=>group.length>1);
 }
+// A source suffix is evidence for a review lead, never a new document identity.
+function sourceName(record) {
+  const name=record.name.normalize("NFKC").trim();
+  const suffix=name.match(/\s*\(([a-z][a-z0-9]*)\)$/i);
+  if(suffix) {
+    const books=DEFAULT_PUBLICATION_CATALOG.lookup(suffix[1]);
+    const citations=[record.source?.book,record.source?.custom].flatMap(value=>parseCitations(value));
+    if(books.length!==1 || !citations.length || !citations.every(c=>c.candidates.length===1 && c.candidates[0].id===books[0].id))return null;
+  }
+  // Only remove a clearly delimited Han translation, not an arbitrary prefix
+  // or qualifier from the English title. Retain punctuation and variant numbers.
+  const title=(suffix?name.slice(0,suffix.index):name).trim().replace(/^[\p{Script=Han}·・]+\s+/u,"");
+  if(!/^[a-z][a-z0-9 ’':,–-]*$/i.test(title))return null;
+  return {title:title.toLowerCase().replaceAll("’","'").replace(/\s+/g," "),suffix:suffix?.[1]??null};
+}
+
+function sourceSuffixReviews(records,edition,problemUuids) {
+  const names=new Map();
+  const groups=groupBy(records,r=>{
+    if(r.world || r.documentType!=="Item" || r.type!=="spell" || !validIdentifier(r.identifier)
+      || !["2014","2024"].includes(r.rules) || edition.get(r.uuid).status!=="consistent" || problemUuids.has(r.uuid)
+      || !Number.isInteger(r.basics.level) || !r.basics.school)return null;
+    const name=sourceName(r);
+    if(!name)return null;
+    names.set(r.uuid,name);
+    return [r.rules,r.basics.level,r.basics.school,name.title];
+  });
+  return groups.filter(group=>group.some(r=>names.get(r.uuid).suffix &&
+    group.some(peer=>!names.get(peer.uuid).suffix && peer.identifier!==r.identifier)));
+}
 const count=groups=>({groups:groups.length,members:groups.reduce((n,g)=>n+g.length,0),excessRows:groups.reduce((n,g)=>n+g.length-1,0)});
 const frequency=values=>{const out={};for(const value of values)out[value]=(out[value]??0)+1;return out;};
 export function analyze(records,scope={}) {
@@ -45,6 +77,7 @@ export function analyze(records,scope={}) {
     || new Set(g.map(r=>JSON.stringify([r.basics.level,r.basics.school]))).size>1);
   const problemUuids=new Set(spellProblems.flatMap(g=>g.map(r=>r.uuid)));
   const spellCandidates=spells.filter(g=>!g.some(r=>problemUuids.has(r.uuid)));
+  const suffixReviews=sourceSuffixReviews(records,edition,problemUuids);
   const provenance=records.flatMap(child=>child.provenance.map(p=>({child:child.uuid,source:p.uuid,field:p.field,target:index.has(p.uuid)})));
   const resolved=provenance.filter(p=>p.target&&p.child!==p.source);
   const provenanceConflicts=resolved.filter(p=>{const a=index.get(p.child),b=index.get(p.source);return a.rules&&b.rules&&a.rules!==b.rules;});
@@ -65,7 +98,7 @@ export function analyze(records,scope={}) {
     rulesTags:frequency(records.map(r=>r.rules??"unknown")),editionEvidence:frequency([...edition.values()].map(r=>r.status)),
     translationAliasRecords:records.filter(r=>r.aliases.length).length,worldRecords:records.filter(r=>r.world).length,
     cohorts:{sameName:count(names),sameIdentifier:count(identifiers),crossEditionIdentifier:count(crossEdition),
-      strictPayload:count(strict),allowlistedExact:count(strictAllowlisted),spellFamilyCandidates:count(spellCandidates),spellConflictOrMissingFacets:count(spellProblems)},
+      strictPayload:count(strict),allowlistedExact:count(strictAllowlisted),spellFamilyCandidates:count(spellCandidates),spellConflictOrMissingFacets:count(spellProblems),spellSourceSuffixReview:count(suffixReviews)},
     provenance:{records:records.filter(r=>r.provenance.length).length,edges:provenance.length,resolved:resolved.length,
       crossRules:provenanceConflicts.length,strictPayloadEqual:resolved.filter(p=>index.get(p.child).hashes.strict===index.get(p.source).hashes.strict).length},
     caveat:"Cohorts overlap and must not be added. excessRows is only a candidate display reduction, never a count of deletable records. Offline persisted records are not runtime-migrated documents."};
@@ -73,6 +106,7 @@ export function analyze(records,scope={}) {
     exactCandidates:strict.map((g,n)=>groupRecord(g,"exact",n)),
     exactAllowlist:strictAllowlisted.map(g=>g.map(r=>r.uuid)),
     spellCandidates:spellCandidates.map((g,n)=>groupRecord(g,"spell-family",n)),
+    spellSourceSuffixReview:suffixReviews.map((g,n)=>groupRecord(g,"source-suffix-review",n)),
     spellProblems:spellProblems.map((g,n)=>groupRecord(g,"spell-review",n)),
     editionConflicts:editionConflicts.map(brief),
     provenanceConflicts:provenanceConflicts.map(p=>({field:p.field,child:brief(index.get(p.child)),source:brief(index.get(p.source))})),
@@ -90,6 +124,7 @@ async function main(out) {
     ["exact-candidates.csv",[["group","name","type","rules","uuid","pack","initialAllowlist"],...results.exactCandidates.flatMap(g=>g.members.map(r=>[g.id,r.name,r.type,r.rules,r.uuid,r.pack,results.exactAllowlist.some(a=>a.includes(r.uuid))]))]],
     ["edition-conflicts.csv",[["name","type","uuid","taggedRules","evidence"],...results.editionConflicts.map(r=>[r.name,r.type,r.uuid,r.rules,JSON.stringify(r.edition.evidence)])]],
     ["spell-review.csv",[["group","name","uuid","rules","level","school"],...results.spellProblems.flatMap(g=>g.members.map(r=>[g.id,r.name,r.uuid,r.rules,r.basics.level,r.basics.school]))]],
+    ["spell-source-suffix-review.csv",[["group","name","identifier","uuid","rules","level","school","source.book","source.custom"],...results.spellSourceSuffixReview.flatMap(g=>g.members.map(r=>[g.id,r.name,r.identifier,r.uuid,r.rules,r.basics.level,r.basics.school,r.source?.book,r.source?.custom]))]],
     ["spell-families.csv",[["group","name","uuid","rules","level","school","flags","status"],...results.spellCandidates.flatMap(g=>g.members.map(r=>[g.id,r.name,r.uuid,r.rules,r.basics.level,r.basics.school,r.flags.join(";"),"candidate only; implementations retained"]))]]
   ]) await fs.writeFile(path.join(out,filename),"\ufeff"+rows.map(row=>row.map(csv).join(",")).join("\n")+"\n");
   console.log(JSON.stringify(results.summary,null,2));

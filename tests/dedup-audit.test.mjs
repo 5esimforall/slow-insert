@@ -57,3 +57,35 @@ test("copy lineage is not proof of equality and cross-edition links remain confl
   const a=record(),b=record({uuid:"Item.copy",world:true,rules:"2014",source:{rules:"2014"},hashes:{strict:"changed"},provenance:[{field:"source",uuid:a.uuid}]});
   const result=analyze([a,b]);assert.equal(result.provenanceConflicts.length,1);assert.equal(result.summary.provenance.strictPayloadEqual,0);
 });
+
+test("source-confirmed bilingual suffix suggests review without changing identity or merging generations",()=>{
+  const a=record({name:"Summon Construct",identifier:"summon-construct",rules:"2014",basics:{level:4,school:"con"},source:{rules:"2014"}});
+  const b={...a,uuid:"Compendium.classpack.spells.Item.b",name:"构装召唤术 Summon Construct (TCE)",identifier:"summon-construct-tce",source:{book:"TCoE",custom:"TCE"}};
+  const newer={...a,uuid:"Compendium.new.spells.Item.c",rules:"2024",source:{rules:"2024"}};
+  const records=[a,b,newer,{...newer,uuid:newer.uuid+"2"}];
+  const original=structuredClone(records);
+  const result=analyze(records);
+  assert.deepEqual(result.spellSourceSuffixReview.map(g=>g.members.map(r=>r.uuid)),[[a.uuid,b.uuid]]);
+  assert.deepEqual(result.spellCandidates.map(g=>g.members.map(r=>r.uuid)),[[newer.uuid,newer.uuid+"2"]]);
+  assert.deepEqual(records,original);
+  for(const patch of [{source:{}},{source:{book:"XGE"}},{source:{book:"TCE",custom:"XGE"}},
+    {name:"构装召唤术 Greater Summon Construct (TCE)"},{name:"构装召唤术 Summon Construct (Greater)"},
+    {rules:"2024"},{rules:null},{basics:{level:5,school:"con"}},{basics:{level:4,school:"evo"}},
+    {basics:{level:null,school:"con"}},{world:true}]) {
+    assert.deepEqual(analyze([a,{...b,...patch}]).spellSourceSuffixReview,[],JSON.stringify(patch));
+  }
+});
+
+test("source-suffix approvals are bound to reviewed membership and record fingerprints",async()=>{
+  const {reviewedSpellGroups}=await import("../tools/reviewed-spell-groups.mjs");
+  const a=record(),b=record({uuid:"Compendium.copy.spells.Item.b",identifier:"example-tce"});
+  const findings={spellSourceSuffixReview:[{members:[a,b]}]};
+  const approval={key:"spell:2024:example",risk:"implementation",members:[a,b].map(r=>({uuid:r.uuid,fingerprint:digest(r)}))};
+  assert.deepEqual(reviewedSpellGroups(findings,[a,b],[approval])[0].rows,[a,b]);
+  assert.deepEqual(reviewedSpellGroups(findings,[a,b],[]),[]);
+  assert.throws(()=>reviewedSpellGroups(findings,[a,{...b,name:"Changed"}],[approval]),/stale/);
+  assert.throws(()=>reviewedSpellGroups({spellSourceSuffixReview:[]},[a,b],[approval]),/needs review/);
+  assert.throws(()=>reviewedSpellGroups(findings,[a,b],[{...approval,risk:null}]),/needs review/);
+  assert.throws(()=>reviewedSpellGroups(findings,[a,b],[{...approval,key:"spell:2014:example"}]),/canonical member/);
+  assert.throws(()=>reviewedSpellGroups(findings,[a,b],[approval,approval]),/overlapping/);
+});
