@@ -51,7 +51,7 @@ export function createBrowseWindow(panel) {
       super._onClose(options);
       this.rememberPosition(this.position);
       panel.browseButton.setAttribute('aria-expanded', 'false');
-      if (!panel.destroyed && (panel.visible && (!panel.sidebarHost || panel.sidebarHost.app.isPopout || globalThis.ui?.sidebar?.expanded)) && options.restoreFocus !== false) panel.browseButton.focus();
+      if (!panel.destroyed && (panel.visible && (panel.sidebarHost.app.isPopout || globalThis.ui?.sidebar?.expanded)) && options.restoreFocus !== false) panel.browseButton.focus();
     }
   }
   return new BrowseWindow({ id: `${panel.idPrefix}-browse`, window: { title: t('Browse.Title') } });

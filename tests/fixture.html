@@ -11,8 +11,13 @@
   .fixture { padding: 32px; max-width: 470px; }
   h1 { font-size: 24px; font-weight: 500; }
   p { color: #a2aeac; line-height: 1.6; }
-  #sidebar { position: fixed; right: 0; top: 0; width: 300px; height: 100vh; background: #12171dd9; border-left: 1px solid #3b4248; padding: 20px; }
-  #sidebar.collapsed { width: 48px; padding: 4px; }
+  #sidebar { position: fixed; right: 0; top: 0; width: min(360px, 100vw); height: 100vh; display: flex; flex-direction: column; background: #12171dd9; border-left: 1px solid #3b4248; padding: 0; }
+  #sidebar.collapsed { width: 48px; }
+  #sidebar [role=tablist] { display: flex; flex: none; overflow: hidden; }
+  .sidebar-content { flex: 1; min-height: 0; display: flex; }
+  .sidebar-content > .tab { display: none; flex: 1; min-width: 0; }
+  .sidebar-content > .tab.active { display: flex; }
+  .fixture-window.slow-insert-sidebar .window-content { display: flex; min-height: 0; }
   #sidebar.collapsed .sidebar-content { display: none; }
   #drop { border: 1px dashed #758d84; padding: 28px; margin-top: 32px; }
   button { cursor: pointer; }
@@ -24,11 +29,15 @@
   <h1>Slow Insert / test scene</h1>
   <p>Browser fixture, not a live Foundry world. Search “fire” to compare source badges. Search “unsafe” to exercise text escaping.</p>
   <button id="collapse">Toggle sidebar</button>
+  <button id="popout">Pop out search tab</button>
+  <button id="rerender">Re-render search tab</button>
+  <button id="run-checks">Run browser checks</button>
+  <pre id="check-report" aria-live="polite"></pre>
   <button id="deny">Toggle GM-only restriction</button>
   <div id="drop">Drop an item here</div>
   <p id="opened">No document opened.</p>
 </main>
-<aside id="sidebar"><div class="sidebar-content">Foundry sidebar placeholder</div></aside>
+<aside id="sidebar"><nav role="tablist" aria-label="Sidebar tabs"></nav><div class="sidebar-content"><section class="tab active" data-tab="chat">Chat placeholder</section></div></aside>
 <script type="module">
   const language = new URL(location.href).searchParams.get("lang") || "en";
   const fallback = await (await fetch("/module/lang/en.json")).json();
@@ -41,17 +50,17 @@
   const handlers = new Map();
   globalThis.Hooks = {
     on(name, fn) { const list = handlers.get(name) || []; list.push(fn); handlers.set(name, list); return fn; },
-    once(name, fn) { return this.on(name, fn); },
+    once(name, fn) { const once = (...args) => { this.off(name, once); return fn(...args); }; return this.on(name, once); },
     off(name, fn) { handlers.set(name, (handlers.get(name) || []).filter(x => x !== fn)); },
-    callAll(name, ...args) { for (const fn of handlers.get(name) || []) fn(...args); }
+    callAll(name, ...args) { return Promise.all([...(handlers.get(name) || [])].map(fn => fn(...args))); }
   };
   const definitions = new Map();
-  const settings = new Map([["dnd5e.rulesVersion", "modern"], ["quick-insert.gmOnly", false], ...Object.entries(globalThis.fixtureSettingsSeed ?? {})]);
+  const settings = new Map([["dnd5e.rulesVersion", "modern"], ["quick-insert.gmOnly", false], ["quick-insert.automaticIndexing", -1], ...Object.entries(globalThis.fixtureSettingsSeed ?? {})]);
   const icon = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="5" fill="#774f3a"/><path d="M16 5c7 10 10 12 6 19-3 5-13 3-13-3 0-5 6-6 7-16z" fill="#efb478"/></svg>');
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
     system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.6.2" }]]),
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", await (await fetch("/module/module.json")).json()]]),
     packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
       register(id, key, config) { definitions.set(`${id}.${key}`, config); if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
@@ -71,7 +80,7 @@
   // Minimal native-frame stand-in. Production behavior is verified in Foundry.
   class FixtureApplication {
     static DEFAULT_OPTIONS = {};
-    constructor(options={}) {this.options={...this.constructor.DEFAULT_OPTIONS,...options};this.position={...this.constructor.DEFAULT_OPTIONS.position};this.id=options.id??crypto.randomUUID();this.hasFrame=true;}
+    constructor(options={}) {this.options={...this.constructor.DEFAULT_OPTIONS,...options};this.position={...this.constructor.DEFAULT_OPTIONS.position,...options.position};this.id=options.id??crypto.randomUUID();this.hasFrame=true;}
     async render(options={}) {
       const first=!this.rendered;
       if(first){this.element=document.createElement('section');this.element.className=(this.constructor.DEFAULT_OPTIONS.classes??[]).join(' ');this.element.classList.add('fixture-window');
@@ -79,13 +88,15 @@
         title.textContent=this.options.window?.title??'';close.textContent='×';close.setAttribute('aria-label','Close window');close.onclick=()=>this.close();header.append(title,close);this.element.append(header);
         this.content=document.createElement('div');this.content.className='window-content';this.element.append(this.content);document.body.append(this.element);foundry.applications.instances.set(this.id,this);}
       Object.assign(this.position,options.position);Object.assign(this.element.style,{left:`${this.position.left??20}px`,top:`${this.position.top??20}px`,width:`${this.position.width??620}px`,height:`${this.position.height??650}px`});
-      this._replaceHTML(await this._renderHTML(),this.content);this.rendered=true;this._onRender({}, {isFirstRender:first});return this;
+      this._replaceHTML(await this._renderHTML(),this.content);this.rendered=true;await this._onRender({}, {isFirstRender:first});return this;
     }
     _onRender(){} _onPosition(){} _onClose(){}
-    async close(options={}){this.rendered=false;this.element?.remove();foundry.applications.instances.delete(this.id);this._onClose(options);}
+    async close(options={}){this.rendered=false;this.element?.remove();foundry.applications.instances.delete(this.id);await this._onClose(options);}
     bringToFront(){this.element?.focus();}
   }
   foundry.applications.api={ApplicationV2:FixtureApplication};
+  const { installSidebarFixture, mountSidebarFixture } = await import("./sidebar-fixture.mjs");
+  installSidebarFixture(FixtureApplication);
   // Model Foundry v13's focus suppression and ordered keybinding consumption.
   class FixtureKeyboard {
     static getKeyboardEventContext(event) {
@@ -188,12 +199,13 @@
       Hooks.callAll("QuickInsert:IndexCompleted");
     }
   };
-  document.querySelector("#collapse").onclick = () => { document.querySelector("#sidebar").classList.toggle("collapsed"); Hooks.callAll("collapseSidebar"); };
   document.querySelector("#deny").onclick = () => { fixtureState.denied = !fixtureState.denied; settings.set("quick-insert.gmOnly", fixtureState.denied); };
   document.querySelector("#drop").ondragover = event => event.preventDefault();
   document.querySelector("#drop").ondrop = event => { event.preventDefault(); fixtureState.drop = JSON.parse(event.dataTransfer.getData("text/plain")); event.currentTarget.textContent = JSON.stringify(fixtureState.drop); };
   await import("/module/scripts/main.mjs");
-  Hooks.callAll("init");
+  await Hooks.callAll("init");
+  await Hooks.callAll("setup");
+  mountSidebarFixture();
   if (new URL(location.href).searchParams.has("rules")) {
     const def = definitions.get("slow-insert.rulesDisplay");
     const label = document.createElement("label");
@@ -205,13 +217,20 @@
     label.append(select);
     document.querySelector("main").append(label);
   }
-  // Minimal floating-host adapter: production uses Foundry's native sidebar.
-  const { SlowInsertPanel } = await import("/module/scripts/panel.mjs");
-  ui.slowinsert = { async render() {
-    this.panel = new SlowInsertPanel(); this.panel.mount(); this.panel.open();
-  } };
   game.ready = true;
-  Hooks.callAll("ready");
+  await Hooks.callAll("ready");
   globalThis.fixtureReady = true;
+  document.querySelector("#run-checks").onclick = async event => {
+    event.target.disabled = true;
+    const report = document.querySelector("#check-report");
+    report.textContent = "Running…";
+    try {
+      const { runBrowserChecks } = await import("./browser-checks.js");
+      const { runFilterBrowserChecks } = await import("./filter-browser-checks.js");
+      const checks = [...await runBrowserChecks(), ...await runFilterBrowserChecks()];
+      report.textContent = `PASS: ${checks.length} checks\n${checks.join("\n")}`;
+    } catch (error) { report.textContent = `FAIL: ${error.stack}`; }
+    finally { event.target.disabled = false; }
+  };
 </script>
 </html>

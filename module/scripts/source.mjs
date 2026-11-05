@@ -82,13 +82,3 @@ export function documentDragData(item) {
 export function isItemResult(result) {
   return result?.item?.documentType === "Item" && typeof result.item.uuid === "string";
 }
-
-export function getDockLayout(viewportWidth, sidebarLeft, preferredWidth = 360) {
-  const viewport = Math.max(0, viewportWidth);
-  const edge = Math.max(0, Math.min(viewport, sidebarLeft ?? viewport));
-  // On narrow windows use an overlay instead of squeezing the panel off-screen.
-  const right = edge >= 304 ? viewport - edge + 8 : 8;
-  const available = Math.max(0, viewport - right - 8);
-  const width = Math.min(Math.max(280, Number(preferredWidth) || 360), 560, available);
-  return { right, width };
-}

@@ -7,14 +7,14 @@ import { createBrowseWindow, browseWindowPosition } from "./browse-window.mjs";
 import { normalizeSorting, effectiveSort } from "./sorting.mjs";
 import { SortControls } from "./sort-controls.mjs";
 import { t } from "./i18n.mjs";
-import { getDockLayout, documentDragData } from "./source.mjs";
+import { documentDragData } from "./source.mjs";
 import { SCHEMES, activeFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls, createFilterSwitch } from "./filter-controls.mjs";
 import { normalizeGrouping } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.6";
+export const MODULE_VERSION = "0.6.7";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -37,7 +37,6 @@ function button(label, icon) {
 export class SlowInsertPanel {
   constructor() {
     this.visible = false;
-    this.width = game.settings.get(MODULE_ID, "width");
     this.events = new AbortController();
     this.hooks = [];
     this.filters = normalizeFilters(game.settings.get(MODULE_ID, "filters"));
@@ -68,11 +67,11 @@ export class SlowInsertPanel {
     target.addEventListener(event, callback, { ...options, signal: this.events.signal });
   }
 
-  mount(sidebarHost = null) {
+  mount(sidebarHost) {
     this.sidebarHost = sidebarHost;
-    this.idPrefix = sidebarHost?.app.isPopout ? "slow-insert-popout" : "slow-insert";
+    this.idPrefix = sidebarHost.app.isPopout ? "slow-insert-popout" : "slow-insert";
     this.root = element("aside", "slow-insert");
-    this.root.id = sidebarHost?.app.isPopout ? "slow-insert-popout-panel" : "slow-insert-panel";
+    this.root.id = sidebarHost.app.isPopout ? "slow-insert-popout-panel" : "slow-insert-panel";
     this.root.hidden = true;
     this.root.setAttribute("aria-label", t("Panel.Label"));
 
@@ -81,9 +80,7 @@ export class SlowInsertPanel {
     // A running server can retain the previous manifest version until restart.
     heading.append(element("h2", "", "Slow Insert"), element("span", "si-version", MODULE_VERSION));
     this.reindexButton = button(t("Panel.Reindex"), "fa-arrows-rotate");
-    this.closeButton = button(t("Panel.Close"), "fa-xmark");
     header.append(heading, this.reindexButton);
-    if (!sidebarHost) header.append(this.closeButton);
 
     const searchBox = element("div", "si-search-box");
     const searchIcon = element("i", "fas fa-magnifying-glass");
@@ -166,29 +163,9 @@ export class SlowInsertPanel {
     this.list.setAttribute("aria-label", t("Panel.ResultsLabel"));
     this.view = new ResultsView({ list: this.list, input: this.input, idPrefix: this.idPrefix });
 
-    this.resizeHandle = element("div", "si-resize");
-    this.resizeHandle.tabIndex = 0;
-    this.resizeHandle.setAttribute("role", "separator");
-    this.resizeHandle.setAttribute("aria-label", t("Panel.Resize"));
-    this.resizeHandle.setAttribute("aria-orientation", "vertical");
-    this.resizeHandle.setAttribute("aria-valuemin", "280");
-    this.resizeHandle.setAttribute("aria-valuemax", "560");
-    if (!sidebarHost) this.root.append(this.resizeHandle);
     this.root.append(header, searchRow, this.status, this.list);
+    sidebarHost.content.append(this.root);
 
-    this.launcher = button(t("Panel.Launcher"), "fa-magnifying-glass");
-    this.launcher.id = "slow-insert-toggle";
-    this.launcher.className = "si-launcher";
-    this.launcher.append(element("span", "", "Slow Insert"));
-    this.launcher.setAttribute("aria-controls", this.root.id);
-    this.launcher.setAttribute("aria-expanded", "false");
-    if (sidebarHost) {
-      this.root.classList.add("si-native");
-      sidebarHost.content.append(this.root);
-    } else document.body.append(this.root, this.launcher);
-
-    this.listen(this.launcher, "click", () => this.toggle());
-    this.listen(this.closeButton, "click", () => this.close());
     this.listen(this.reindexButton, "click", () => this.index.buildIndex());
     this.listen(this.input, "input", event => {
       clearTimeout(this.searchTimer);
@@ -209,42 +186,6 @@ export class SlowInsertPanel {
       if (this.list.scrollHeight - this.list.scrollTop - this.list.clientHeight < 160) this.loadMore();
     });
     this.listen(this.list, "dragstart", event => this.onDragStart(event));
-    if (!sidebarHost) {
-    this.listen(this.resizeHandle, "pointerdown", event => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      this.resizeHandle.setPointerCapture(event.pointerId);
-      this.resizeStart = { x: event.clientX, width: this.root.getBoundingClientRect().width };
-    });
-    this.listen(this.resizeHandle, "pointermove", event => {
-      if (!this.resizeStart) return;
-      this.width = Math.max(280, Math.min(560, this.resizeStart.width + this.resizeStart.x - event.clientX));
-      this.position();
-    });
-    this.listen(this.resizeHandle, "lostpointercapture", () => {
-      this.resizeStart = null;
-      void this.save("width", this.width);
-    });
-    this.listen(this.resizeHandle, "keydown", event => {
-      if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
-      event.preventDefault();
-      this.width = Math.max(280, Math.min(560, this.width + (event.key === "ArrowLeft" ? 20 : -20)));
-      this.position();
-      void this.save("width", this.width);
-    });
-    this.listen(window, "resize", () => this.schedulePosition());
-
-    const sidebar = document.getElementById("sidebar");
-    this.resizeObserver = new ResizeObserver(() => this.schedulePosition());
-    if (sidebar) this.resizeObserver.observe(sidebar);
-    const rightUI = document.getElementById("ui-right");
-    if (rightUI) this.resizeObserver.observe(rightUI);
-    // Recheck the actual bounds after Foundry's sidebar-collapse animation.
-    if (sidebar) this.listen(sidebar, "transitionend", () => this.schedulePosition());
-    for (const hook of ["collapseSidebar", "renderSidebar"]) {
-      this.hooks.push([hook, Hooks.on(hook, () => this.schedulePosition())]);
-    }
-    }
     this.hooks.push(["slowInsertGroupingChanged", Hooks.on("slowInsertGroupingChanged", state => {
       this.groupingState = normalizeGroupingState(state);
       this.grouping = this.groupingState.preferences;
@@ -257,7 +198,6 @@ export class SlowInsertPanel {
       this.refresh();
     })]);
     this.index.connect();
-    this.position();
   }
 
   buildBrowseContent() {
@@ -307,28 +247,8 @@ export class SlowInsertPanel {
     if (this.browseButton) this.browseButton.title = `${t("Browse.Title")} · ${t(SCHEMES[this.filters.scheme].label)} · ${t("Browse.FilterCount", { count })}`;
   }
 
-  schedulePosition() {
-    if (this.positionFrame) return;
-    this.positionFrame = requestAnimationFrame(() => {
-      this.positionFrame = null;
-      this.position();
-    });
-  }
-
-  position() {
-    if (this.sidebarHost) return;
-    const sidebar = document.getElementById("sidebar");
-    const bounds = sidebar?.getBoundingClientRect();
-    const sidebarLeft = bounds?.width && bounds.height ? bounds.left : window.innerWidth;
-    const { right, width } = getDockLayout(window.innerWidth, sidebarLeft, this.width);
-    this.root.style.right = `${right}px`;
-    this.root.style.width = `${width}px`;
-    this.launcher.style.right = `${right}px`;
-    this.resizeHandle.setAttribute("aria-valuenow", String(Math.round(width)));
-  }
-
   toggle() {
-    const active = this.sidebarHost ? this.sidebarHost.app.active && ui.sidebar.expanded : this.visible;
+    const active = this.sidebarHost.app.active && ui.sidebar.expanded;
     active ? this.close() : this.open();
   }
 
@@ -342,7 +262,7 @@ export class SlowInsertPanel {
   }
 
   deactivateSidebar() {
-    if (this.sidebarHost?.app.isPopout) return;
+    if (this.sidebarHost.app.isPopout) return;
     this.visible = false;
     clearTimeout(this.searchTimer);
     void this.save("query", this.input.value);
@@ -350,42 +270,14 @@ export class SlowInsertPanel {
 
   open() {
     if (!this.allowed()) return;
-    if (this.sidebarHost) {
-      this.sidebarHost.app.activate();
-      this.activateSidebar();
-      this.input.focus();
-      return;
-    }
-    if (!this.visible) this.previousFocus = document.activeElement;
-    this.visible = true;
-    this.root.hidden = false;
-    this.launcher.hidden = true;
-    this.launcher.setAttribute("aria-expanded", "true");
-    this.position();
+    this.sidebarHost.app.activate();
+    this.activateSidebar();
     this.input.focus();
-    this.input.select();
-    this.refresh();
-    this.index.scheduleInitialIndex();
   }
 
   close() {
-    if (this.sidebarHost) {
-      if (this.sidebarHost.app.isPopout) void this.sidebarHost.app.close();
-      else { ui.sidebar.collapse(); this.input.blur(); }
-      return;
-    }
-    const restoreFocus = this.root.contains(document.activeElement);
-    this.visible = false;
-    this.root.hidden = true;
-    this.launcher.hidden = false;
-    this.launcher.setAttribute("aria-expanded", "false");
-    clearTimeout(this.searchTimer);
-    void this.save("query", this.input.value);
-    if (restoreFocus) {
-      const target = this.previousFocus?.isConnected && this.previousFocus !== document.body
-        ? this.previousFocus : this.launcher;
-      target.focus();
-    }
+    if (this.sidebarHost.app.isPopout) void this.sidebarHost.app.close();
+    else { ui.sidebar.collapse(); this.input.blur(); }
   }
 
   async save(key, value) {
@@ -559,11 +451,8 @@ export class SlowInsertPanel {
     void this.browseWindow?.close({ animate: false, restoreFocus: false });
     this.index.destroy();
     clearTimeout(this.searchTimer);
-    cancelAnimationFrame(this.positionFrame);
     this.events.abort();
-    this.resizeObserver?.disconnect();
     for (const [name, id] of this.hooks) Hooks.off(name, id);
     this.root.remove();
-    this.launcher.remove();
   }
 }

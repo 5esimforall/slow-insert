@@ -7,7 +7,7 @@ test('light surfaces are independent of Foundry and Quick Insert themes', () => 
   assert.match(css, /--si-bg: #eeecef;/);
   assert.match(css, /--si-text: #302b35;/);
   assert.match(css, /color-scheme: light;/);
-  assert.match(css, /\.slow-insert\.si-native \{[^}]*background: var\(--si-bg\);/);
+  assert.match(css, /\.slow-insert \{[^}]*background: var\(--si-bg\);/);
   assert.match(css, /:is\(\.si-browse-window, \.si-grouping-window\) \.window-header \{[^}]*background: #e3dfe7;/);
   assert.doesNotMatch(css, /--qiBackground|--qiItem|#a7d6c5|\.quick-insert-result|#qi-search-appv3|color-scheme: dark/);
 });
@@ -48,4 +48,9 @@ test('preferred-member star uses a compact hit target below the source', () => {
   assert.match(pin, /width: 24px; height: 24px;/);
   assert.match(css, /\.si-member \.si-source \{[^}]*margin-bottom: 24px;/);
   assert.match(css, /\.si-pin:focus-visible \{ outline: 2px solid/);
+});
+
+test('all search surfaces inherit host geometry without the removed floating controls', () => {
+  assert.doesNotMatch(css, /si-native|si-resize|slow-insert-toggle|position: fixed/);
+  assert.match(css, /\.slow-insert \{[^}]*position: relative;/);
 });

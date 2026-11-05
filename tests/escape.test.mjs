@@ -17,5 +17,5 @@ test('module does not register Escape bindings, global listeners, or native dism
  const main=await readFile(new URL('../module/scripts/main.mjs',import.meta.url),'utf8');
  assert.doesNotMatch(panel,/core\.dismiss|hasPriorityEscapeTarget|onDocumentKeydown|onEscape|this\.listen\(document,\s*["']keydown/);
  assert.doesNotMatch(main,/key:\s*["']Escape|MODULE_ID,\s*["']dismiss/);
- assert.match(main,/MODULE_ID, "toggle"/); // Existing explicit launcher shortcut is unaffected.
+ assert.match(main,/MODULE_ID, "toggle"/); // Existing explicit sidebar toggle shortcut is unaffected.
 });

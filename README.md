@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.6**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.7**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -33,7 +33,11 @@ cd /Users/arctic/Arc/fvtt/projects/slow-insert
 npm run preview
 ```
 
-打开 [英文预览](http://127.0.0.1:4178/tests/fixture.html) 或 [中文预览](http://127.0.0.1:4178/tests/fixture.html?lang=cn)。这只是模拟环境，并非真实 Foundry 世界。浏览器测试脚本位于上述测试目录。
+打开 [英文预览](http://127.0.0.1:4178/tests/fixture.html) 或 [中文预览](http://127.0.0.1:4178/tests/fixture.html?lang=cn)。夹具执行实际 `init → setup → ready` 入口，由生产 `registerSidebar()` 注册侧栏，再使用 `tests/sidebar-fixture.mjs` 提供最小 Foundry v13 宿主契约。宿主模拟标签切换、展开／收起、重渲染和原生弹出窗口，不直接实例化搜索面板。
+
+面板必须接收宿主；旧浮层的入口、定位、宽度设置和控件已移除。旧客户端存储中遗留的 `width` 值不再读取，无需迁移或清除其他偏好。
+
+从新加载的夹具点击 **Run browser checks** 执行 `tests/browser-checks.js` 与 `tests/filter-browser-checks.js`，页面显示逐项通过结果或失败原因。用例使用合成 DOM 事件验证应用接线；真实点击、键盘焦点和窗口尺寸另用 MCP 验证。夹具不是真实 Foundry 世界，不能替代实机观察；结束后重载夹具以恢复测试查询和筛选。
 
 ## 非破坏性归并审计
 
@@ -58,7 +62,7 @@ node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
 - 开发源码以本仓库为准，不直接在 Foundry 安装目录中开发。
 - 发布前提交 Git 并标记版本，再打包部署；不额外复制旧安装目录作为备份。世界数据与素材不在本仓库的版本控制范围内。
 - 安装时使用发行 ZIP 中的 `slow-insert` 文件夹；开发源码文件夹名 `module` 不能直接作为 Foundry 模块安装目录名。
-- `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。本次整理没有更新该副本。
+- `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。
 - 本仓库不包含 FVTT 总目录中的其他模块、配套包、世界数据或旧项目。
 - 既有 ZIP、截图、日志及分类数据溯源记录原样迁移；其中的旧路径和日期是历史记录，不是当前执行路径。
 

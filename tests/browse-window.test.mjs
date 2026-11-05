@@ -13,7 +13,7 @@ test('native frame preserves the same live controls and remembers position witho
  class Native {constructor(options){this.options=options;this.position={width:700,height:620,left:200,top:50};this.element={setAttribute(){}};} _onRender(){} _onPosition(){} _onClose(){} }
  globalThis.foundry={applications:{api:{ApplicationV2:Native}}};
  let expanded,focused=0,content;const saved=[];
- const panel={save(key,value){saved.push({key,value});},idPrefix:'test',visible:true,browseContent:{sentinel:true},filterControls:{scheme:{focus(){focused++;}}},browseButton:{setAttribute(k,v){expanded=v;},focus(){focused++;}}};
+ const panel={sidebarHost:{app:{isPopout:true}},save(key,value){saved.push({key,value});},idPrefix:'test',visible:true,browseContent:{sentinel:true},filterControls:{scheme:{focus(){focused++;}}},browseButton:{setAttribute(k,v){expanded=v;},focus(){focused++;}}};
  const app=createBrowseWindow(panel);
  assert.ok(app instanceof Native);assert.equal(app.options.id,'test-browse');
  app._replaceHTML(panel.browseContent,{replaceChildren(c){content=c;}});assert.equal(content,panel.browseContent);
@@ -25,11 +25,29 @@ test('native frame preserves the same live controls and remembers position witho
 });
 test('existing floating window is raised rather than duplicated',async()=>{
  let raised=0;
- const panel={allowed:()=>true,browseWindow:{rendered:true,bringToFront(){raised++;}}};
+ const panel={sidebarHost:{app:{isPopout:true}},allowed:()=>true,browseWindow:{rendered:true,bringToFront(){raised++;}}};
  await SlowInsertPanel.prototype.openBrowseWindow.call(panel);assert.equal(raised,1);
 });
 test('geometry normalization drops transient native state and invalid numbers',()=>{
  assert.deepEqual(normalizeBrowsePosition({left:42,top:0,width:740,height:760,zIndex:99,scale:2}),{width:740,height:760,left:42,top:0});
  assert.deepEqual(normalizeBrowsePosition({left:NaN,top:Infinity,width:-1,height:'760'}),{});
  assert.deepEqual(browseWindowPosition({width:1384,height:988},{left:1084},{left:NaN,width:-1}),{width:740,height:760,left:328,top:64});
+});
+
+test('closing browse window only restores focus to a visible native host', t => {
+ const old = { foundry: globalThis.foundry, ui: globalThis.ui };
+ t.after(() => Object.assign(globalThis, old));
+ class Native { constructor() { this.position = {}; } _onClose() {} }
+ globalThis.foundry = { applications: { api: { ApplicationV2: Native } } };
+ globalThis.ui = { sidebar: { expanded: false } };
+ let focused = 0;
+ const panel = { idPrefix: 'test', visible: true, sidebarHost: { app: { isPopout: false } },
+   browseButton: { setAttribute() {}, focus() { focused++; } } };
+ const app = createBrowseWindow(panel);
+ app._onClose({}); assert.equal(focused, 0);
+ ui.sidebar.expanded = true; app._onClose({}); assert.equal(focused, 1);
+ panel.visible = false; app._onClose({}); assert.equal(focused, 1);
+ panel.visible = true; app._onClose({ restoreFocus: false }); assert.equal(focused, 1);
+ panel.sidebarHost.app.isPopout = true; ui.sidebar.expanded = false;
+ app._onClose({}); assert.equal(focused, 2);
 });

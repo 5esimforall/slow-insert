@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sourceBadge, resolveSource as resolveWithLocale, SOURCE_INDEX_FIELDS, isItemResult, getDockLayout } from "../module/scripts/source.mjs";
+import { sourceBadge, resolveSource as resolveWithLocale, SOURCE_INDEX_FIELDS, isItemResult } from "../module/scripts/source.mjs";
 import { language } from "./localization.mjs";
 const resolveSource = (item, environment = {}) => resolveWithLocale(item, { ...language("en"), ...environment });
 
@@ -88,19 +88,6 @@ test("Quick Insert filters receive wrapped results", () => {
   assert.equal(isItemResult({ item: { ...item, documentType: "Actor" } }), false);
   assert.equal(isItemResult({ item: { documentType: "Item" } }), false);
   assert.equal(isItemResult(null), false);
-});
-
-test("panel docks next to expanded and collapsed sidebars", () => {
-  assert.deepEqual(getDockLayout(1440, 1080), { right: 368, width: 360 });
-  assert.deepEqual(getDockLayout(1440, 1380, 420), { right: 68, width: 420 });
-  assert.deepEqual(getDockLayout(1440, undefined), { right: 8, width: 360 });
-});
-
-test("narrow-screen fallback and width limits stay inside the viewport", () => {
-  assert.deepEqual(getDockLayout(390, 30), { right: 8, width: 360 });
-  assert.deepEqual(getDockLayout(280, 0), { right: 8, width: 264 });
-  assert.equal(getDockLayout(1440, 1080, 900).width, 560);
-  assert.equal(getDockLayout(1440, 1080, -5).width, 280);
 });
 
 test("external integration handles are not mislabeled as world documents", () => {

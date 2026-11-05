@@ -1,8 +1,7 @@
 /* Intentionally scoped: no Quick Insert, sheet, or core sidebar overrides. */
 .slow-insert,
 .si-browse-window,
-.si-grouping-window,
-#slow-insert-toggle {
+.si-grouping-window {
   /* A self-contained light surface, independent of Foundry's global theme. */
   --si-bg: #eeecef;
   --si-line: #30283124;
@@ -15,28 +14,28 @@
   --si-focus: #89659f;
   color-scheme: light;
 }
-.slow-insert,
-#slow-insert-toggle {
-  position: fixed;
-  z-index: var(--z-index-app, 30);
+.slow-insert {
+  position: relative;
+  z-index: auto;
   color: var(--si-text);
   font-family: var(--font-body, sans-serif);
   font-size: 13px;
   text-align: left;
   background: var(--si-bg);
-  border: 1px solid var(--si-line);
-  border-radius: 4px;
-  box-shadow: 0 4px 16px #0004;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   pointer-events: auto;
 }
-.slow-insert *, #slow-insert-toggle { box-sizing: border-box; }
-.slow-insert[hidden], #slow-insert-toggle[hidden] { display: none; }
+.slow-insert * { box-sizing: border-box; }
+.slow-insert[hidden] { display: none; }
 .slow-insert {
-  top: 16px;
-  bottom: 16px;
+  width: 100%;
+  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 180px;
+  min-height: 0;
 }
 .slow-insert .si-header {
   display: flex;
@@ -234,16 +233,7 @@
 .slow-insert .si-source-section[data-section="review"] { margin-top: 5px; color: #8b5b25; }
 .slow-insert .si-source-section[hidden] { display: none; }
 .slow-insert .si-filter-choice[data-source-status="review"] { border-style: dashed; }
-.slow-insert .si-footer { padding: 11px 12px; color: var(--si-muted); border-top: 1px solid var(--si-line); font-size: 10px; line-height: 1.4; }
-.slow-insert .si-resize { position: absolute; top: 8px; bottom: 8px; left: -4px; width: 8px; cursor: ew-resize; touch-action: none; border-radius: 4px; }
-.slow-insert .si-resize:hover, .slow-insert .si-resize:focus-visible { background: var(--si-focus); }
-#slow-insert-toggle { top: 16px; width: auto; height: 34px; min-height: 0; margin: 0; padding: 0 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-#slow-insert-toggle:hover { border-color: var(--si-accent); }
-.slow-insert button:focus-visible, #slow-insert-toggle:focus-visible { outline: 2px solid var(--si-accent); outline-offset: 2px; }
-@media (max-height: 420px) {
-  .slow-insert { top: 8px; bottom: 8px; min-height: 0; }
-  .slow-insert .si-footer { display: none; }
-}
+.slow-insert button:focus-visible { outline: 2px solid var(--si-accent); outline-offset: 2px; }
 /* Group controls are siblings of draggable result buttons, never nested buttons. */
 .slow-insert .si-result-group { margin-bottom: 1px; }
 .slow-insert .si-group-heading { display: flex; align-items: center; gap: 2px; }
@@ -282,8 +272,7 @@
 /* Native sidebar owns geometry and visibility; the search page owns its list. */
 .slow-insert-sidebar { min-height: 0; overflow: hidden; }
 .slow-insert-sidebar.active { display: flex; flex-direction: column; }
-.slow-insert.si-native { position: relative; inset: auto; z-index: auto; width: 100%; height: 100%; flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; background: var(--si-bg); }
-.slow-insert.si-native .si-version { display: none; }
+.slow-insert-sidebar .si-version { display: none; }
 .slow-insert .si-group-heading { border: 1px solid transparent; border-radius: 4px; gap: 0; margin-bottom: 0; }
 .slow-insert .si-group-heading:hover { background: var(--si-hover); }
 .slow-insert .si-group-heading:has(> .si-result[aria-selected="true"]) { background: var(--si-selected); border-color: transparent; }
