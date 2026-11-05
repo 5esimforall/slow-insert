@@ -23,8 +23,11 @@ export class GroupingControls {
     panel.browseButton?.classList.toggle('si-grouping-pending',Boolean(!panel.groupingState.active||catalog?.changed));
   }
   async commit(state) {
+    if(this.saving||!this.panel.allowed())return false;
+    this.saving=true;this.undo.disabled=true;this.restore.disabled=true;
     try { await this.panel.commitGroupingState(state); }
     catch(error) { console.error('Slow Insert | Grouping save failed',error);globalThis.ui?.notifications?.warn(t('Grouping.SaveFailed'));return false; }
+    finally {this.saving=false;this.restore.disabled=false;this.update(this.panel.filterCatalog?.grouping);}
     return true;
   }
   async preview() {
@@ -34,7 +37,7 @@ export class GroupingControls {
     // Always use the full permitted index, not the search query or facet/rules
     // visibility selections. Permission checks remain owned by Quick Insert.
     const read=()=>({results:globalThis.QuickInsert.search('',()=>true,Number.MAX_SAFE_INTEGER),environment:panel.sourceEnvironment()});
-    const baseline=JSON.stringify(panel.groupingState),initial=read();
+    const baseline=JSON.stringify(panel.groupingState),initial=read(),preferences=structuredClone(panel.grouping);
     const root=node('div');root.className='slow-insert si-grouping-preview';
     root.append(node('p',t('Grouping.PreviewHint')));
     const label=node('label'),risk=node('input');risk.type='checkbox';risk.checked=panel.groupingState.active?.includeRisk===true;
@@ -45,7 +48,7 @@ export class GroupingControls {
     details.append(node('summary',t('Grouping.Details')),search,list);root.append(summary,details,error);
     let snapshot;
     const render=()=>{
-      snapshot=calculateGrouping(initial.results,initial.environment,panel.grouping,{includeRisk:risk.checked});
+      snapshot=calculateGrouping(initial.results,initial.environment,preferences,{includeRisk:risk.checked});
       const diff=groupingDiff(panel.groupingState.active,snapshot,panel.grouping);
       const lost=diff.lostPins;
       summary.textContent=t('Grouping.Diff',{...diff,lost:lost.length});list.replaceChildren();search.value='';
@@ -53,7 +56,7 @@ export class GroupingControls {
       // Entries in details are lazy to keep large catalogs responsive.
       const name=id=>byId.get(id)??t('Grouping.UnavailableMember');
       for(const [key,group] of Object.entries(snapshot.groups)) {
-        const section=node('details');section.append(node('summary',`${group.risk?'⚠ ':''}${name(group.members[0])} (${group.members.length}) — ${t(`Grouping.Reason.${group.reason}`)}`));
+        const section=node('details');section.append(node('summary',`${group.risk?'⚠ ':''}${name(group.members[0])} (${group.members.length}) · ${group.rules} · ${t('Level',{level:group.level})} · ${t(`Option.school.${group.school}`)} — ${t(`Grouping.Reason.${group.reason}`)}`));
         section.addEventListener('toggle',()=>{if(section.open&&!section.dataset.loaded){section.dataset.loaded='1';for(const id of group.members)section.append(node('p',`${name(id)} — ${id}`));}});
         if(JSON.stringify(panel.groupingState.active?.groups[key]?.members)===JSON.stringify(group.members))section.dataset.unchanged='true';
         list.append(section);

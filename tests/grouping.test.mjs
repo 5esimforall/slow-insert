@@ -181,3 +181,8 @@ test('bilingual names without original metadata require whole-segment identifier
    pair[1].item.name=name;assert.equal(count(pair,catalog(pair)),2,name);
  }
 });
+
+test('other systems do not inherit dnd5e spell identity rules',()=>{
+ const rows=[spell('a'),spell('b')];const snap=calculated(rows,{system:{id:'other'}});
+ assert.equal(Object.keys(snap.groups).length,0);assert.equal(Object.keys(snap.records).length,0);
+});

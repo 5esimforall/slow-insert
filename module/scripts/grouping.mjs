@@ -65,7 +65,7 @@ function describe(result, environment) {
     const matched=candidates.filter(book=>references.includes(book.id));
     if(matched.length===1){base=nameKey(suffix[1]);suffixBook=matched[0].id;}
   }
-  const spell=item.documentType==="Item"&&item.subType==="spell";
+  const spell=(!environment.system?.id||environment.system.id==="dnd5e")&&item.documentType==="Item"&&item.subType==="spell";
   const warning=source.status==="edition-conflict"?"edition":source.status==="source-conflict"?"source":
     !spell?null:!source.rules?"rules":!id?"identifier":
     !Number.isInteger(system.level)||system.level<0||system.level>9||!["abj","con","div","enc","evo","ill","nec","trs"].includes(system.school)?"spell":null;
@@ -110,7 +110,7 @@ export function calculateGrouping(results,environment={},preferences=normalizeGr
   }
   const groups=Object.create(null),records=Object.create(null);
   for(const candidate of candidates.values())if(candidate.members.length>1) {
-    groups[candidate.key]={kind:"spell",risk:candidate.risk,reason:candidate.reason,members:candidate.members.map(e=>e.uuid).sort()};
+    groups[candidate.key]={kind:"spell",rules:candidate.members[0].rules,level:candidate.members[0].level,school:candidate.members[0].school,risk:candidate.risk,reason:candidate.reason,members:candidate.members.map(e=>e.uuid).sort()};
     for(const e of candidate.members){e.key=candidate.key;e.risk=candidate.risk;}
   }
   for(const e of entries.values())if(e.spell)records[e.uuid]={fingerprint:e.fingerprint,nameFingerprint:e.risk?e.nameFingerprint:null,key:e.key,warning:excluded.has(e.uuid)?"excluded":e.warning};
