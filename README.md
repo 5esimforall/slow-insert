@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.9**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.10**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -85,7 +85,7 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 
 ## 共享目录接入
 
-`catalog-api.mjs` 通过 Truesight 的公开 `api-v1.mjs` 获取来源 API 与有效成员关系，再将纯元数据接回 Quick Insert 原始结果。`grouping.mjs` 只保留展示与首选逻辑；`grouping-controls.mjs` 打开基座的管理界面，不自行计算或写入审核。`grouping-state.mjs` 定义按世界和用户隔离的浏览偏好键。
+`catalog-api.mjs` 通过 Truesight 的公开 `api-v1.mjs` 获取来源 API 与有效成员关系，再将纯元数据接回 Quick Insert 原始结果。`grouping.mjs` 只保留展示与首选逻辑；`grouping-link.mjs` 打开基座的管理界面，不自行计算或写入审核。`grouping-state.mjs` 定义按世界和用户隔离的浏览偏好键。
 
 聚类算法、书目数据与名称解析源码唯一归属于同级工作区的 `modules/truesight`。更改公共 API 时同步更新这里的消费者及测试。审核通知 `truesightChanged` 使浏览缓存失效，来源扩展也统一注册到基座。
 

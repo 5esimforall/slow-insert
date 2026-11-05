@@ -8,7 +8,7 @@ test('light surfaces are independent of Foundry and Quick Insert themes', () => 
   assert.match(css, /--si-text: #302b35;/);
   assert.match(css, /color-scheme: light;/);
   assert.match(css, /\.slow-insert \{[^}]*background: var\(--si-bg\);/);
-  assert.match(css, /:is\(\.si-browse-window, \.si-grouping-window\) \.window-header \{[^}]*background: #e3dfe7;/);
+  assert.match(css, /\.si-browse-window \.window-header \{[^}]*background: #e3dfe7;/);
   assert.doesNotMatch(css, /--qiBackground|--qiItem|#a7d6c5|\.quick-insert-result|#qi-search-appv3|color-scheme: dark/);
 });
 test('compact rows keep source and disclosure separate and expose truncated details', () => {
@@ -53,4 +53,9 @@ test('preferred-member star uses a compact hit target below the source', () => {
 test('all search surfaces inherit host geometry without the removed floating controls', () => {
   assert.doesNotMatch(css, /si-native|si-resize|slow-insert-toggle|position: fixed/);
   assert.match(css, /\.slow-insert \{[^}]*position: relative;/);
+});
+
+test('grouping management is a compact link without the retired review interface styles', () => {
+  assert.match(css, /\.slow-insert \.si-grouping-link \{[^}]*width: auto;[^}]*background: transparent;/);
+  assert.doesNotMatch(css, /si-grouping-controls|si-grouping-preview|si-grouping-window|si-grouping-pending/);
 });

@@ -2,7 +2,7 @@ import { catalog } from "./catalog-api.mjs";
 import { QuickInsertIndex } from "./quick-insert-index.mjs";
 import { BrowseSession } from "./browse-session.mjs";
 import { ResultsView } from "./results-view.mjs";
-import { GroupingControls } from "./grouping-controls.mjs";
+import { createGroupingLink } from "./grouping-link.mjs";
 import { preferenceSettingKey } from "./grouping-state.mjs";
 import { createBrowseWindow, browseWindowPosition } from "./browse-window.mjs";
 import { normalizeSorting, effectiveSort } from "./sorting.mjs";
@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.9";
+export const MODULE_VERSION = "0.6.10";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -55,7 +55,6 @@ export class SlowInsertPanel {
     });
     this.session = new BrowseSession(this.index, { onCatalog: catalog => {
       this.filterControls.setOptions(catalog.options);
-      this.groupingControls?.update(catalog.grouping);
     } });
   }
 
@@ -140,11 +139,6 @@ export class SlowInsertPanel {
       this.refresh();
     });
 
-    this.groupingControls = new GroupingControls({
-      getCatalog: () => this.session.catalog?.grouping,
-      canBuild: () => this.allowed() && this.index.hasIndex && !this.index.indexing,
-      setPending: pending => this.browseButton.classList.toggle("si-grouping-pending", pending)
-    });
     this.buildBrowseContent();
 
     this.status = element("div", "si-status");
@@ -222,7 +216,7 @@ export class SlowInsertPanel {
     sorting.setExpanded(true);
     const display = element("section", "si-browse-display");
     display.append(element("h3", "", t("Browse.Display")), filters.displayOptions);
-    right.append(sortSection, display, this.groupingControls.root);
+    right.append(sortSection, display, createGroupingLink());
     columns.append(left, right);
     this.browseContent.append(top, columns);
   }
@@ -306,7 +300,6 @@ export class SlowInsertPanel {
     const scrollTop = preservePage ? this.list.scrollTop : 0;
     if (!this.visible && !this.browseWindow?.rendered) return;
     this.updateBrowseSummary();
-    this.groupingControls?.update(this.session.catalog?.grouping);
     this.groupToggle.checked = !this.grouping.enabled;
     this.groupToggleState.textContent = t(this.grouping.enabled ? "Grouping.CopiesGrouped" : "Grouping.CopiesShown");
     if (!this.allowed()) { this.clearResults(t("Status.Unavailable")); return; }
@@ -426,7 +419,6 @@ export class SlowInsertPanel {
 
   destroy() {
     this.destroyed = true;
-    this.groupingControls?.destroy();
     void this.browseWindow?.close({ animate: false, restoreFocus: false });
     this.index.destroy();
     clearTimeout(this.searchTimer);

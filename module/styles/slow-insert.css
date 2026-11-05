@@ -1,7 +1,6 @@
 /* Intentionally scoped: no Quick Insert, sheet, or core sidebar overrides. */
 .slow-insert,
-.si-browse-window,
-.si-grouping-window {
+.si-browse-window {
   /* A self-contained light surface, independent of Foundry's global theme. */
   --si-bg: #eeecef;
   --si-line: #30283124;
@@ -383,11 +382,11 @@
 }
 
 /* Only this native window gets a light frame; other Foundry windows are untouched. */
-:is(.si-browse-window, .si-grouping-window) { background: var(--si-bg); border: 1px solid var(--si-line); }
-:is(.si-browse-window, .si-grouping-window) .window-header { background: #e3dfe7; color: var(--si-text); border-bottom: 1px solid var(--si-line); }
-:is(.si-browse-window, .si-grouping-window) .window-header :is(.window-title, .header-control) { color: var(--si-text); text-shadow: none; }
-:is(.si-browse-window, .si-grouping-window) .window-header .header-control:hover { background: var(--si-hover); }
-:is(.si-browse-window, .si-grouping-window) .window-resize-handle { color: var(--si-muted); }
+.si-browse-window { background: var(--si-bg); border: 1px solid var(--si-line); }
+.si-browse-window .window-header { background: #e3dfe7; color: var(--si-text); border-bottom: 1px solid var(--si-line); }
+.si-browse-window .window-header :is(.window-title, .header-control) { color: var(--si-text); text-shadow: none; }
+.si-browse-window .window-header .header-control:hover { background: var(--si-hover); }
+.si-browse-window .window-resize-handle { color: var(--si-muted); }
 .slow-insert :is(button, input, select, label) { text-shadow: none; }
 .slow-insert .si-filter-choice input { color-scheme: inherit; }
 .slow-insert .si-group-action:hover { background: var(--si-hover); color: var(--si-text); }
@@ -416,28 +415,11 @@
   }
 }
 
-/* Explicit grouping workflow; native ApplicationV2 owns focus and geometry. */
-.si-grouping-controls { border-top: 1px solid var(--si-line); margin-top: 14px; padding-top: 10px; }
-.si-grouping-controls p { font-size: 12px; line-height: 1.5; }
-.si-grouping-controls button { width: 100%; margin-block: 3px; }
-.si-grouping-pending { box-shadow: inset 0 -2px #cfa34c; }
-.si-grouping-window .window-content { padding: 0; overflow: hidden; }
-.slow-insert.si-grouping-preview { position: relative; inset: auto; width: 100%; min-width: 0; min-height: 0; height: 100%; flex: 1; border: 0; border-radius: 0; box-shadow: none; z-index: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
-.si-grouping-preview label { display: flex; gap: 8px; align-items: center; }
-.si-grouping-preview details { padding: 7px; border: 1px solid #6666; border-radius: 4px; }
-.si-grouping-preview details details { margin-top: 5px; }
-.si-grouping-preview summary { cursor: pointer; }
-.si-grouping-preview p { margin: 0; overflow-wrap: anywhere; line-height: 1.5; }
-.si-grouping-preview footer { display: flex; justify-content: flex-end; gap: 10px; }
-.si-grouping-preview footer button { flex: 1; }
-.si-grouping-preview [role=alert]:not(:empty) { color: #e6b45b; }
-
-.si-grouping-controls button, .si-grouping-preview button { background: var(--si-field); color: var(--si-text); border: 1px solid var(--si-line); border-radius: 4px; font-size: 12px; }
-.si-grouping-controls button:hover, .si-grouping-preview button:hover { background: var(--si-hover); border-color: var(--si-accent); }
-.si-grouping-controls button:disabled, .si-grouping-preview button:disabled { opacity: .5; cursor: default; }
-.si-grouping-preview input[type=search] { background: var(--si-field); color: var(--si-text); border: 1px solid var(--si-line); width: 100%; margin-block: 8px; }
-.si-grouping-preview input[type=checkbox] { color-scheme: light; accent-color: var(--si-accent); }
-.si-grouping-preview footer { margin-top: auto; position: sticky; bottom: 0; background: var(--si-bg); padding-top: 10px; }
+/* A single outbound entry; Truesight owns the review interface. */
+.slow-insert .si-grouping-link { display: inline-flex; align-items: center; justify-content: flex-start; align-self: flex-start; gap: 6px; width: auto; height: auto; min-height: 28px; margin: 8px 0 0; padding: 3px 0; border: 0; border-radius: 2px; background: transparent; box-shadow: none; color: var(--si-accent); font: 12px/1.5 var(--font-body, sans-serif); cursor: pointer; }
+.slow-insert .si-grouping-link:hover:not(:disabled) span { text-decoration: underline; text-underline-offset: 3px; }
+.slow-insert .si-grouping-link i { margin: 0; font-size: 10px; }
+.slow-insert .si-grouping-link:disabled { opacity: .5; cursor: wait; }
 
 .slow-insert .si-member > .si-exclude { position: absolute; right: 33px; bottom: 4px; display: grid; place-items: center; width: 24px; height: 24px; min-width: 24px; min-height: 24px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--si-muted); font-size: 12px; line-height: 1; cursor: pointer; }
 .slow-insert .si-exclude > i { margin: 0; pointer-events: none; }
