@@ -1,17 +1,23 @@
 /* Intentionally scoped: no Quick Insert, sheet, or core sidebar overrides. */
 .slow-insert,
 .si-browse-window {
-  /* A self-contained light surface, independent of Foundry's global theme. */
-  --si-bg: #eeecef;
-  --si-line: #30283124;
-  --si-text: #302b35;
-  --si-muted: #706976;
-  --si-accent: #725785;
-  --si-field: #ffffff80;
-  --si-hover: #80639312;
-  --si-selected: #80639322;
-  --si-focus: #89659f;
-  color-scheme: light;
+  /* Read Quick Insert's palette without changing its variables or selectors.
+     Foundry owns the color scheme; fallbacks also support the standalone fixture. */
+  color-scheme: var(--color-scheme, light);
+  --si-bg: var(--qiBackground, light-dark(#dddddde3, #302831e3));
+  --si-border: var(--qiBorderColor, #493a50);
+  --si-line: color-mix(in srgb, var(--si-text) 18%, transparent);
+  --si-text: var(--color-text-primary, light-dark(#302831, #efe6d8));
+  --si-muted: light-dark(#666666, #b6aebc);
+  --si-accent: light-dark(var(--qiFilterAccent, #454159), #c6b5d7);
+  --si-field: light-dark(#ffffff50, #00000022);
+  --si-hover: var(--qiItemHoverColor, light-dark(#99944e29, #9979b924));
+  --si-selected: var(--qiItemSelectedColor, light-dark(#99944e29, #b3a0c624));
+  --si-selected-hover: var(--qiItemSelectedHoverColor, light-dark(#99944e3d, #9979b924));
+  --si-focus: var(--qiBorderColorFocused, #624670);
+  --si-warning: light-dark(#8b5b25, #e1b879);
+  --si-danger: light-dark(#9a4352, #e39aa7);
+  --si-preferred: light-dark(#88631f, #e3c278);
 }
 .slow-insert {
   position: relative;
@@ -173,7 +179,7 @@
 }
 .slow-insert .si-filter-source-search:focus { outline: 1px solid var(--si-accent); }
 .slow-insert [data-mode="include"] { color: var(--si-accent); border-color: transparent; background: var(--si-selected); }
-.slow-insert [data-mode="exclude"] { color: #9a4352; border-color: #9a435266; background: #9a43520c; }
+.slow-insert [data-mode="exclude"] { color: var(--si-danger); border-color: color-mix(in srgb, var(--si-danger) 40%, transparent); background: color-mix(in srgb, var(--si-danger) 5%, transparent); }
 .slow-insert .si-filter-drawer[hidden],
 .slow-insert .si-filter-active[hidden],
 .slow-insert .si-filter-chip[hidden] { display: none; }
@@ -202,6 +208,7 @@
 }
 .slow-insert .si-result:hover { background: var(--si-hover); }
 .slow-insert .si-result[aria-selected="true"] { background: var(--si-selected); border-color: transparent; }
+.slow-insert .si-result[aria-selected="true"]:hover { background: var(--si-selected-hover); }
 .slow-insert .si-result:active { cursor: grabbing; }
 .slow-insert .si-image { flex: 0 0 25px; width: 25px; height: 25px; object-fit: cover; border: 0; border-radius: 4px; }
 .slow-insert .si-image[hidden] { display: none; }
@@ -227,9 +234,9 @@
   text-overflow: ellipsis;
 }
 .slow-insert .si-source--fallback { color: var(--si-muted); border-color: var(--si-line); background: transparent; font-weight: 400; }
-.slow-insert .si-source--conflict { color: #8b5b25; border-color: #8b5b2555; background: transparent; }
+.slow-insert .si-source--conflict { color: var(--si-warning); border-color: var(--si-line); background: transparent; }
 .slow-insert .si-source-section { flex: 0 0 100%; padding: 5px 0 2px; color: var(--si-muted); font-size: 10px; font-weight: 600; }
-.slow-insert .si-source-section[data-section="review"] { margin-top: 5px; color: #8b5b25; }
+.slow-insert .si-source-section[data-section="review"] { margin-top: 5px; color: var(--si-warning); }
 .slow-insert .si-source-section[hidden] { display: none; }
 .slow-insert .si-filter-choice[data-source-status="review"] { border-style: dashed; }
 .slow-insert button:focus-visible { outline: 2px solid var(--si-accent); outline-offset: 2px; }
@@ -244,7 +251,9 @@
 .slow-insert .si-member { position: relative; margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; }
 .slow-insert .si-member:hover { background: var(--si-hover); }
 .slow-insert .si-member:has(> .si-result[aria-selected="true"]) { background: var(--si-selected); border-color: transparent; }
-.slow-insert .si-member > .si-result { width: 100%; min-width: 0; margin: 0; border: 0; background: transparent; }
+.slow-insert .si-member:has(> .si-result[aria-selected="true"]):hover { background: var(--si-selected-hover); }
+.slow-insert .si-member > .si-result,
+.slow-insert .si-member > .si-result:hover { width: 100%; min-width: 0; margin: 0; border: 0; background: transparent; }
 .slow-insert .si-member .si-source { min-width: 52px; margin-bottom: 24px; text-align: right; }
 .slow-insert .si-member > .si-pin {
   position: absolute; right: 6px; bottom: 4px;
@@ -256,10 +265,10 @@
 }
 .slow-insert .si-pin > i { margin: 0; pointer-events: none; }
 .slow-insert .si-member > .si-pin:is(:hover, :focus-visible) { background: var(--si-selected); color: var(--si-accent); }
-.slow-insert .si-member > .si-pin[aria-pressed="true"] { color: #88631f; }
+.slow-insert .si-member > .si-pin[aria-pressed="true"] { color: var(--si-preferred); }
 .slow-insert .si-member > .si-pin:focus-visible { outline: 2px solid var(--si-accent); outline-offset: -2px; }
 .slow-insert .si-pack { color: var(--si-muted); font-size: 10px; overflow-wrap: anywhere; }
-.slow-insert .si-warning { color: #8b5b25; font-size: 10px; }
+.slow-insert .si-warning { color: var(--si-warning); font-size: 10px; }
 
 /* Compact inline disclosure: quiet at rest, clear on hover and keyboard focus. */
 .slow-insert .si-group-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 40px; min-height: 32px; margin: 0 2px 3px 0; padding: 5px 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--si-muted); }
@@ -275,7 +284,9 @@
 .slow-insert .si-group-heading { border: 1px solid transparent; border-radius: 4px; gap: 0; margin-bottom: 0; }
 .slow-insert .si-group-heading:hover { background: var(--si-hover); }
 .slow-insert .si-group-heading:has(> .si-result[aria-selected="true"]) { background: var(--si-selected); border-color: transparent; }
-.slow-insert .si-group-heading > .si-result { margin: 0; border: 0; border-radius: 0; background: transparent; }
+.slow-insert .si-group-heading:has(> .si-result[aria-selected="true"]):hover { background: var(--si-selected-hover); }
+.slow-insert .si-group-heading > .si-result,
+.slow-insert .si-group-heading > .si-result:hover { margin: 0; border: 0; border-radius: 0; background: transparent; }
 .slow-insert .si-group-heading > .si-group-toggle { align-self: stretch; min-width: 36px; margin: 0; border: 0; border-radius: 0 5px 5px 0; }
 .slow-insert .si-group-heading > .si-group-toggle:hover { background: var(--si-selected); }
 
@@ -284,7 +295,7 @@
 .slow-insert .si-filter-switch { display: flex; flex: none; align-items: center; gap: 8px; margin: 0; padding: 8px 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; }
 .slow-insert .si-filter-switch-title { flex: 1; min-width: 0; font-size: 11px; color: var(--si-text); }
 .slow-insert .si-filter-switch-state { font-size: 10px; color: var(--si-muted); white-space: nowrap; }
-.slow-insert .si-filter-switch input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 30px; height: 18px; margin: 0; padding: 0; border: 1px solid var(--si-line); border-radius: 12px; background: #30283112; cursor: pointer; box-shadow: none; }
+.slow-insert .si-filter-switch input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 30px; height: 18px; margin: 0; padding: 0; border: 1px solid var(--si-line); border-radius: 12px; background: var(--si-line); cursor: pointer; box-shadow: none; }
 .slow-insert .si-filter-switch input::before { content: ""; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: var(--si-muted); transform: none; transition: left .15s ease; }
 .slow-insert .si-filter-switch input::after { content: none; }
 .slow-insert .si-filter-switch input:checked { background: var(--si-selected); border-color: var(--si-accent); }
@@ -381,9 +392,11 @@
   margin: 0; padding: 3px 5px; border-radius: 4px;
 }
 
-/* Only this native window gets a light frame; other Foundry windows are untouched. */
-.si-browse-window { background: var(--si-bg); border: 1px solid var(--si-line); }
-.si-browse-window .window-header { background: #e3dfe7; color: var(--si-text); border-bottom: 1px solid var(--si-line); }
+/* Only this native window adopts the palette; other Foundry windows are untouched. */
+.si-browse-window { background: var(--si-bg); border: 1px solid var(--si-border); }
+/* Paint the translucent surface once, on the frame rather than both nested layers. */
+.si-browse-window .slow-insert.si-browse-content { background: transparent; }
+.si-browse-window .window-header { background: var(--si-field); color: var(--si-text); border-bottom: 1px solid var(--si-line); }
 .si-browse-window .window-header :is(.window-title, .header-control) { color: var(--si-text); text-shadow: none; }
 .si-browse-window .window-header .header-control:hover { background: var(--si-hover); }
 .si-browse-window .window-resize-handle { color: var(--si-muted); }
@@ -399,7 +412,7 @@
   appearance: none;
   -webkit-appearance: none;
   padding-right: 30px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M2 2L6 6L10 2' fill='none' stroke='%23706976' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M2 2L6 6L10 2' fill='none' stroke='%23807888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 12px 8px;
