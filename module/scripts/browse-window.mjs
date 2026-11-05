@@ -23,7 +23,7 @@ export function browseWindowPosition(viewport, anchor, previous) {
 export function createBrowseWindow(panel) {
   class BrowseWindow extends foundry.applications.api.ApplicationV2 {
     static DEFAULT_OPTIONS = {
-      classes: ['si-browse-window'],
+      classes: ['si-browse-window', 'truesight-theme'],
       window: { title: 'SLOWINSERT.Browse.Title', icon: 'fa-solid fa-sliders', resizable: true, minimizable: false },
       position: { width: 740, height: 760 }
     };

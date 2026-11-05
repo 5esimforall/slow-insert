@@ -4,10 +4,16 @@
 <title>Slow Insert — browser test fixture</title>
 <link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/truesight/theme.css">
 <link rel="stylesheet" href="/module/styles/slow-insert.css">
 <link rel="stylesheet" href="/truesight/styles.css">
 <style>
   * { box-sizing: border-box; }
+  /* Minimal Foundry theme contract, including a host-provided light option surface.
+     Module menus must remain readable even when that surface differs from the host theme. */
+  :root, .theme-light { --color-scheme: light; --color-text-primary: #302831; }
+  .theme-dark { --color-scheme: dark; --color-text-primary: #efe6d8; }
+  select option, select optgroup { background: #ddd; }
   body { margin: 0; background: #242b2b; color: #d8dfde; font: 14px system-ui; }
   .fixture { padding: 32px; max-width: 470px; }
   h1 { font-size: 24px; font-weight: 500; }
@@ -22,7 +28,8 @@
   #sidebar.collapsed .sidebar-content { display: none; }
   #drop { border: 1px dashed #758d84; padding: 28px; margin-top: 32px; }
   button { cursor: pointer; }
-  .fixture-window { position: fixed; z-index: 100; display: flex; flex-direction: column; background: #eeecef; color: #302b35; box-shadow: 0 6px 20px #0008; }
+  .fixture-window { position: fixed; z-index: 100; display: flex; flex-direction: column; box-shadow: 0 6px 20px #0008; }
+  :where(.fixture-window) { background: #eeecef; color: #302b35; }
   .fixture-window > header { display: flex; justify-content: space-between; padding: 10px; }
   .fixture-window .window-content { overflow: auto; flex: 1; }
 </style>
@@ -40,6 +47,7 @@
 </main>
 <aside id="sidebar"><nav role="tablist" aria-label="Sidebar tabs"></nav><div class="sidebar-content"><section class="tab active" data-tab="chat">Chat placeholder</section></div></aside>
 <script type="module">
+  document.body.classList.add(new URL(location.href).searchParams.get("theme") === "dark" ? "theme-dark" : "theme-light");
   const language = new URL(location.href).searchParams.get("lang") || "en";
   const fallback = await (await fetch("/module/lang/en.json")).json();
   const translations = language === "cn" ? await (await fetch("/module/lang/cn.json")).json() : {};
@@ -100,7 +108,7 @@
       const first=!this.rendered;
       if(first){this.element=document.createElement('section');this.element.className=(this.constructor.DEFAULT_OPTIONS.classes??[]).join(' ');this.element.classList.add('fixture-window');
         const header=document.createElement('header'),title=document.createElement('strong'),close=document.createElement('button');
-        title.className='window-title';title.textContent=this.options.window?.title??'';close.textContent='×';close.setAttribute('aria-label','Close window');close.onclick=()=>this.close();header.append(title,close);this.element.append(header);
+        header.className='window-header';title.className='window-title';title.textContent=this.options.window?.title??'';close.textContent='×';close.setAttribute('aria-label','Close window');close.onclick=()=>this.close();header.append(title,close);this.element.append(header);
         this.content=document.createElement('div');this.content.className='window-content';this.element.append(this.content);document.body.append(this.element);foundry.applications.instances.set(this.id,this);}
       if(options.window?.title) this.element.querySelector(".window-title").textContent=options.window.title;
       Object.assign(this.position,options.position);Object.assign(this.element.style,{left:`${this.position.left??20}px`,top:`${this.position.top??20}px`,width:`${this.position.width??620}px`,height:`${this.position.height??650}px`});
@@ -257,6 +265,8 @@
       const { runBrowserChecks, runLayoutBrowserChecks } = await import("./browser-checks.js");
       const { runFilterBrowserChecks } = await import("./filter-browser-checks.js");
       const checks = [...await runBrowserChecks(), ...await runFilterBrowserChecks(), ...await runLayoutBrowserChecks()];
+      const { runThemeBrowserChecks } = await import('./theme-browser-checks.js');
+      checks.push(...await runThemeBrowserChecks());
       if (new URL(location.href).searchParams.has('grouping')) {
         const {runTruesightRefreshChecks} = await import('./truesight-refresh-browser-checks.js');
         checks.push(...await runTruesightRefreshChecks());

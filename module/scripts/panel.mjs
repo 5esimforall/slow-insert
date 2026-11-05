@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.16";
+export const MODULE_VERSION = "0.6.17";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -70,11 +70,11 @@ export class SlowInsertPanel {
   mount(sidebarHost) {
     this.sidebarHost = sidebarHost;
     this.idPrefix = sidebarHost.app.isPopout ? "slow-insert-popout" : "slow-insert";
-    this.root = element("aside", "slow-insert");
+    this.root = element("aside", "slow-insert truesight-theme");
     this.root.id = sidebarHost.app.isPopout ? "slow-insert-popout-panel" : "slow-insert-panel";
     this.root.hidden = true;
     this.root.setAttribute("aria-label", "Slow Insert");
-    this.searchContent = element("div", "slow-insert si-search-content");
+    this.searchContent = element("div", "slow-insert truesight-theme si-search-content");
     this.searchContent.setAttribute("aria-label", t("Panel.Label"));
 
     const header = element("header", "si-header");
@@ -208,7 +208,7 @@ export class SlowInsertPanel {
 
   buildBrowseContent() {
     const filters = this.filterControls, sorting = this.sortControls;
-    this.browseContent = element("div", "slow-insert si-browse-content");
+    this.browseContent = element("div", "slow-insert truesight-theme si-browse-content");
     const top = element("header", "si-header");
     this.browseSummary = element("span", "si-browse-summary");
     this.browseSummary.setAttribute("role", "status");

@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.16**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.17**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -37,9 +37,11 @@ npm run preview
 
 打开 [英文预览](http://127.0.0.1:4178/tests/fixture.html) 或 [中文预览](http://127.0.0.1:4178/tests/fixture.html?lang=cn)。夹具执行实际 `init → setup → ready` 入口，由生产 `registerSidebar()` 注册侧栏，再使用 `tests/sidebar-fixture.mjs` 提供最小 Foundry v13 宿主契约。宿主模拟标签切换、展开／收起、重渲染和原生弹出窗口，不直接实例化搜索面板。
 
+预览默认使用浅色主题，URL 加 `theme=dark` 可检查深色主题。共享主题检查覆盖两个模块的四种全局／窗口明暗组合，验证窗口、原生菜单和主按钮配色、尺寸稳定及样式隔离；原生弹出菜单与鼠标悬停的实际外观仍需交互检查。
+
 面板必须接收宿主。
 
-从新加载的夹具点击 **Run browser checks** 执行 `tests/browser-checks.js` 与 `tests/filter-browser-checks.js`，页面显示逐项通过结果或失败原因。用例使用合成 DOM 事件验证应用接线；真实点击、键盘焦点和窗口尺寸另用 MCP 验证。夹具不是真实 Foundry 世界，不能替代实机观察；结束后重载夹具以恢复测试查询和筛选。
+从新加载的夹具点击 **Run browser checks** 执行 `tests/browser-checks.js`、`tests/filter-browser-checks.js` 与 `tests/theme-browser-checks.js`，页面显示逐项通过结果或失败原因。用例使用合成 DOM 事件验证应用接线；真实点击、键盘焦点和窗口尺寸另用 MCP 验证。夹具不是真实 Foundry 世界，不能替代实机观察；结束后重载夹具以恢复测试查询和筛选。
 
 ## 非破坏性归并审计
 

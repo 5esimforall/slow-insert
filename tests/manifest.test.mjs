@@ -6,14 +6,15 @@ import { MODULE_VERSION } from "../module/scripts/panel.mjs";
 const root = new URL("../module/", import.meta.url);
 const manifest = JSON.parse(await readFile(new URL("module.json", root), "utf8"));
 
-test("release is v0.6.16 with an explicit Quick Insert dependency", () => {
+test("release is v0.6.17 with an explicit Quick Insert dependency", () => {
   assert.equal(manifest.id, "slow-insert");
-  assert.equal(manifest.version, "0.6.16");
+  assert.equal(manifest.version, "0.6.17");
   assert.equal(manifest.version, MODULE_VERSION);
   assert.equal(manifest.relationships.requires[0].id, "quick-insert");
   assert.equal(manifest.relationships.requires[0].compatibility.minimum, "3.7.8");
   assert.equal(manifest.compatibility.maximum, "13");
   assert.equal(manifest.relationships.requires[1].id, "truesight");
+  assert.equal(manifest.relationships.requires[1].compatibility.minimum, "0.1.12");
 });
 
 test("all module entrypoints and localization resources exist", async () => {

@@ -3,34 +3,31 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const css = readFileSync(new URL('../module/styles/slow-insert.css', import.meta.url), 'utf8');
 const view = readFileSync(new URL('../module/scripts/results-view.mjs', import.meta.url), 'utf8');
-test('surfaces consume Quick Insert colors with light and dark fallbacks', () => {
-  for (const [token, upstream, light, dark] of [
-    ['bg', 'qiBackground', '#dddddde3', '#302831e3'],
-    ['hover', 'qiItemHoverColor', '#99944e29', '#9979b924'],
-    ['selected', 'qiItemSelectedColor', '#99944e29', '#b3a0c624'],
-    ['selected-hover', 'qiItemSelectedHoverColor', '#99944e3d', '#9979b924']
-  ]) assert.ok(css.includes(`--si-${token}: var(--${upstream}, light-dark(${light}, ${dark}));`));
-  assert.match(css, /--si-text: var\(--color-text-primary, light-dark\(/);
-  assert.match(css, /color-scheme: var\(--color-scheme, light\);/);
-  assert.match(css, /\.slow-insert \{[^}]*background: var\(--si-bg\);/);
-  assert.match(css, /\.si-browse-window \{[^}]*background: var\(--si-bg\);[^}]*border: 1px solid var\(--si-border\);/);
-  assert.match(css, /\.si-browse-window \.window-header \{[^}]*background: var\(--si-field\);/);
+test('surfaces consume the shared Truesight theme without a duplicate palette', () => {
+  assert.doesNotMatch(css, /--(?:si|ts)-[\w-]+\s*:|--qi[\w-]+/);
+  assert.match(css, /\.slow-insert \{[^}]*background: var\(--ts-bg\);/);
+  assert.match(css, /\.si-browse-window \{[^}]*background: var\(--ts-bg\);[^}]*border: 1px solid var\(--ts-border\);/);
+  assert.match(css, /\.si-browse-window \.window-header \{[^}]*background: var\(--ts-field\);/);
   assert.match(css, /\.si-browse-window \.slow-insert \{ background: transparent; \}/);
-  assert.doesNotMatch(css, /--qi[\w-]+\s*:|\.quick-insert-result|#qi-search-appv3|#eeecef|#e3dfe7/);
+  const panel = readFileSync(new URL('../module/scripts/panel.mjs', import.meta.url), 'utf8');
+  for (const content of ['si-search-content', 'si-browse-content']) {
+    assert.ok(panel.includes(`slow-insert truesight-theme ${content}`));
+  }
+  const frame = readFileSync(new URL('../module/scripts/browse-window.mjs', import.meta.url), 'utf8');
+  assert.match(frame, /classes: \['si-browse-window', 'truesight-theme'\]/);
 });
 test('selected hover colors apply to standalone, grouped and expanded rows', () => {
-  assert.match(css, /\.si-result\[aria-selected="true"\]:hover \{ background: var\(--si-selected-hover\); \}/);
+  assert.match(css, /\.si-result\[aria-selected="true"\]:hover \{ background: var\(--ts-selected-hover\); \}/);
   for (const row of ['si-member', 'si-group-heading']) {
-    assert.ok(css.includes(`.${row}:has(> .si-result[aria-selected="true"]):hover { background: var(--si-selected-hover); }`));
+    assert.ok(css.includes(`.${row}:has(> .si-result[aria-selected="true"]):hover { background: var(--ts-selected-hover); }`));
     assert.ok(css.includes(`.${row} > .si-result:hover {`));
   }
 });
-test('semantic colors remain readable in either scheme rather than using light-only literals', () => {
+test('semantic statuses consume the shared theme tokens', () => {
   for (const token of ['warning', 'danger', 'preferred']) {
-    assert.match(css, new RegExp(`--si-${token}: light-dark\\(`));
-    assert.ok(css.includes(`color: var(--si-${token});`));
+    assert.ok(css.includes(`color: var(--ts-${token});`));
   }
-  assert.match(css, /\.si-filter-switch input \{[^}]*background: var\(--si-line\);/);
+  assert.match(css, /\.si-filter-switch input \{[^}]*background: var\(--ts-line\);/);
 });
 test('compact rows keep source and disclosure separate and expose truncated details', () => {
   assert.match(css, /\.si-type \{[^}]*white-space: nowrap;[^}]*text-overflow: ellipsis;/);
