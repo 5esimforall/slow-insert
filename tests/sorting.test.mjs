@@ -27,7 +27,7 @@ test('ascending and descending leave unknown values last; cantrip zero is known'
  assert.deepEqual(ids(sort(rows,profile([['level','desc']]))),['3','0','u']);
 });
 test('CR fractions sort numerically; missing values stay last in both directions',()=>{
- const rows=[entry('1','One',{}, {cr:1}),entry('u','A',{}, {cr:null}),entry('e','E',{}, {cr:.125}),entry('q','Q',{}, {cr:.25}),entry('z','Z',{}, {cr:0})];
+ const rows=[entry('1','1',{}, {cr:1}),entry('u','A',{}, {cr:null}),entry('e','E',{}, {cr:.125}),entry('q','Q',{}, {cr:.25}),entry('z','Z',{}, {cr:0})];
  assert.deepEqual(ids(sort(rows,profile([['cr']]))),['z','e','q','1','u']);
  assert.deepEqual(ids(sort(rows,profile([['cr','desc']]))),['1','q','e','z','u']);
 });
@@ -46,37 +46,6 @@ test('relevance preserves upstream grouped rank, including alias-only matches; b
  const rows=[entry('z','Zulu'),entry('a','Alpha'),entry('b','Beta')];
  assert.deepEqual(ids(sort(rows,profile([['relevance']]),{query:'test'})),['z','a','b']);
  assert.deepEqual(ids(sort(rows,profile([['relevance']]))),['a','b','z']);
-});
-test('English-only names follow Chinese and bilingual names before auto or manual sort rules',()=>{
- const rows=[entry('en2','Spell 2',{level:['2']}),entry('cn3','咒语三',{level:['3']}),entry('en0',"Melf’s Spell +1 (2024)",{level:['0']}),entry('mixed1','咒语一 Spell 1',{level:['1']})];
- for(const environment of [language('cn'),language('en')])for(const nameOrder of ['local','english']) {
-  const extra={environment};
-  assert.deepEqual(ids(sort(rows,{...normalizeSorting().profiles.spells,nameOrder},extra)),['mixed1','cn3','en0','en2']);
-  assert.deepEqual(ids(sort(rows,{...normalizeSorting().profiles.spells,nameOrder},{...extra,query:'spell'})),['cn3','mixed1','en2','en0']);
-  assert.deepEqual(ids(sort(rows,profile([['level','desc']],{nameOrder}),extra)),['cn3','mixed1','en2','en0']);
-  for(const direction of ['asc','desc']) {
-   const p=profile([['name',direction]],{nameOrder});
-   assert.deepEqual(ids(sort(rows,p,extra)),[
-    ...ids(sort([rows[1],rows[3]],p,extra)),...ids(sort([rows[0],rows[2]],p,extra))
-   ]);
-  }
- }
-});
-test('English-only classification uses actual letters, not missing names, digits, or other scripts',()=>{
- const rows=[entry('en','Élan’s Blade +2'),entry('missing',undefined),entry('empty','  '),entry('digits','123 +!?'),entry('cn','𠀀 Spell'),entry('jp','ブレード'),entry('mixed','Blade Клинок')];
- assert.deepEqual(ids(sort(rows,profile([['relevance']]),{query:'blade'})),['missing','empty','digits','cn','jp','mixed','en']);
-});
-test('name priority only inspects the displayed representative and preserves members and pins',()=>{
- const english=entry('en','Spell'),chinese=entry('cn','咒语');
- english.members=[english.representative,chinese.representative];english.pinned=true;
- english.representative.result.item.description='中文正文';
- english.representative.result.item.data.source={options:[{section:'books',title:'中文书名'}]};
- chinese.members=[english.representative,chinese.representative];
- const rows=[english,chinese],before=JSON.stringify(rows);
- const sorted=sort(rows,profile([['relevance']]),{query:'spell'});
- assert.deepEqual(ids(sorted),['cn','en']);
- assert.equal(sorted[0],chinese);assert.equal(sorted[1],english);
- assert.equal(JSON.stringify(rows),before);
 });
 test('numeric name ordering and optional English titles do not fabricate translations',()=>{
  const rows=[entry('a','咒语 10 Spell 10'),entry('b','咒语 2 Spell 2')];

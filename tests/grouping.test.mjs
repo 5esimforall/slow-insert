@@ -89,6 +89,25 @@ test('SRD sorts last unless manually preferred, indexed automation ranks ahead o
  const preferences=normalizeGrouping({version:2,pins:{[key]:rows[2].item.uuid}});group=groupSearchResults(rows,cat,{preferences}).groups[0];assert.equal(group.representative.uuid,rows[2].item.uuid);
  group=groupSearchResults(rows,cat,{preferences,accept:r=>r!==rows[2]}).groups[0];assert.equal(group.representative.uuid,rows[1].item.uuid);assert.equal(preferences.pins[key],rows[2].item.uuid);
 });
+test('a Chinese or bilingual name wins within an eligible group unless the user pins another member',()=>{
+ const english=spell('a',{package:'dnd-players-handbook.spells',flags:{'chris-premades':{info:{identifier:'spell'}}}});
+ for(const name of ['示例法术','示例法术 Example Spell']) {
+  const translated=spell('b',{name,system:{source:{book:'SRD 5.1',rules:'2014'}}});
+  const rows=[english,translated],cat=catalog(rows);
+  const {groups:[group],rawCount}=groupSearchResults([english],cat,{query:'Example Spell'});
+  assert.equal(rawCount,2);
+  assert.equal(group.representative.result.item,translated.item);
+  assert.deepEqual(group.members.map(e=>e.result.item),[translated.item,english.item]);
+  assert.equal(group.pinned,false);
+  const preferences=normalizeGrouping({version:2,pins:{[group.key]:english.item.uuid}});
+  const pinned=groupSearchResults(rows,cat,{preferences}).groups[0];
+  assert.equal(pinned.representative.result.item,english.item);
+  assert.equal(pinned.pinned,true);
+  const filtered=groupSearchResults(rows,cat,{accept:r=>r!==translated}).groups[0];
+  assert.equal(filtered.representative.result.item,english.item);
+  assert.deepEqual(filtered.members.map(e=>e.uuid),[english.item.uuid]);
+ }
+});
 test('SRD relies on source evidence, not publisher identity or license flags',()=>{
  assert.equal(isSrdSource({system:{source:{book:'SRD 5.1'}}}),true);
  assert.equal(isSrdSource({system:{source:{custom:'srd5.2'}}}),true);

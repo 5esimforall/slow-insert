@@ -46,11 +46,6 @@ function nameKey(name, english) {
   // Only use a visible Latin title; do not invent translations for Chinese-only names.
   return name.match(/[A-Za-z][A-Za-z0-9\s'’:,/()\-]*/gu)?.map(s=>s.trim()).sort((a,b)=>b.length-a.length)[0] || name;
 }
-function isEnglishOnlyName(name) {
-  // Classify visible letters only; digits and punctuation do not imply a language.
-  const letters = name.match(/\p{Letter}/gu) ?? [];
-  return letters.length > 0 && letters.every(letter => /\p{Script=Latin}/u.test(letter));
-}
 export function sortGroups(groups, {profile,scheme,query='',dataFor,environment={}}) {
   const keys=effectiveSort(profile,scheme,query);
   const locale=profile.nameOrder==='english'?'en':currentLocale(environment);
@@ -58,11 +53,9 @@ export function sortGroups(groups, {profile,scheme,query='',dataFor,environment=
   const rows=groups.map((group,rank)=> {
     const item=group.representative.result.item, data=dataFor(item);
     const name=nameKey(item.name||'',profile.nameOrder==='english');
-    const englishOnly=isEnglishOnlyName(item.name||'');
-    return {group,rank,name,englishOnly,values:keys.map(k=>k.field==='relevance'?(query.trim()?rank:null):k.field==='name'?(name||null):sortValue(k.field,item,data,environment))};
+    return {group,rank,name,values:keys.map(k=>k.field==='relevance'?(query.trim()?rank:null):k.field==='name'?(name||null):sortValue(k.field,item,data,environment))};
   });
   rows.sort((a,b)=> {
-    if(a.englishOnly!==b.englishOnly)return Number(a.englishOnly)-Number(b.englishOnly);
     for(let i=0;i<keys.length;i++) {
       const av=a.values[i],bv=b.values[i];
       if(av===null && bv===null)continue;

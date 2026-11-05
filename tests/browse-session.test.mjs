@@ -76,21 +76,17 @@ test('session invalidation rebuilds metadata without silently recalculating appl
   assert.equal(page.rawCount, 7);
 });
 
-test('English-only names move behind translated results before pagination in grouped and all-copies views', () => {
-  const rows = Array.from({ length: 105 }, (_, n) => spell(String(n), {
-    name: n < 100 ? `Spell ${n}` : `法术 Spell ${n}`, system: { identifier: `spell-${n}`, level: 1 }
-  }));
-  const f = fixture(rows);
-  for (const enabled of [true, false]) {
-    f.options.grouping.enabled = enabled;
-    const page = f.session.search({ ...f.options, query: 'Spell' });
-    const ordered = [...rows.slice(100), ...rows.slice(0, 100)];
-    assert.deepEqual(page.groups.map(group => group.representative.result.item), ordered.map(row => row.item));
-    assert.equal(page.shown, 100);
-    const next = f.session.nextPage({ visible: true, query: 'Spell', scheme: 'spells' });
-    assert.deepEqual(next.groups.map(group => group.representative.result.item), rows.slice(95, 100).map(row => row.item));
-    assert.equal(page.rawCount, 105);
-  }
+test('translated names change only their own group representative, not cross-group relevance', () => {
+  const english = spell('a', { name: 'First Spell', system: { identifier: 'first-spell' } });
+  const original = spell('b');
+  const translated = spell('c', { name: '示例法术 Example Spell' });
+  const standalone = spell('d', { name: '其他法术 Other Spell', system: { identifier: 'other-spell' } });
+  const f = fixture([english, original, standalone, translated]);
+  const grouped = f.session.search({ ...f.options, query: 'Spell' });
+  assert.deepEqual(grouped.groups.map(g => g.representative.result.item), [english.item, translated.item, standalone.item]);
+  assert.equal(grouped.rawCount, 4);
+  const copies = f.session.search({ ...f.options, query: 'Spell', grouping: { ...f.options.grouping, enabled: false } });
+  assert.deepEqual(copies.groups.map(g => g.representative.result.item), [english.item, original.item, standalone.item, translated.item]);
 });
 
 test('session sorts the complete result set before batching and preserves or resets page size explicitly', () => {

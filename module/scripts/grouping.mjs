@@ -19,25 +19,24 @@ export function reconcilePins(pins, entries) {
   }
   return next;
 }
-function prioritizeMembers(entries,key,preferences,lang) {
+function prioritizeMembers(entries,key,preferences) {
   const pin=preferences.pins[key];
-  const chinese=/^(cn|zh)/i.test(lang??"");
+  const hasHanName=entry=>/\p{Script=Han}/u.test(entry.result.item.name ?? "");
   const automated=entry=>!entry.srd && entry.tags?.includes("automation")===true;
   const publisher=entry=>{
     const pack=entry.result.item.package || entry.uuid.match(/^Compendium\.([^.]+\.[^.]+)\./)?.[1] || "";
     return /^(dnd-players-handbook|dnd-monster-manual|dnd-dungeon-masters-guide)\./.test(pack)?0:pack.startsWith("dnd5e.")?1:2;
   };
-  // An explicit client pin wins; otherwise every non-SRD implementation ranks
-  // above SRD. Within non-SRD, indexed automation markers outrank publisher
-  // and language. Dependency tags alone do not imply automation.
+  // An explicit client pin wins, then a visible name containing Han characters.
+  // Within the same name priority, keep the existing implementation ranking.
   return entries.slice().sort((a,b)=>Number(b.uuid===pin)-Number(a.uuid===pin)
+    || Number(hasHanName(b))-Number(hasHanName(a))
     || Number(Boolean(a.srd))-Number(Boolean(b.srd))
     || Number(automated(b))-Number(automated(a))
     || publisher(a)-publisher(b)
-    || (chinese?Number(!/[\u3400-\u9fff]/.test(a.result.item.name))-Number(!/[\u3400-\u9fff]/.test(b.result.item.name)):0)
     || a.uuid.localeCompare(b.uuid));
 }
-export function groupSearchResults(matches,catalog,{preferences=normalizeGrouping(),accept=()=>true,query="",lang="en"}={}) {
+export function groupSearchResults(matches,catalog,{preferences=normalizeGrouping(),accept=()=>true,query=""}={}) {
   const seeds=[],seen=new Set();
   const add=result=>{const id=canonicalUuid(result.item);if(!seen.has(id)&&accept(result)){seen.add(id);seeds.push(catalog.entries.get(id)??{result,uuid:id,key:null,warning:null,rules:null,tags:[],names:[]});}};
   for(const result of matches)add(result);
@@ -53,7 +52,7 @@ export function groupSearchResults(matches,catalog,{preferences=normalizeGroupin
     const key=grouped?entry.key:entry.uuid;
     if(emitted.has(key))continue;emitted.add(key);
     const eligible=grouped?(catalog.groups.get(entry.key)??[entry]).filter(e=>accept(e.result)):[entry];
-    const members=prioritizeMembers(eligible,key,preferences,lang);
+    const members=prioritizeMembers(eligible,key,preferences);
     const preferred=members[0];
     output.push({key,kind:members.length>1?entry.kind:null,rules:entry.rules,members,representative:preferred,
       warning:entry.warning,pinned:preferences.pins[key]===preferred.uuid});

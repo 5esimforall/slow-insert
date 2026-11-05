@@ -56,7 +56,7 @@ export class BrowseSession {
     // past the first 100 raw rows or choose a representative outside filters.
     const matches = this.index.search(query, accept);
     const { groups: unsortedGroups, rawCount } = groupSearchResults(matches, catalog.grouping, {
-      preferences: grouping, accept, query, lang: environment.lang
+      preferences: grouping, accept, query
     });
     const groups = sortGroups(unsortedGroups, { profile: sorting.profiles[filters.scheme],
       scheme: filters.scheme, query, environment, dataFor: item => catalog.dataCache.get(item) });
