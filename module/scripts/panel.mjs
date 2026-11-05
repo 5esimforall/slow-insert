@@ -204,7 +204,7 @@ export class SlowInsertPanel {
   buildBrowseContent() {
     const filters = this.filterControls, sorting = this.sortControls;
     this.browseContent = element("div", "slow-insert si-browse-content");
-    const top = element("div", "si-browse-top");
+    const top = element("header", "si-header");
     this.browseSummary = element("span", "si-browse-summary");
     this.browseSummary.setAttribute("role", "status");
     this.filterSwapButton = this.createSwapButton();
@@ -212,9 +212,7 @@ export class SlowInsertPanel {
     this.searchWindowButton.setAttribute("aria-haspopup", "dialog");
     this.searchWindowButton.setAttribute("aria-controls", `${this.idPrefix}-browse`);
     this.listen(this.searchWindowButton, "click", () => { void this.openBrowseWindow(); });
-    const actions = element("div", "si-layout-actions");
-    actions.append(this.searchWindowButton, this.filterSwapButton);
-    top.append(filters.scheme.parentElement, this.browseSummary, actions);
+    top.append(filters.scheme, this.searchWindowButton, this.filterSwapButton);
     const columns = element("div", "si-browse-columns");
     const left = element("section", "si-browse-filters");
     const filterHeader = element("div", "si-browse-section-header");
@@ -231,7 +229,7 @@ export class SlowInsertPanel {
     display.append(element("h3", "", t("Browse.Display")), filters.displayOptions);
     right.append(sortSection, display, createGroupingLink());
     columns.append(left, right);
-    this.browseContent.append(top, columns);
+    this.browseContent.append(top, this.browseSummary, columns);
   }
 
   get searchVisible() {

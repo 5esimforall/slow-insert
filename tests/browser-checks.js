@@ -129,8 +129,21 @@ export async function runLayoutBrowserChecks() {
   const first = panel.list.firstElementChild, page = panel.session.page;
   const selection = panel.view.selected, filters = panel.filters, sorting = panel.sorting;
   const scroll = panel.list.scrollTop;
+  await panel.openBrowseWindow();
+  const headerGeometry = content => {
+    const bounds = content.getBoundingClientRect();
+    const header = content.querySelector('.si-header');
+    const scheme = header.querySelector('.si-scheme').getBoundingClientRect();
+    const swap = header.lastElementChild.getBoundingClientRect();
+    return [scheme.left - bounds.left, scheme.top - bounds.top, scheme.width, scheme.height,
+      bounds.right - swap.right, swap.top - bounds.top];
+  };
+  const sidebarHeader = headerGeometry(panel.searchContent), windowHeader = headerGeometry(panel.browseContent);
   panel.searchSwapButton.click();
   await until(() => !panel.swappingLayout && panel.searchInWindow, 'search moved into window');
+  check(headerGeometry(panel.browseContent).every((value, i) => Math.abs(value - sidebarHeader[i]) < 1)
+    && headerGeometry(panel.searchContent).every((value, i) => Math.abs(value - windowHeader[i]) < 1),
+    'scheme position and size and layout-button alignment stay fixed in both hosts when swapping');
   check(panel.root.contains(panel.browseContent) && panel.browseWindow.element.contains(panel.searchContent)
     && !panel.root.contains(panel.searchContent), 'swap completely exchanges search and filters between hosts');
   check(panel.list.firstElementChild === first && panel.session.page === page && page.shown === 121

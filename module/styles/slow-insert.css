@@ -44,6 +44,7 @@
 }
 .slow-insert .si-header {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
@@ -335,9 +336,7 @@
 .si-browse-window:not(.minimizing, .minimized, .maximizing) { min-width: 300px; min-height: 320px; }
 .si-browse-window .window-content { padding: 0; overflow: hidden; }
 .slow-insert.si-browse-content { position: relative; inset: auto; display: flex; flex: 1; width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; box-shadow: none; z-index: auto; container-type: inline-size; }
-.si-browse-content .si-browse-top { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 18px; border-bottom: 1px solid var(--si-line); }
-.si-browse-content .si-scheme-row { flex: 1; max-width: 360px; margin: 0; font-size: 12px; }
-.si-browse-content .si-browse-summary { color: var(--si-muted); font-size: 11px; }
+.si-browse-content .si-browse-summary { flex: none; padding: 6px 12px 10px; border-bottom: 1px solid var(--si-line); color: var(--si-muted); font-size: 11px; }
 .si-browse-content .si-browse-columns { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); flex: 1; min-height: 0; overflow-y: auto; }
 .si-browse-content .si-browse-filters { min-width: 0; padding: 14px 18px; }
 .si-browse-content .si-browse-right { min-width: 0; padding: 14px 18px; border-left: 1px solid var(--si-line); }
@@ -363,7 +362,6 @@
 @container (max-width: 570px) {
   .si-browse-content .si-browse-columns { grid-template-columns: minmax(0,1fr); align-content: start; }
   .si-browse-content .si-browse-right { border-left: 0; border-top: 1px solid var(--si-line); }
-  .si-browse-content .si-browse-top { flex-direction: column; align-items: stretch; gap: 8px; }
 }
 
 /* Source occupies the card's upper-right; disclosure stays in its lower-right.
@@ -426,13 +424,9 @@
 .slow-insert .si-exclude:focus-visible { outline: 2px solid var(--si-accent); outline-offset: -2px; }
 
 /* Both content trees fit either host; narrow filters stack without losing controls. */
-.slow-insert .si-layout-actions { display: flex; flex: none; gap: 4px; }
 .slow-insert .si-icon-button[hidden] { display: none; }
 .slow-insert.si-search-content { min-width: 0; overflow: hidden; }
 @container (max-width: 570px) {
-  .si-browse-content .si-browse-top { position: relative; padding: 10px 12px; }
-  .si-browse-content .si-browse-top .si-scheme-row { padding-right: 64px; }
-  .si-browse-content .si-layout-actions { position: absolute; right: 8px; top: 8px; }
   .si-browse-content .si-browse-filters,
   .si-browse-content .si-browse-right { padding: 10px 12px; }
 }
