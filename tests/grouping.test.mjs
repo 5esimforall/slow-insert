@@ -94,7 +94,7 @@ test('SRD relies on source evidence, not publisher identity or license flags',()
  assert.equal(isSrdSource({system:{source:{custom:'srd5.2'}}}),true);
  assert.equal(isSrdSource({package:'dnd5e.custom',system:{source:{book:'PHB'}},flags:{dnd5e:{srd:true}}}),false);
 });
-test('legacy UUIDs normalize for membership but original open/drag objects are untouched',()=>{
+test('current Quick Insert UUIDs normalize for membership but original open/drag objects are untouched',()=>{
  const {rows}=groupingFixture();for(const r of rows)r.item.uuid=r.item.uuid.replace('.Item.','.');
  const cat=catalog(rows);assert.equal(count(rows,cat),3);assert.ok(rows.every(r=>!r.item.uuid.includes('.Item.')));
  assert.equal(canonicalUuid({uuid:'Compendium.a.b.doc',documentType:'Actor'}),'Compendium.a.b.Actor.doc');
@@ -152,7 +152,7 @@ test('other systems do not inherit dnd5e spell identity rules',()=>{
  assert.equal(Object.keys(snap.groups).length,0);assert.equal(Object.keys(snap.records).length,0);
 });
 
-test('preference migration uses shared membership, drops ambiguous merged pins and never creates groups', async () => {
+test('review reapplication reconciles pins by shared membership, drops ambiguous merged pins and never creates groups', async () => {
  const {reconcilePins}=await import('../module/scripts/grouping.mjs');
  const entries=new Map([['a',{key:'merged'}],['b',{key:'merged'}],['c',{key:'separate'}]]);
  assert.deepEqual(reconcilePins({old:'a'},entries),{merged:'a'});

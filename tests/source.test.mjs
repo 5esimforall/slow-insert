@@ -1,28 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sourceBadge, resolveSource as resolveWithLocale, SOURCE_INDEX_FIELDS, isItemResult } from "../module/scripts/source.mjs";
+import { resolveSource as resolveWithLocale, SOURCE_INDEX_FIELDS, isItemResult } from "../module/scripts/source.mjs";
 import { language } from "./localization.mjs";
 const resolveSource = (item, environment = {}) => resolveWithLocale(item, { ...language("en"), ...environment });
-
-test("source badge normalizes core book names and explicit editions", () => {
-  assert.equal(sourceBadge("Player’s Handbook (2014)"), "PHB'14");
-  assert.equal(sourceBadge("PHB 2024", "2014"), "PHB'24");
-  assert.equal(sourceBadge("PHB'14"), "PHB'14");
-  assert.equal(sourceBadge("玩家手册", "2024"), "PHB'24");
-  assert.equal(sourceBadge("Dungeon Master's Guide", "2014"), "DMG'14");
-  assert.equal(sourceBadge("Monster Manual 2025", "2024"), "MM'25");
-  assert.equal(sourceBadge("XPHB"), "PHB'24");
-  assert.equal(sourceBadge("XMM"), "MM'25");
-});
-
-test("missing or unrecognized edition is not guessed", () => {
-  assert.equal(sourceBadge("PHB"), "PHB");
-  assert.equal(sourceBadge("PHB", "unknown"), "PHB");
-  assert.equal(sourceBadge("My Book", "2024"), "My Book");
-  assert.equal(sourceBadge("Tasha's Cauldron of Everything", "2014"), "TCoE");
-  assert.equal(sourceBadge("constructor"), "constructor");
-  assert.equal(sourceBadge("__proto__"), "__proto__");
-});
 
 const pack = {
   title: "Spells",
@@ -42,9 +22,8 @@ test("explicit item edition takes precedence over container metadata", () => {
   assert.match(result.title, /Spells/);
 });
 
-test("custom and legacy source strings are supported", () => {
+test("custom source strings are supported", () => {
   assert.match(resolveSource({ ...item, system: { source: { book: "PHB", custom: "My setting" } } }, env).title, /My setting/);
-  assert.equal(resolveSource({ ...item, system: { source: "PHB 2014" } }, env).label, "PHB'14");
 });
 
 test("single module sourcebook and UUID pack lookup work", () => {

@@ -76,7 +76,7 @@ function project(doc, pack, aliases) {
   const sourceObject = typeof source === "string" ? { custom: source } : source;
   const structuredSystem = structuredClone(system);
   delete structuredSystem.description; delete structuredSystem.source; delete structuredSystem.identifier;
-  if (structuredSystem.details) { delete structuredSystem.details.biography; delete structuredSystem.details.source; }
+  if (structuredSystem.details) { delete structuredSystem.details.biography; }
   const description = system.description?.value ?? system.details?.biography?.value ?? "";
   const resolvedAliases = [...new Set([...(aliases[doc._id] ?? []), ...(aliases[doc.name] ?? [])])];
   return {
@@ -156,12 +156,6 @@ export async function run({dataRoot, worldId, out, levelModule}) {
         if (!["Item","Actor"].includes(pack.type)) continue;
         const entry = {...pack,id:`${manifest.id}.${pack.name}`,package:manifest.id,packageVersion:manifest.version,
           path:path.resolve(path.dirname(filename),pack.path), packageSourceBooks:manifest.flags?.dnd5e?.sourceBooks ?? {}};
-        if (entry.path.endsWith(".db")) {
-          const migrated = entry.path.slice(0,-3);
-          if (await fs.stat(path.join(migrated,"CURRENT")).then(s=>s.isFile()).catch(()=>false)) {
-            entry.declaredPath = entry.path; entry.path = migrated;
-          }
-        }
         if (indexing.entities?.[pack.type]?.includes(4) || indexing.packs?.[entry.id]?.includes(4)) {excluded.push({pack:entry.id,reason:"Quick Insert GM indexing exclusion"});continue;}
         packs.push(entry);
       }

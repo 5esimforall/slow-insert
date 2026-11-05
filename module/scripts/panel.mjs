@@ -3,7 +3,7 @@ import { QuickInsertIndex } from "./quick-insert-index.mjs";
 import { BrowseSession } from "./browse-session.mjs";
 import { ResultsView } from "./results-view.mjs";
 import { GroupingControls } from "./grouping-controls.mjs";
-import { groupingSettingKey, preferenceSettingKey } from "./grouping-state.mjs";
+import { preferenceSettingKey } from "./grouping-state.mjs";
 import { createBrowseWindow, browseWindowPosition } from "./browse-window.mjs";
 import { normalizeSorting, effectiveSort } from "./sorting.mjs";
 import { SortControls } from "./sort-controls.mjs";
@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.8";
+export const MODULE_VERSION = "0.6.9";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -42,9 +42,7 @@ export class SlowInsertPanel {
     this.hooks = [];
     this.filters = normalizeFilters(game.settings.get(MODULE_ID, "filters"));
     this.sorting = normalizeSorting(game.settings.get(MODULE_ID, "sorting"));
-    const oldGrouping = game.settings.get(MODULE_ID, groupingSettingKey(game.world));
-    this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, preferenceSettingKey(game.world, game.user?.id ?? game.userId))
-      ?? oldGrouping?.preferences ?? game.settings.get(MODULE_ID, "grouping"));
+    this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, preferenceSettingKey(game.world, game.user?.id ?? game.userId)));
     this.browsePosition = game.settings.get(MODULE_ID, "browsePosition");
     this.dnd5e = game.system.id === "dnd5e";
     if (!this.dnd5e) this.filters = setScheme(this.filters, "items");

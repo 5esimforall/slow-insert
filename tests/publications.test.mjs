@@ -120,7 +120,7 @@ test("container declarations supply missing sources but do not overwrite explici
 test("declarative catalogs and providers add books without changing resolver logic", () => {
   const env = prepareSourceEnvironment({
     ...language("en"), sourceBooks: { "AGT": "A Guide to Tomorrow" },
-    modules: new Map([["extra", { active: true, flags: { "slow-insert": { publications: [
+    modules: new Map([["extra", { active: true, flags: { truesight: { publications: [
       { id: "test-new", label: "TN", title: "Testing New Publications", aliases: ["新品规则"] }
     ] } } }]]),
     publicationProviders: new Map([["test", [{ id: "another", label: "ZX", title: "Zany Xanadus", aliases: ["New Alias"] }]]])
@@ -171,32 +171,11 @@ test("source resolution does not mutate documents, provider declarations or shar
   assert.equal(env.sourceCache.size, undefined); // weak, not a retained document registry
 });
 
-test("v3 source selections reset only that facet, not other schemes and filters", () => {
-  const result = normalizeFilters({ version: 3, scheme: "spells", profiles: {
-    spells: { source: ["book:phbpg153"], level: ["3"], school: ["evo"] }, magic: { rarity: ["rare"] }
-  } });
-  assert.equal(result.version, 4);
-  assert.equal(result.scheme, "spells");
-  assert.equal(result.profiles.spells.source, null);
-  assert.deepEqual(result.profiles.spells.level, ["3"]);
-  assert.deepEqual(result.profiles.magic.rarity, ["rare"]);
-  assert.equal(publicationKey("Faerûn"), publicationKey("Faerun"));
-});
-
-test("legacy NPC source fields remain readable without mutating the current source", () => {
-  const actor = { uuid: "Actor.npc", documentType: "Actor", system: { source: { rules: "2014" }, details: { source: "MM 2014 pg 332" } } };
-  const result = resolveSource(actor, language("en"));
-  assert.equal(result.label, "MM'14");
-  assert.match(result.title, /p\. 332/);
-  assert.equal(actor.system.source.book, undefined);
-});
-
 test("registered aliases are searchable without leaking every alias into the visible label", () => {
   const { options } = buildFilterOptions([{ item: item({ book: "TCE" }) }], language("en"));
   assert.equal(options.items.source[0].label, "TCoE");
   assert.match(options.items.source[0].searchText, /TCE/i);
 });
-
 
 test("unrelated dynamically declared books sharing a new abbreviation stay ambiguous", () => {
   const environment = prepareSourceEnvironment({ sourceBooks: { ZZQ: "Zeta Question Almanac" }, modules: new Map([

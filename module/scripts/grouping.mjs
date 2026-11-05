@@ -2,13 +2,13 @@ import {canonicalUuid} from "./catalog-api.mjs";
 const text = value => typeof value === "string" ? value.trim() : "";
 const normalName = value => text(value).normalize("NFKC").toLowerCase().replace(/[\s()（）]/g, "");
 export function normalizeGrouping(value) {
-  const saved=[1,2].includes(value?.version)?value:{};
+  const saved=value?.version===2?value:{};
   const pins=Object.fromEntries(Object.entries(saved.pins??{}).filter(([key,uuid])=>key.length<500&&typeof uuid==="string"&&uuid.length<500).slice(0,5000));
   const hidden=[...new Set((Array.isArray(saved.hidden)?saved.hidden:[]).filter(id=>typeof id==="string"&&id.length<500))];
   return {version:2,enabled:saved.enabled!==false,pins,hidden};
 }
 
-// Preference migration follows the shared relation; it never creates one.
+// Reapplying a review can merge or split groups; reconcile current pins by membership.
 export function reconcilePins(pins, entries) {
   const next = {}, conflicts = new Set();
   for (const uuid of new Set(Object.values(pins))) {

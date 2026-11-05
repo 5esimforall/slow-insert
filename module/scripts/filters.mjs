@@ -50,14 +50,12 @@ export function parseCR(value) {
   return result !== null && result >= 0 ? result : null;
 }
 
-/** v0.0.2 tri-state selections are deliberately reset instead of silently reinterpreted. */
+/** Normalize the current filter schema at the storage boundary. */
 export function normalizeFilters(value) {
-  const saved = [3, 4].includes(value?.version) ? value : {};
+  const saved = value?.version === 4 ? value : {};
   const profiles = Object.fromEntries(Object.entries(SCHEMES).map(([scheme, { groups }]) => [scheme,
     Object.fromEntries(groups.map(id => {
-      // v4 source keys identify publications/review states, not raw strings or
-      // packs. Reset only that facet; every other v3 selection survives.
-      const current = id === "source" && saved.version !== 4 ? null : own(saved.profiles?.[scheme], id);
+      const current = own(saved.profiles?.[scheme], id);
       if (GROUPS[id].range) {
         let min = parseCR(current?.min), max = parseCR(current?.max);
         if (min !== null) min = Math.min(30, min);

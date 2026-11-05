@@ -6,7 +6,7 @@ const entry=(id,name,values={},extra={})=>({key:id,members:[],representative:{uu
 const profile=(keys,extra={})=>({mode:'manual',keys:keys.map(([field,direction='asc'])=>({field,direction})),nameOrder:'local',...extra});
 const sort=(groups,p,extra={})=>sortGroups(groups,{profile:p,scheme:'spells',query:'',dataFor:i=>i.data,environment:language('en'),...extra});
 const ids=rows=>rows.map(g=>g.key);
-test('default auto profiles are independent and old settings migrate safely',()=>{
+test('default auto profiles are independent and malformed input is sanitized',()=>{
  const a=normalizeSorting();assert.deepEqual(effectiveSort(a.profiles.spells,'spells',''),[{field:'level',direction:'asc'}]);
  for(const s of Object.keys(SORT_FIELDS))assert.equal(a.profiles[s].mode,'auto');
  a.profiles.items.keys[0].field='source';assert.equal(a.profiles.spells.keys[0].field,'level');

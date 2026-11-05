@@ -13,10 +13,9 @@ test("three schemes follow the local quick-reference group order", () => {
   assert.deepEqual(SCHEMES.magic.groups, ["rarity", "category", "attunement", "source"]);
   assert.deepEqual(SCHEMES.monsters.groups, ["cr", "legendary", "size", "creatureType", "source"]);
 });
-test("schema migration resets incompatible tri-state filters and sanitizes malformed input", () => {
-  assert.deepEqual(normalizeFilters({ type: { include: ["spell"] } }), normalizeFilters());
+test("current filter schema sanitizes malformed input", () => {
   assert.deepEqual(normalizeFilters(null), normalizeFilters());
-  const result = normalizeFilters({ version: 3, scheme: "__proto__", profiles: { spells: { level: ["0", "0", null] } } });
+  const result = normalizeFilters({ version: 4, scheme: "__proto__", profiles: { spells: { level: ["0", "0", null] } } });
   assert.equal(result.scheme, "items");
   assert.deepEqual(result.profiles.spells.level, ["0"]);
 });
@@ -176,7 +175,7 @@ test("external content is opt-in by source type, independent of display text", (
   assert.equal(match(external,setGroup(on,"source",["book:phb14"])),false);
   assert.equal(match(external,setGroup(on,"source",["book:phb24"])),true);
 });
-test("external preference persists across schemes and profile resets without migrating book selections", () => {
+test("external preference persists across schemes and profile resets without changing book selections", () => {
   const old=setGroup(normalizeFilters(),"source",["book:phb24"]);
   assert.equal(normalizeFilters(old).includeExternal,false);
   const on=normalizeFilters({...old,includeExternal:true});

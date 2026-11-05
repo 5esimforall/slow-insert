@@ -1,23 +1,11 @@
 import { t } from "./i18n.mjs";
-import { parseCitations } from "./publications.mjs";
 import { identifySource, prepareSourceEnvironment } from "./source-resolution.mjs";
 
 /** Small metadata only; no descriptions, effects, or document loading. */
 export const SOURCE_INDEX_FIELDS = Object.freeze([
   "system.source.book", "system.source.rules", "system.source.custom", "system.source.page"
 ]);
-const text = value => typeof value === "string" ? value.trim() : "";
 const unique = values => [...new Set(values)];
-
-/** Compatibility formatter, not a source classifier. Unknown text is returned
- * unchanged here; resolveSource never promotes it into the bibliography. */
-export function sourceBadge(book, rules = "") {
-  const refs = parseCitations(book);
-  if (refs.length !== 1 || !refs[0].candidates.length) return text(book);
-  const candidates = refs[0].candidates;
-  const selected = candidates.length === 1 ? candidates : candidates.filter(record => record.rules === rules);
-  return selected.length === 1 ? selected[0].label : unique(candidates.map(record => record.familyLabel)).join(" / ");
-}
 
 export function resolveSource(item, environment = {}) {
   environment = prepareSourceEnvironment(environment);

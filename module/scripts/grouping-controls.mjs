@@ -12,8 +12,7 @@ export class GroupingControls {
     this.rebuild = button('Rebuild', () => catalog.openReview());
     this.undo = button('Undo', () => catalog.undo());
     this.restore = button('RestoreExcluded', () => catalog.restoreExcluded());
-    this.migrate = button('Migrate', () => catalog.openReview({migration: true}));
-    this.root.append(node('h3', t('Grouping.Title')), this.status, this.rebuild, this.undo, this.restore, this.migrate);
+    this.root.append(node('h3', t('Grouping.Title')), this.status, this.rebuild, this.undo, this.restore);
   }
   update(data) {
     const state = catalog.getStatus();

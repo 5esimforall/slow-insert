@@ -33,7 +33,7 @@ test("edition visibility reaches facet counts and grouped and ungrouped result t
   const rows = [["old",{rules:"2014"}],["revised",{rules:"2024"}],["bookOnly",{book:"PHB 2024"}],
     ["unknown",{}],["conflict",{book:"PHB 2014",rules:"2024"}]].map(([name,source]) =>
     ({item:{uuid:"Item."+name,name,documentType:"Item",subType:"spell",system:{source,level:1}}}));
-  rows.push({item:{uuid:"Actor.npc",name:"npc",documentType:"Actor",subType:"npc",system:{details:{source:{rules:"2024"}}}}});
+  rows.push({item:{uuid:"Actor.npc",name:"npc",documentType:"Actor",subType:"npc",system:{source:{rules:"2024"}}}});
   for(const hide of [true,false]) {
     const accept = rulesPredicate(hide,env);
     const visible = rows.filter(accept);

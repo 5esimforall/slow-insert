@@ -23,7 +23,7 @@ test("hydrate resolves nested actor items and effects; dangling references are r
   assert.equal(documents[0].items[0].effects[0].changes[0].value,2);
   assert.deepEqual(missing,["!actors.effects!a.missing"]);
 });
-test("legacy UUID normalization preserves document type and embedded references",()=>{
+test("Quick Insert UUID normalization preserves document type and embedded references",()=>{
   assert.equal(canonicalUuid("Compendium.dnd5e.monsters.abc","Actor"),"Compendium.dnd5e.monsters.Actor.abc");
   assert.equal(canonicalUuid("Compendium.dnd5e.spells.Item.abc"),"Compendium.dnd5e.spells.Item.abc");
   assert.equal(canonicalUuid("not a source"),null);
