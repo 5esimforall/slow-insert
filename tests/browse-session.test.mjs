@@ -76,6 +76,23 @@ test('session invalidation rebuilds metadata without silently recalculating appl
   assert.equal(page.rawCount, 7);
 });
 
+test('English-only names move behind translated results before pagination in grouped and all-copies views', () => {
+  const rows = Array.from({ length: 105 }, (_, n) => spell(String(n), {
+    name: n < 100 ? `Spell ${n}` : `法术 Spell ${n}`, system: { identifier: `spell-${n}`, level: 1 }
+  }));
+  const f = fixture(rows);
+  for (const enabled of [true, false]) {
+    f.options.grouping.enabled = enabled;
+    const page = f.session.search({ ...f.options, query: 'Spell' });
+    const ordered = [...rows.slice(100), ...rows.slice(0, 100)];
+    assert.deepEqual(page.groups.map(group => group.representative.result.item), ordered.map(row => row.item));
+    assert.equal(page.shown, 100);
+    const next = f.session.nextPage({ visible: true, query: 'Spell', scheme: 'spells' });
+    assert.deepEqual(next.groups.map(group => group.representative.result.item), rows.slice(95, 100).map(row => row.item));
+    assert.equal(page.rawCount, 105);
+  }
+});
+
 test('session sorts the complete result set before batching and preserves or resets page size explicitly', () => {
   const rows = Array.from({ length: 245 }, (_, n) => spell(String(n), { name: `Spell ${244 - n}`,
     system: { identifier: `spell-${n}`, level: n % 10 } }));
