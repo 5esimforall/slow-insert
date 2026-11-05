@@ -37,8 +37,9 @@ export class BrowseSession {
     return this.catalog;
   }
 
-  search({ query, filters, sorting, grouping, hideRevised, preservePage = false }) {
+  search({ query, filters, sorting, grouping, hideRevised, collapseDiagnostics = false, diagnosticsExpanded = false, preservePage = false }) {
     const previousCount = preservePage ? this.page?.shown : 0;
+    const previousDiagnosticPageSize = preservePage ? this.page?.diagnosticPageSize : 0;
     const catalog = this.ensureCatalog({ hideRevised });
     const { environment } = catalog;
     const accept = result => {
@@ -59,18 +60,28 @@ export class BrowseSession {
     });
     const groups = sortGroups(unsortedGroups, { profile: sorting.profiles[filters.scheme],
       scheme: filters.scheme, query, environment, dataFor: item => catalog.dataCache.get(item) });
-    this.page = { groups, environment, rawCount, shown: Math.min(groups.length, previousCount || LIMIT),
+    const regularGroups = [], diagnosticGroups = [];
+    for (const group of groups) {
+      // Keep the whole displayed group intact, including its chosen implementation.
+      (collapseDiagnostics && group.members.some(entry => entry.warning) ? diagnosticGroups : regularGroups).push(group);
+    }
+    this.page = { groups: regularGroups, diagnosticGroups, diagnosticsExpanded, environment, rawCount,
+      shown: Math.min(regularGroups.length, previousCount || LIMIT),
+      diagnosticPageSize: Math.min(diagnosticGroups.length, previousDiagnosticPageSize || LIMIT),
       query, scheme: filters.scheme };
     return this.page;
   }
 
   nextPage({ visible, query, scheme }) {
     const page = this.page;
-    if (!visible || !page || page.shown >= page.groups.length
-      || query.trim() !== page.query || scheme !== page.scheme) return null;
-    const end = Math.min(page.shown + LIMIT, page.groups.length);
-    const groups = page.groups.slice(page.shown, end);
-    page.shown = end;
-    return { groups, environment: page.environment };
+    if (!visible || !page || query.trim() !== page.query || scheme !== page.scheme) return null;
+    const diagnostic = page.shown >= page.groups.length;
+    if (diagnostic && (!page.diagnosticsExpanded || page.diagnosticPageSize >= page.diagnosticGroups.length)) return null;
+    const source = diagnostic ? page.diagnosticGroups : page.groups;
+    const countKey = diagnostic ? "diagnosticPageSize" : "shown";
+    const end = Math.min(page[countKey] + LIMIT, source.length);
+    const groups = source.slice(page[countKey], end);
+    page[countKey] = end;
+    return { groups, diagnostic, environment: page.environment };
   }
 }

@@ -249,5 +249,13 @@
   "SLOWINSERT.Grouping.OpenFailed": "Could not open Truesight. Check that the module is enabled.",
   "SLOWINSERT.Layout.Swap": "Swap layout",
   "SLOWINSERT.Layout.SearchInWindow": "Swap layout: search in window",
-  "SLOWINSERT.Layout.SearchInSidebar": "Swap layout: search in sidebar"
+  "SLOWINSERT.Layout.SearchInSidebar": "Swap layout: search in sidebar",
+  "SLOWINSERT.Diagnostics.Option": "Collapse entries with diagnostics",
+  "SLOWINSERT.Diagnostics.Hint": "Move results with grouping diagnostics into a collapsed section at the bottom. Diagnostics indicate missing or conflicting grouping evidence; entries remain usable.",
+  "SLOWINSERT.Diagnostics.Expand": "Expand entries with diagnostics ({count})",
+  "SLOWINSERT.Diagnostics.Collapse": "Collapse entries with diagnostics ({count})",
+  "SLOWINSERT.Diagnostics.Label": "Results with grouping diagnostics",
+  "SLOWINSERT.Diagnostics.Collapsed": "Collapsed at bottom",
+  "SLOWINSERT.Diagnostics.Inline": "Inline",
+  "SLOWINSERT.Diagnostics.HiddenCount": "{count} collapsed"
 }

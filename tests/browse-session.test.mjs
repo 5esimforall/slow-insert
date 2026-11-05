@@ -111,3 +111,64 @@ test('alias completion and all-copies presentation keep the same eligible member
   assert.equal(empty.shown, 0);
   assert.equal(empty.rawCount, 0);
 });
+
+
+test('diagnostic disclosure partitions after filtering and sorting without losing or changing entries', () => {
+  const rows = Array.from({ length: 302 }, (_, n) => spell(String(n), {
+    name: `${n % 2 ? 'Diagnostic' : 'Clean'} ${n}`, system: { identifier: n % 2 ? '' : `spell-${n}`, level: n % 10 }
+  }));
+  const f = fixture(rows);
+  f.options.sorting.profiles.spells = { mode: 'manual', keys: [{ field: 'level', direction: 'desc' }], nameOrder: 'local' };
+  const baseline = f.session.search(f.options);
+  const expectedDiagnostic = baseline.groups.filter(group => group.members.some(entry => entry.warning));
+  const expectedRegular = baseline.groups.filter(group => !group.members.some(entry => entry.warning));
+  assert.equal(expectedDiagnostic.length, 151);
+  assert.equal(expectedRegular.length, 151);
+  const keys = groups => groups.map(group => group.key);
+  let page = f.session.search({ ...f.options, collapseDiagnostics: true });
+  assert.deepEqual(keys(page.groups), keys(expectedRegular));
+  assert.deepEqual(keys(page.diagnosticGroups), keys(expectedDiagnostic));
+  assert.equal(page.rawCount, baseline.rawCount);
+  assert.equal(page.shown, 100);
+  assert.equal(page.diagnosticPageSize, 100);
+  assert.equal(page.diagnosticsExpanded, false);
+  const next = { visible: true, query: '', scheme: 'spells' };
+  assert.equal(f.session.nextPage(next).groups.length, 51);
+  assert.equal(f.session.nextPage(next), null, 'collapsed rows must not be loaded by scrolling');
+  page = f.session.search({ ...f.options, collapseDiagnostics: true, diagnosticsExpanded: true, preservePage: true });
+  assert.equal(page.shown, 151);
+  const diagnosticPage = f.session.nextPage(next);
+  assert.equal(diagnosticPage.diagnostic, true);
+  assert.deepEqual(keys(diagnosticPage.groups), keys(expectedDiagnostic.slice(100)));
+  assert.equal(f.session.nextPage(next), null);
+  page = f.session.search({ ...f.options, collapseDiagnostics: true, query: 'Diagnostic' });
+  assert.equal(page.groups.length, 0);
+  assert.equal(page.diagnosticGroups.length, 151);
+  assert.equal(page.rawCount, 151);
+  assert.equal(page.diagnosticsExpanded, false);
+  page = f.session.search({ ...f.options, collapseDiagnostics: true, query: 'absent' });
+  assert.equal(page.groups.length + page.diagnosticGroups.length, 0);
+  page = f.session.search(f.options);
+  assert.deepEqual(keys(page.groups), keys(baseline.groups), 'disabling restores the exact original order');
+  assert.equal(page.diagnosticGroups.length, 0);
+  for (const group of page.groups) assert.ok(rows.some(row => row.item === group.representative.result.item));
+});
+
+test('diagnostics keep a mixed group intact while a risk marker alone stays in the regular list', () => {
+  const f = fixture();
+  const source = f.session.groupingCatalog;
+  f.session.groupingCatalog = rows => {
+    const catalog = source(rows);
+    catalog.entries.get(rows[1].item.uuid).warning = 'excluded';
+    return catalog;
+  };
+  const page = f.session.search({ ...f.options, collapseDiagnostics: true });
+  assert.equal(page.diagnosticGroups.length, 1);
+  assert.equal(page.diagnosticGroups[0].members.length, 2);
+  assert.equal(page.diagnosticGroups[0].representative.result.item, f.index.rows[0].item);
+  assert.ok(page.groups.some(group => group.members.some(entry => entry.risk)));
+  const copies = f.session.search({ ...f.options, collapseDiagnostics: true, grouping: { ...f.options.grouping, enabled: false } });
+  assert.equal(copies.diagnosticGroups.length, 1);
+  assert.deepEqual(copies.diagnosticGroups[0].members.map(entry => entry.uuid), [f.index.rows[1].item.uuid]);
+  assert.equal(copies.rawCount, page.rawCount);
+});

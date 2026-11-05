@@ -249,5 +249,13 @@
   "SLOWINSERT.Grouping.OpenFailed": "无法打开真实视觉，请检查模块是否已启用。",
   "SLOWINSERT.Layout.Swap": "对调布局",
   "SLOWINSERT.Layout.SearchInWindow": "对调布局：搜索移至浮窗",
-  "SLOWINSERT.Layout.SearchInSidebar": "对调布局：搜索移回侧栏"
+  "SLOWINSERT.Layout.SearchInSidebar": "对调布局：搜索移回侧栏",
+  "SLOWINSERT.Diagnostics.Option": "收起缺陷条目",
+  "SLOWINSERT.Diagnostics.Hint": "将有归组诊断的结果收在列表底部。诊断表示归组依据不足或冲突，不影响条目使用。",
+  "SLOWINSERT.Diagnostics.Expand": "展开缺陷条目（{count}）",
+  "SLOWINSERT.Diagnostics.Collapse": "收起缺陷条目（{count}）",
+  "SLOWINSERT.Diagnostics.Label": "有归组诊断的结果",
+  "SLOWINSERT.Diagnostics.Collapsed": "底部收起",
+  "SLOWINSERT.Diagnostics.Inline": "随列表显示",
+  "SLOWINSERT.Diagnostics.HiddenCount": "已收起 {count} 项"
 }

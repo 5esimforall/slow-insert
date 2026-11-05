@@ -267,6 +267,8 @@
       const checks = [...await runBrowserChecks(), ...await runFilterBrowserChecks(), ...await runLayoutBrowserChecks()];
       const { runThemeBrowserChecks } = await import('./theme-browser-checks.js');
       checks.push(...await runThemeBrowserChecks());
+      const { runDiagnosticsBrowserChecks } = await import('./diagnostics-browser-checks.js');
+      checks.push(...await runDiagnosticsBrowserChecks());
       if (new URL(location.href).searchParams.has('grouping')) {
         const {runTruesightRefreshChecks} = await import('./truesight-refresh-browser-checks.js');
         checks.push(...await runTruesightRefreshChecks());

@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.17**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.18**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -41,7 +41,7 @@ npm run preview
 
 面板必须接收宿主。
 
-从新加载的夹具点击 **Run browser checks** 执行 `tests/browser-checks.js`、`tests/filter-browser-checks.js` 与 `tests/theme-browser-checks.js`，页面显示逐项通过结果或失败原因。用例使用合成 DOM 事件验证应用接线；真实点击、键盘焦点和窗口尺寸另用 MCP 验证。夹具不是真实 Foundry 世界，不能替代实机观察；结束后重载夹具以恢复测试查询和筛选。
+从新加载的夹具点击 **Run browser checks** 执行 `tests/browser-checks.js`、`tests/filter-browser-checks.js`、`tests/theme-browser-checks.js` 与 `tests/diagnostics-browser-checks.js`，页面显示逐项通过结果或失败原因。用例使用合成 DOM 事件验证应用接线；真实点击、键盘焦点和窗口尺寸另用 MCP 验证。夹具不是真实 Foundry 世界，不能替代实机观察；结束后重载夹具以恢复测试查询和筛选。
 
 ## 非破坏性归并审计
 
@@ -81,7 +81,7 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 | `browse-session.mjs` | 管理派生目录缓存和分页，执行筛选、别名补全、共享成员映射及整体排序 |
 | `results-view.mjs` | 渲染结果与成员，管理行映射、选中和展开状态；接收明确的渲染上下文 |
 
-索引完成以 Quick Insert 完成事件为准；文档更新在其索引钩子结束后合并刷新。查询先筛选成员，再选择组代表、整体排序，最后分批渲染。结果视图不重选代表，打开和拖放使用视图所记录的原条目。归组控件通过 Truesight 公共 API 打开管理窗口或提交身份排除，不访问面板内部审核状态。
+索引完成以 Quick Insert 完成事件为准；文档更新在其索引钩子结束后合并刷新。查询先筛选成员，再选择组代表、整体排序；开启诊断折叠时按已筛选成员的诊断状态分区，两部分分别分批渲染。结果视图不重选代表，打开和拖放使用视图所记录的原条目。归组控件通过 Truesight 公共 API 打开管理窗口或提交身份排除，不访问面板内部审核状态。
 
 `tests/index-lifecycle.test.mjs`、`tests/browse-session.test.mjs` 和 `tests/results-view.test.mjs` 分别覆盖这些边界；分页与宿主行为仍由对应测试覆盖。界面验证继续使用上文浏览器夹具，并与实机观察分开记录。
 

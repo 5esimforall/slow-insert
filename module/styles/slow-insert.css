@@ -412,3 +412,18 @@
 }
 
 .slow-insert > .slow-insert { background: transparent; }
+
+/* Quiet disclosure; retain a visible focus target for keyboard users. */
+.slow-insert .si-diagnostics { margin-top: 6px; }
+.slow-insert .si-diagnostics-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: fit-content; max-width: 100%; min-height: 28px; height: auto; margin: 2px auto 6px; padding: 4px 6px;
+  border: 0; border-radius: 3px; background: transparent; box-shadow: none;
+  color: var(--ts-muted); font: inherit; font-size: 11px; line-height: 1.4;
+  white-space: normal; text-align: center; cursor: pointer;
+}
+.slow-insert .si-diagnostics-toggle:hover { background: transparent; box-shadow: none; color: var(--ts-text); }
+.slow-insert .si-diagnostics-toggle:focus-visible { outline-offset: -2px; }
+.slow-insert .si-diagnostics-toggle .si-toggle-chevron { flex: none; transform: rotate(45deg); }
+.slow-insert .si-diagnostics-toggle[aria-expanded="true"] .si-toggle-chevron { transform: rotate(225deg); }
+.slow-insert .si-diagnostics-results[hidden] { display: none; }

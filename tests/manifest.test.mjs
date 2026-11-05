@@ -6,9 +6,9 @@ import { MODULE_VERSION } from "../module/scripts/panel.mjs";
 const root = new URL("../module/", import.meta.url);
 const manifest = JSON.parse(await readFile(new URL("module.json", root), "utf8"));
 
-test("release is v0.6.17 with an explicit Quick Insert dependency", () => {
+test("release is v0.6.18 with an explicit Quick Insert dependency", () => {
   assert.equal(manifest.id, "slow-insert");
-  assert.equal(manifest.version, "0.6.17");
+  assert.equal(manifest.version, "0.6.18");
   assert.equal(manifest.version, MODULE_VERSION);
   assert.equal(manifest.relationships.requires[0].id, "quick-insert");
   assert.equal(manifest.relationships.requires[0].compatibility.minimum, "3.7.8");

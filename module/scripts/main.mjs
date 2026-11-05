@@ -24,6 +24,10 @@ Hooks.once("init", () => {
   for (const [key, type, value] of [["searchInWindow", Boolean, false], ["query", String, ""], ["filters", Object, {}], ["sorting", Object, {}], ["browsePosition", Object, {}], ["filterExpansion", Object, {}]]) {
     game.settings.register(MODULE_ID, key, { scope: "client", config: false, type, default: value });
   }
+  game.settings.register(MODULE_ID, "collapseDiagnostics", { scope: "client", config: false,
+    type: Boolean, default: false,
+    onChange: value => Hooks.callAll("slowInsertDiagnosticsChanged", value === true)
+  });
   game.keybindings.register(MODULE_ID, "toggle", {
     name: "SLOWINSERT.Toggle",
     hint: "SLOWINSERT.ToggleHint",

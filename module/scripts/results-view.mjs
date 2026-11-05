@@ -26,18 +26,21 @@ export class ResultsView {
     this.results = [];
     this.rowElements = [];
     this.selected = -1;
+    this.diagnosticSection = this.diagnosticBody = this.diagnosticToggle = null;
+    this.renderedGroups.clear();
     this.list.replaceChildren();
     this.input.removeAttribute("aria-activedescendant");
     this.input.setAttribute("aria-expanded", "false");
   }
 
-  render(groups, context, append = false) {
+  render(groups, context, append = false, target = this.list) {
     this.context = context;
     const { environment, pins } = context;
     if (!append) {
       this.results = [];
       this.rowElements = [];
       this.renderedGroups = new Map();
+      this.diagnosticSection = this.diagnosticBody = this.diagnosticToggle = null;
       this.list.replaceChildren();
     }
     for (const group of groups) this.renderedGroups.set(group.key, group);
@@ -98,7 +101,53 @@ export class ResultsView {
       }
       fragment.append(wrapper);
     }
-    this.list.append(fragment);
+    if (target === this.list && this.diagnosticSection) {
+      // Regular pages remain above the diagnostic section even when it is open.
+      this.list.insertBefore(fragment, this.diagnosticSection);
+      this.syncRowOrder();
+    } else target.append(fragment);
+  }
+
+  renderDiagnostics(groups, { count, expanded, onToggle }) {
+    if (!count) return;
+    this.diagnosticSection = element("div", "si-diagnostics");
+    this.diagnosticToggle = element("button", "si-diagnostics-toggle",
+      t(expanded ? "Diagnostics.Collapse" : "Diagnostics.Expand", { count }));
+    const caption = element("span", "", this.diagnosticToggle.textContent);
+    const chevron = element("span", "si-toggle-chevron");
+    chevron.setAttribute("aria-hidden", "true");
+    this.diagnosticToggle.replaceChildren(chevron, caption);
+    this.diagnosticToggle.type = "button";
+    this.diagnosticToggle.setAttribute("aria-label", this.diagnosticToggle.textContent);
+    this.diagnosticToggle.setAttribute("aria-expanded", String(expanded));
+    this.diagnosticToggle.title = t("Diagnostics.Hint");
+    this.diagnosticBody = element("div", "si-diagnostics-results");
+    this.diagnosticBody.id = `${this.idPrefix}-diagnostics`;
+    this.diagnosticBody.hidden = !expanded;
+    this.diagnosticBody.setAttribute("role", "group");
+    this.diagnosticBody.setAttribute("aria-label", t("Diagnostics.Label"));
+    this.diagnosticToggle.setAttribute("aria-controls", this.diagnosticBody.id);
+    this.diagnosticToggle.addEventListener("click", onToggle);
+    this.diagnosticSection.append(this.diagnosticToggle, this.diagnosticBody);
+    this.list.append(this.diagnosticSection);
+    if (expanded) this.appendDiagnostics(groups);
+  }
+
+  appendDiagnostics(groups) {
+    this.render(groups, this.context, true, this.diagnosticBody);
+  }
+
+  syncRowOrder() {
+    const selectedRow = this.rowElements[this.selected];
+    const byRow = new Map(this.rowElements.map((row, index) => [row, this.results[index]]));
+    this.rowElements = [...this.list.querySelectorAll(".si-result")];
+    this.results = this.rowElements.map((row, index) => {
+      row.dataset.index = String(index);
+      row.id = `${this.idPrefix}-result-${index}`;
+      return byRow.get(row);
+    });
+    this.selected = this.rowElements.indexOf(selectedRow);
+    this.select(this.selected, false);
   }
 
   groupAction(action, group, label) {

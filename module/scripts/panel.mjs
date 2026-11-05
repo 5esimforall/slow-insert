@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.17";
+export const MODULE_VERSION = "0.6.18";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -45,6 +45,8 @@ export class SlowInsertPanel {
     this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, preferenceSettingKey(game.world, game.user?.id ?? game.userId)));
     this.browsePosition = game.settings.get(MODULE_ID, "browsePosition");
     this.searchInWindow = game.settings.get(MODULE_ID, "searchInWindow") === true;
+    this.collapseDiagnostics = game.settings.get(MODULE_ID, "collapseDiagnostics") === true;
+    this.diagnosticsExpanded = false;
     this.dnd5e = game.system.id === "dnd5e";
     if (!this.dnd5e) this.filters = setScheme(this.filters, "items");
     this.index = new QuickInsertIndex({
@@ -145,6 +147,15 @@ export class SlowInsertPanel {
       this.refresh();
     });
 
+    const diagnostics = createFilterSwitch({ label: t("Diagnostics.Option"), hint: t("Diagnostics.Hint") });
+    this.diagnosticsControl = diagnostics;
+    this.filterControls.displayOptions.append(diagnostics.root);
+    this.listen(diagnostics.input, "change", () => {
+      this.collapseDiagnostics = diagnostics.input.checked;
+      void this.save("collapseDiagnostics", this.collapseDiagnostics);
+      this.refresh();
+    });
+
     this.buildBrowseContent();
 
     this.status = element("div", "si-status");
@@ -201,6 +212,11 @@ export class SlowInsertPanel {
     this.hooks.push([RULES_CHANGED, Hooks.on(RULES_CHANGED, () => {
       this.session.invalidate();
       this.session.clear();
+      this.refresh();
+    })]);
+    this.hooks.push(["slowInsertDiagnosticsChanged", Hooks.on("slowInsertDiagnosticsChanged", enabled => {
+      if (this.collapseDiagnostics === enabled) return;
+      this.collapseDiagnostics = enabled;
       this.refresh();
     })]);
     this.index.connect();
@@ -313,7 +329,7 @@ export class SlowInsertPanel {
   updateBrowseSummary() {
     const count = activeFilters(this.filters).length;
     const custom = this.sorting.profiles[this.filters.scheme].mode === "manual";
-    this.browseButton?.classList.toggle("si-browse-active", count > 0 || custom || this.filters.includeExternal || !this.grouping.enabled);
+    this.browseButton?.classList.toggle("si-browse-active", count > 0 || custom || this.filters.includeExternal || !this.grouping.enabled || this.collapseDiagnostics);
     if (this.browseSummary) this.browseSummary.textContent = t("Browse.Summary", {
       scheme: t(SCHEMES[this.filters.scheme].label), count
     });
@@ -406,6 +422,9 @@ export class SlowInsertPanel {
   refresh(preservePage = false) {
     const scrollTop = preservePage ? this.list.scrollTop : 0;
     if (!this.visible && !this.browseWindow?.rendered) return;
+    if (!preservePage) this.diagnosticsExpanded = false;
+    this.diagnosticsControl.input.checked = this.collapseDiagnostics;
+    this.diagnosticsControl.state.textContent = t(this.collapseDiagnostics ? "Diagnostics.Collapsed" : "Diagnostics.Inline");
     this.updateBrowseSummary();
     this.groupToggle.checked = !this.grouping.enabled;
     this.groupToggleState.textContent = t(this.grouping.enabled ? "Grouping.CopiesGrouped" : "Grouping.CopiesShown");
@@ -418,7 +437,8 @@ export class SlowInsertPanel {
     this.sortControls.update(this.filters.scheme, query);
     try {
       const page = this.session.search({ query, filters: this.filters, sorting: this.sorting,
-        grouping: this.grouping,
+        grouping: this.grouping, collapseDiagnostics: this.collapseDiagnostics,
+        diagnosticsExpanded: this.diagnosticsExpanded,
         hideRevised: hidesRevisedContent(game, MODULE_ID), preservePage });
       this.renderResults(page.groups.slice(0, page.shown), page.environment);
       this.updateResultCount();
@@ -433,15 +453,20 @@ export class SlowInsertPanel {
 
   updateResultCount() {
     const page = this.session.page;
-    this.status.textContent = page.groups.length ? t("Grouping.Status", {
-      count: page.shown, total: page.groups.length, raw: page.rawCount, scheme: t(SCHEMES[page.scheme].label)
+    const diagnosticCount = page.diagnosticGroups.length;
+    const total = page.groups.length + diagnosticCount;
+    this.status.textContent = total ? t("Grouping.Status", {
+      count: page.shown + (page.diagnosticsExpanded ? page.diagnosticPageSize : 0), total,
+      raw: page.rawCount, scheme: t(SCHEMES[page.scheme].label)
     }) : t("Status.NoResults");
+    if (diagnosticCount && !page.diagnosticsExpanded) this.status.textContent += ` · ${t("Diagnostics.HiddenCount", { count: diagnosticCount })}`;
   }
 
   loadMore() {
     const next = this.session.nextPage({ visible: this.searchVisible, query: this.input.value, scheme: this.filters.scheme });
     if (!next) return;
-    this.renderResults(next.groups, next.environment, true);
+    if (next.diagnostic) this.view.appendDiagnostics(next.groups);
+    else this.renderResults(next.groups, next.environment, true);
     this.updateResultCount();
   }
 
@@ -452,6 +477,17 @@ export class SlowInsertPanel {
       sortKeys: effectiveSort(this.sorting.profiles[this.filters.scheme], this.filters.scheme, this.input.value),
       typeLabels: { Item: CONFIG.Item?.typeLabels, Actor: CONFIG.Actor?.typeLabels }
     }, append);
+    if (!append) {
+      const page = this.session.page;
+      this.view.renderDiagnostics(page.diagnosticGroups.slice(0, page.diagnosticPageSize), {
+        count: page.diagnosticGroups.length, expanded: page.diagnosticsExpanded,
+        onToggle: () => {
+          this.diagnosticsExpanded = !this.diagnosticsExpanded;
+          this.refresh(true);
+          this.view.diagnosticToggle?.focus();
+        }
+      });
+    }
   }
 
   onGroupAction(control) {
