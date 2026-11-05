@@ -61,10 +61,8 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 
 ## 部署与保存边界
 
-- 用户明确要求部署到 FVTT 时，完成必要检查后直接执行授权范围内的模块安装更新与验证，不重复询问是否部署，也不止步于源码修改或打包。
-- 文件权限或沙箱权限不足时，主动通过审批机制申请所需权限，不以重复询问部署意愿代替权限申请。审批被拒或仍受阻时，说明具体阻塞和已完成的步骤，不绕过限制。
-- 仅开发任务不默认部署。部署授权不扩展到无关模块、世界数据修改或未获授权的启用、停用及服务重启。
 - 开发源码以本仓库为准，不直接在 Foundry 安装目录中开发。
+- 开发后默认在提交到仓库后部署到 FVTT 时直接部署，但把验收交给用户。如果用户要求验收，优先使用MCP并告知用户；不要使用Computer Use。
 - 发布前提交 Git 并标记版本，再打包部署；不额外复制旧安装目录作为备份。世界数据与素材不在本仓库的版本控制范围内。
 - 安装时使用发行 ZIP 中的 `slow-insert` 文件夹；开发源码文件夹名 `module` 不能直接作为 Foundry 模块安装目录名。
 - `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。
