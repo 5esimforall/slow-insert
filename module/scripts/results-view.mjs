@@ -114,8 +114,12 @@ export class ResultsView {
     this.diagnosticToggle = element("button", "si-diagnostics-toggle",
       t(expanded ? "Diagnostics.Collapse" : "Diagnostics.Expand", { count }));
     const caption = element("span", "", this.diagnosticToggle.textContent);
-    const chevron = element("span", "si-toggle-chevron");
+    const chevron = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    chevron.setAttribute("class", "si-diagnostics-chevron");
+    chevron.setAttribute("viewBox", "0 0 8 8");
     chevron.setAttribute("aria-hidden", "true");
+    chevron.setAttribute("focusable", "false");
+    chevron.innerHTML = '<polyline points="1 2.5 4 5.5 7 2.5" />';
     this.diagnosticToggle.replaceChildren(chevron, caption);
     this.diagnosticToggle.type = "button";
     this.diagnosticToggle.setAttribute("aria-label", this.diagnosticToggle.textContent);

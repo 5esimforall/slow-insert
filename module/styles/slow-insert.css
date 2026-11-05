@@ -424,6 +424,10 @@
 }
 .slow-insert .si-diagnostics-toggle:hover { background: transparent; box-shadow: none; color: var(--ts-text); }
 .slow-insert .si-diagnostics-toggle:focus-visible { outline-offset: -2px; }
-.slow-insert .si-diagnostics-toggle .si-toggle-chevron { flex: none; transform: rotate(45deg); }
-.slow-insert .si-diagnostics-toggle[aria-expanded="true"] .si-toggle-chevron { transform: rotate(225deg); }
+/* The visible stroke is centered in its box in both disclosure states. */
+.slow-insert .si-diagnostics-chevron {
+  display: block; flex: 0 0 8px; width: 8px; height: 8px;
+  fill: none; stroke: currentColor; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round;
+}
+.slow-insert .si-diagnostics-toggle[aria-expanded="true"] .si-diagnostics-chevron { transform: rotate(180deg); }
 .slow-insert .si-diagnostics-results[hidden] { display: none; }

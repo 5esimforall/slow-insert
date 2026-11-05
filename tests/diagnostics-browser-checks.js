@@ -46,12 +46,21 @@ export async function runDiagnosticsBrowserChecks() {
     const toggle = panel.view.diagnosticToggle, bounds = toggle.getBoundingClientRect(), parent = toggle.parentElement.getBoundingClientRect();
     check(Math.abs((bounds.left + bounds.right) - (parent.left + parent.right)) < 2
       && getComputedStyle(toggle).fontSize === '11px' && getComputedStyle(toggle).backgroundColor === 'rgba(0, 0, 0, 0)'
-      && toggle.querySelector('.si-toggle-chevron')?.getAttribute('aria-hidden') === 'true',
+      && toggle.querySelector('.si-diagnostics-chevron')?.getAttribute('aria-hidden') === 'true',
       'diagnostic disclosure is quiet centered text with a decorative chevron');
+    const checkChevronCenter = () => {
+      const control = panel.view.diagnosticToggle;
+      const stroke = control.querySelector('polyline').getBoundingClientRect();
+      const text = control.querySelector('span').getBoundingClientRect();
+      check(Math.abs((stroke.top + stroke.bottom) / 2 - (text.top + text.bottom) / 2) < 0.5,
+        `diagnostic chevron stroke is vertically centered with its caption (expanded=${control.getAttribute('aria-expanded')})`);
+    };
+    checkChevronCenter();
     panel.view.diagnosticToggle.click();
     check(panel.view.results.length === 200 && document.activeElement === panel.view.diagnosticToggle
       && panel.view.diagnosticBody.querySelectorAll('.si-warning').length === 100,
       'expansion renders a bounded diagnostic page and restores disclosure focus');
+    checkChevronCenter();
     const diagnosticRow = panel.view.diagnosticBody.querySelector('.si-result');
     const selectedItem = panel.view.results[Number(diagnosticRow.dataset.index)].item;
     panel.view.select(Number(diagnosticRow.dataset.index), false);
