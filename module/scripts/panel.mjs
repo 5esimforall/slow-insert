@@ -10,7 +10,7 @@ import { hidesRevisedContent, rulesPredicate, RULES_CHANGED } from "./rules-visi
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.1";
+export const MODULE_VERSION = "0.6.2";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -112,6 +112,7 @@ export class SlowInsertPanel {
       }
     });
 
+    if (this.dnd5e) header.insertBefore(this.filterControls.createSchemeSelect(), this.reindexButton);
     this.filterControls.drawer.id = `${this.idPrefix}-filters`;
     this.filterControls.toggle.setAttribute("aria-controls", this.filterControls.drawer.id);
 

@@ -325,7 +325,10 @@
 .slow-insert .si-sort-drawer { flex: 0 1 auto; min-height: 0; max-height: 38vh; overflow-y: auto; scrollbar-width: thin; }
 .slow-insert .si-filter-toolbar .si-sort-custom { color: var(--si-accent); border-color: var(--si-accent); }
 
-/* The sidebar now contains only the entry button, search and results. */
+.slow-insert .si-header > .si-scheme {
+  flex: 0 1 auto; width: auto; max-width: 48%; height: 26px;
+  margin: 0; font-size: 12px; text-overflow: ellipsis;
+}
 .slow-insert .si-search-row { display: flex; flex: none; align-items: center; gap: 4px; margin: 4px 10px 0; }
 .slow-insert .si-search-row .si-search-box { flex: 1; min-width: 0; margin: 0; padding: 0 9px; gap: 7px; }
 .slow-insert .si-browse-button { flex: 0 0 32px; width: 32px; height: 34px; border: 0; background: transparent; }

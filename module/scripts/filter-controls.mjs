@@ -48,21 +48,9 @@ export class FilterControls {
     this.root = node("div", "si-filters");
     const schemeRow = node("label", "si-scheme-row");
     schemeRow.append(node("span", "", t("Filter.Scheme")));
-    this.scheme = node("select", "si-scheme");
-    this.scheme.setAttribute("aria-label", t("Filter.Scheme"));
-    for (const [id, { label }] of Object.entries(SCHEMES)) {
-      if (!dnd5e && id !== "items") continue;
-      const option = node("option", "", t(label));
-      option.value = id;
-      this.scheme.append(option);
-    }
-    this.scheme.value = this.state.scheme;
-    this.scheme.addEventListener("change", () => {
-      this.state = setScheme(this.state, this.scheme.value);
-      this.renderGroups();
-      this.setExpanded(true);
-      this.onChange(this.state);
-    });
+    this.dnd5e = dnd5e;
+    this.schemeSelectors = [];
+    this.scheme = this.createSchemeSelect();
     schemeRow.append(this.scheme);
     const toolbar = node("div", "si-filter-toolbar");
     this.toggle = button("si-filter-toggle", t("Filter.Show"));
@@ -105,6 +93,31 @@ export class FilterControls {
     this.drawer.append(resetRow, this.body, this.displayOptions);
     this.root.append(schemeRow, toolbar, this.active, this.drawer);
     this.renderGroups();
+  }
+
+  createSchemeSelect() {
+    const select = node("select", "si-scheme");
+    select.setAttribute("aria-label", t("Filter.Scheme"));
+    select.title = t("Filter.Scheme");
+    for (const [id, { label }] of Object.entries(SCHEMES)) {
+      if (!this.dnd5e && id !== "items") continue;
+      const option = node("option", "", t(label));
+      option.value = id;
+      select.append(option);
+    }
+    select.value = this.state.scheme;
+    select.addEventListener("change", () => this.selectScheme(select.value));
+    this.schemeSelectors.push(select);
+    return select;
+  }
+
+  selectScheme(id) {
+    if (id === this.state.scheme) return;
+    this.state = setScheme(this.state, id);
+    for (const select of this.schemeSelectors) select.value = this.state.scheme;
+    this.renderGroups();
+    this.setExpanded(true);
+    this.onChange(this.state);
   }
 
   setExpanded(value, focus = false) {
