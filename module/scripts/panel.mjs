@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.14";
+export const MODULE_VERSION = "0.6.15";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -170,6 +170,9 @@ export class SlowInsertPanel {
       clearTimeout(this.searchTimer);
       this.refresh();
     });
+    for (const content of [this.searchContent, this.browseContent]) {
+      this.listen(content, "keydown", event => this.onShortcut(event));
+    }
     this.listen(this.searchContent, "keydown", event => this.onKeydown(event));
     this.listen(this.list, "click", event => {
       const action = event.target.closest("[data-group-action]");
@@ -317,6 +320,28 @@ export class SlowInsertPanel {
     if (this.browseButton) this.browseButton.title = `${t("Browse.Title")} · ${t(SCHEMES[this.filters.scheme].label)} · ${t("Browse.FilterCount", { count })}`;
   }
 
+  openOrSwap(event) {
+    if (this.destroyed || !this.allowed() || event?.isComposing) return false;
+    if (event?.repeat || this.swappingLayout) return true;
+    const app = this.sidebarHost.app;
+    const sidebarOpen = app.isPopout ? app.rendered : app.active && ui.sidebar.expanded;
+    if (sidebarOpen || this.browseWindow?.rendered) void this.swapLayout();
+    else this.open();
+    return true;
+  }
+
+  onShortcut(event) {
+    if (event.defaultPrevented || event.isComposing) return;
+    // Foundry suppresses bindings in inputs. Handle only this action inside our
+    // live content trees, using its current bindings and native key semantics.
+    const keyboard = game.keyboard.constructor;
+    const context = keyboard.getKeyboardEventContext(event);
+    if (!keyboard._getMatchingActions(context).some(action => action.action === `${MODULE_ID}.toggle`)) return;
+    if (!this.openOrSwap(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   toggle() {
     const active = this.searchInWindow ? this.browseWindow?.rendered : this.sidebarHost.app.active && ui.sidebar.expanded;
     active ? this.close() : this.open();
@@ -453,7 +478,7 @@ export class SlowInsertPanel {
   }
 
   onKeydown(event) {
-    if (event.isComposing) return;
+    if (event.defaultPrevented || event.isComposing) return;
     if (event.target === this.input && ["ArrowRight", "ArrowLeft"].includes(event.key)
       && event.altKey && !event.ctrlKey && !event.metaKey) {
       const group = this.view.results[this.view.selected]?.group;

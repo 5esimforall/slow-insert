@@ -1,6 +1,6 @@
 {
-  "SLOWINSERT.Toggle": "Toggle Slow Insert",
-  "SLOWINSERT.ToggleHint": "Open or close the persistent compendium search panel.",
+  "SLOWINSERT.Toggle": "Open Slow Insert / Swap Layout",
+  "SLOWINSERT.ToggleHint": "Open search, or swap search and filters/sorting when either region is already visible.",
   "SLOWINSERT.DependencyWarning": "Slow Insert requires Quick Insert 3.7.8 or later to be enabled.",
   "SLOWINSERT.Panel.Label": "Slow Insert compendium search",
   "SLOWINSERT.Panel.Reindex": "Refresh index",

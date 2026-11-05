@@ -27,8 +27,13 @@ Hooks.once("init", () => {
   game.keybindings.register(MODULE_ID, "toggle", {
     name: "SLOWINSERT.Toggle",
     hint: "SLOWINSERT.ToggleHint",
-    editable: [{ key: "Space", modifiers: ["Control", "Alt"] }],
-    onDown: () => { panel?.toggle(); return Boolean(panel); },
+    // Foundry maps Control to Command on macOS, including the controls UI.
+    editable: [{ key: "KeyF", modifiers: ["Control"] }],
+    repeat: true, // Consume held keys without repeatedly exchanging the layout.
+    onDown: ({ event } = {}) => {
+      const popout = ui.sidebar?.popouts?.[SIDEBAR_TAB];
+      return (popout?.rendered ? popout.panel : panel)?.openOrSwap(event) ?? false;
+    },
     precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL
   });
 });

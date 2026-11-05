@@ -61,7 +61,7 @@
   const icon = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="5" fill="#774f3a"/><path d="M16 5c7 10 10 12 6 19-3 5-13 3-13-3 0-5 6-6 7-16z" fill="#efb478"/></svg>');
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
-    system: { id: "dnd5e" }, world: {id:"fixture"}, user: { id:"fixture-user", isGM: false },
+    system: { id: "dnd5e" }, world: {id:"fixture"}, user: { id:"fixture-user", isGM: false, can(permission) { return this.isGM && permission === "SETTINGS_MODIFY"; } },
     modules: new Map([["quick-insert", { active: true }], ["truesight", {active:true}], ["slow-insert", await (await fetch("/module/module.json")).json()]]),
     packs: new Map([["fixture.spells", { visible: true, title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
@@ -77,6 +77,17 @@
     } },
     i18n: { lang: language, localize: key => labels[key] || key }
   };
+  // Single-client socket contract for Truesight startup; no server or peer delivery.
+  const socketHandlers = new Map();
+  game.socket = {
+    id: "fixture-session", connected: true,
+    on(name, fn) { const listeners = socketHandlers.get(name) ?? new Set(); listeners.add(fn); socketHandlers.set(name, listeners); },
+    off(name, fn) { socketHandlers.get(name)?.delete(fn); },
+    emit() {}
+  };
+  fixtureState.reconnect = () => { for (const fn of socketHandlers.get("connect") ?? []) fn(); };
+  game.users = new Map([[game.user.id, game.user]]);
+  Object.defineProperty(game.users, "activeGM", { get: () => game.user.isGM ? game.user : null });
   globalThis.ui = { windows: {}, notifications: { warn: message => { fixtureState.warning = message; } } };
   globalThis.CONFIG = { Item: { compendiumIndexFields: [], typeLabels: { spell: "TYPES.Item.spell", weapon: "TYPES.Item.weapon" } }, Actor: { compendiumIndexFields: [], typeLabels: { npc: "怪物" } } };
   globalThis.CONST = { KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 } };
@@ -105,16 +116,26 @@
   // Model Foundry v13's focus suppression and ordered keybinding consumption.
   class FixtureKeyboard {
     static getKeyboardEventContext(event) {
-      return { event, key: event.code };
+      return { event, key: event.code, repeat: event.repeat, modifiers: [
+        ...(event.ctrlKey || event.metaKey ? ["Control"] : []),
+        ...(event.altKey ? ["Alt"] : []), ...(event.shiftKey ? ["Shift"] : [])
+      ] };
+    }
+    static _getMatchingActions(context) {
+      return [...game.keybindings.actions.entries()]
+        .sort(([, a], [, b]) => a.precedence - b.precedence)
+        .filter(([, action]) => (!context.repeat || action.repeat)
+          && [...(action.uneditable ?? []), ...(action.editable ?? [])].some(binding =>
+            binding.key === context.key && (binding.modifiers ?? []).length === context.modifiers.length
+            && (binding.modifiers ?? []).every(modifier => context.modifiers.includes(modifier))))
+        .map(([id, action]) => ({ ...action, action: id }));
     }
     process(event, { force = false } = {}) {
       const focused = document.activeElement;
       if (!force && (focused?.matches("input, select, textarea") || focused?.isContentEditable)) return;
-      const actions = [...game.keybindings.actions.values()].sort((a, b) => a.precedence - b.precedence);
-      for (const action of actions) {
-        if (event.repeat && !action.repeat) continue;
-        if (![...(action.uneditable ?? []), ...(action.editable ?? [])].some(binding => binding.key === event.code)) continue;
-        if (action.onDown?.({ event })) { event.preventDefault(); event.stopPropagation(); break; }
+      const context = FixtureKeyboard.getKeyboardEventContext(event);
+      for (const action of FixtureKeyboard._getMatchingActions(context)) {
+        if (action.onDown?.(context)) { event.preventDefault(); event.stopPropagation(); break; }
       }
     }
   }

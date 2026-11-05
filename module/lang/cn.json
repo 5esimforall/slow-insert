@@ -1,6 +1,6 @@
 {
-  "SLOWINSERT.Toggle": "开关 Slow Insert",
-  "SLOWINSERT.ToggleHint": "打开或关闭常驻合集搜索面板。",
+  "SLOWINSERT.Toggle": "呼出 Slow Insert／对调布局",
+  "SLOWINSERT.ToggleHint": "呼出搜索；界面已显示时对调搜索与筛选排序的位置。",
   "SLOWINSERT.DependencyWarning": "Slow Insert 需要启用 Quick Insert 3.7.8 或更高版本。",
   "SLOWINSERT.Panel.Label": "Slow Insert 合集搜索",
   "SLOWINSERT.Panel.Reindex": "刷新索引",

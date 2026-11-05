@@ -5,10 +5,15 @@ export async function runTruesightRefreshChecks() {
   const {check, checks}=checker(), catalog=game.modules.get('truesight').api.catalog;
   const item=fixtureItems.find(item=>item.system?.identifier==='example-spell');
   const before={name:item.name,school:item.system.school},pack=game.packs.get(item.package),visible=pack.visible;
-  const review=await catalog.openReview();
+  const wasGM=game.user.isGM;
+  let review;
+
   const label=key=>game.i18n.localize('TRUESIGHT.'+key);
   const button=key=>[...review.element.querySelectorAll('button')].find(b=>b.textContent===label(key));
   try {
+    game.user.isGM=true;fixtureState.reconnect();
+    await until(()=>catalog.getStatus().canPublish, 'designated GM session ready');
+    review=await catalog.openReview();
     const count=fixtureState.calls.length;
     for(let i=0;i<100;i++)catalog.getStatus();
     check(fixtureState.calls.length===count,'100 status queries perform zero QI searches');
@@ -41,7 +46,8 @@ export async function runTruesightRefreshChecks() {
   } finally {
     item.name=before.name;item.system.school=before.school;pack.visible=visible;
     Hooks.callAll('updateCompendium',pack,{ownership:{default:2}});
-    await review.close();
+    await review?.close();
+    game.user.isGM=wasGM;fixtureState.reconnect();
   }
   return checks;
 }

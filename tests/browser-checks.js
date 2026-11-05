@@ -69,9 +69,46 @@ export async function runBrowserChecks() {
   check(ui.sidebar.expanded && document.activeElement === panel.input && panel.session.page.shown === 121,
     'API open restores the sidebar and focuses search without resetting results');
   fixtureState.keybind.onDown();
-  check(!ui.sidebar.expanded, 'registered shortcut collapses active sidebar');
+  await until(() => !panel.swappingLayout && panel.searchInWindow, 'shortcut swaps to floating search');
+  check(ui.sidebar.expanded && panel.browseWindow.rendered, 'registered shortcut swaps active search instead of collapsing sidebar');
   fixtureState.keybind.onDown();
-  check(ui.sidebar.expanded, 'registered shortcut reopens sidebar');
+  await until(() => !panel.swappingLayout && !panel.searchInWindow, 'shortcut swaps back to sidebar search');
+  check(ui.sidebar.expanded && document.activeElement === panel.input, 'registered shortcut restores sidebar search and focus');
+  await panel.browseWindow.close();
+  for (const modifiers of [{ metaKey: true }, { ctrlKey: true }]) {
+    const shortcut = new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', ...modifiers, bubbles: true, cancelable: true });
+    panel.input.dispatchEvent(shortcut);
+    await until(() => !panel.swappingLayout && panel.searchInWindow, 'shortcut in focused search');
+    check(shortcut.defaultPrevented && document.activeElement === panel.input, 'focused search consumes platform shortcut and retains focus after swap');
+    const held = new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', ...modifiers, repeat: true, bubbles: true, cancelable: true });
+    panel.input.dispatchEvent(held);
+    check(held.defaultPrevented && panel.searchInWindow && !panel.swappingLayout, 'held shortcut is consumed without a second swap');
+    const filter = panel.browseContent.querySelector('select');
+    filter.focus();
+    filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', ...modifiers, bubbles: true, cancelable: true }));
+    await until(() => !panel.swappingLayout && !panel.searchInWindow, 'shortcut in focused filters');
+    check(document.activeElement === panel.input && panel.session.page.shown === 121, 'focused filters swap back without discarding loaded results');
+    await panel.browseWindow.close();
+  }
+  const bindings = fixtureState.keybind.editable;
+  check(JSON.stringify(bindings) === JSON.stringify([{ key: 'KeyF', modifiers: ['Control'] }]),
+    'default binding uses Foundry platform Control/Command mapping');
+  try {
+    fixtureState.keybind.editable = [{ key: 'KeyG', modifiers: ['Control', 'Shift'] }];
+    const old = new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', ctrlKey: true, bubbles: true, cancelable: true });
+    panel.input.dispatchEvent(old);
+    check(!old.defaultPrevented && !panel.searchInWindow, 'old shortcut stops matching after remapping');
+    panel.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'G', code: 'KeyG', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    await until(() => !panel.swappingLayout && panel.searchInWindow, 'remapped shortcut');
+    await panel.swapLayout(); await panel.browseWindow.close();
+    fixtureState.keybind.editable = [];
+    const unbound = new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', metaKey: true, bubbles: true, cancelable: true });
+    panel.input.dispatchEvent(unbound);
+    check(!unbound.defaultPrevented && !panel.searchInWindow, 'unbound shortcut is not intercepted inside search');
+  } finally { fixtureState.keybind.editable = bindings; }
+  game.modules.get('slow-insert').api.close();
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', ctrlKey: true, bubbles: true, cancelable: true }));
+  check(ui.sidebar.expanded && !panel.searchInWindow && document.activeElement === panel.input, 'shortcut opens collapsed search without swapping');
   key(panel.input, 'Escape');
   check(ui.sidebar.expanded, 'local Escape remains unhandled');
   await query(panel, 'unsafe', 1);
@@ -79,6 +116,7 @@ export async function runBrowserChecks() {
   panel.input.value = '剑'; key(panel.input, 'Enter'); await pause();
   check(fixtureState.opened.at(-1) === '剑 / Sword', 'immediate Enter flushes the pending query');
   document.querySelector('#deny').click();
+  check(fixtureState.keybind.onDown() === false && !panel.searchInWindow, 'registered shortcut rejects denied access');
   const opened = fixtureState.opened.length;
   panel.list.querySelector('.si-result').click();
   check(fixtureState.opened.length === opened, 'opening rechecks access after permissions change');
@@ -190,8 +228,9 @@ export async function runLayoutBrowserChecks() {
   check(true, 'opening floating search starts a missing index even when activation preceded rendering');
   await panel.browseWindow.close();
   fixtureState.keybind.onDown();
-  await until(() => panel.browseWindow.rendered, 'shortcut reopens floating search');
-  check(document.activeElement === panel.input, 'shortcut reopens a closed floating search while filters remain active');
+  await until(() => !panel.swappingLayout && !panel.searchInWindow, 'shortcut swaps visible sidebar filters');
+  check(document.activeElement === panel.input && panel.root.contains(panel.searchContent), 'shortcut swaps visible filters into search even when floating search was closed');
+  await panel.swapLayout();
   const popout = await tab.renderPopout();
   await until(() => popout.panel.browseWindow?.rendered, 'saved layout in fresh host');
   check(popout.panel.searchInWindow && popout.panel.root.contains(popout.panel.browseContent)
