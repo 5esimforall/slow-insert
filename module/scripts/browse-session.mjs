@@ -1,17 +1,18 @@
+import { browseCatalog, canonicalUuid } from "./catalog-api.mjs";
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 import { rulesPredicate } from "./rules-visibility.mjs";
 import { buildFilterOptions, filterItemData, matchesFilters } from "./filters.mjs";
-import { buildGroupingCatalog, groupSearchResults } from "./grouping.mjs";
+import { groupSearchResults } from "./grouping.mjs";
 import { sortGroups } from "./sorting.mjs";
 
 const LIMIT = 100;
 
 /** Derived browsing state. No controls, DOM, settings writes or document loads. */
 export class BrowseSession {
-  constructor(index, { onCatalog = () => {} } = {}) {
+  constructor(index, { onCatalog = () => {}, groupingCatalog = browseCatalog } = {}) {
     this.index = index;
+    this.groupingCatalog = groupingCatalog;
     this.onCatalog = onCatalog;
-    this.publicationProviders = new Map();
     this.catalog = null;
     this.page = null;
   }
@@ -19,26 +20,29 @@ export class BrowseSession {
   invalidate() { this.catalog = null; }
   clear() { this.page = null; }
 
-  ensureCatalog({ hideRevised, snapshot, preferences }) {
+  ensureCatalog({ hideRevised }) {
     const index = this.index.identity;
     if (this.catalog && this.catalog.index === index) return this.catalog;
     const started = performance.now();
-    const environment = prepareSourceEnvironment(this.index.sourceEnvironment(this.publicationProviders));
+    const environment = prepareSourceEnvironment(this.index.sourceEnvironment());
     const acceptRules = rulesPredicate(hideRevised, environment);
-    const permittedResults = this.index.search("", () => true);
+    const rawResults = this.index.search("", () => true);
+    const grouping = this.groupingCatalog(rawResults);
+    const permittedResults = rawResults.filter(result => grouping.entries.has(canonicalUuid(result.item)));
     const allResults = permittedResults.filter(acceptRules);
     const { options, dataCache } = buildFilterOptions(allResults, environment, this.index.filterConfig);
-    this.catalog = { index, options, acceptRules, dataCache, environment, grouping: buildGroupingCatalog(permittedResults, environment, snapshot, preferences) };
+    this.catalog = { index, options, acceptRules, dataCache, environment, grouping };
     this.onCatalog(this.catalog);
     console.debug(`Slow Insert | Catalog: ${allResults.length} entries in ${(performance.now() - started).toFixed(1)}ms`);
     return this.catalog;
   }
 
-  search({ query, filters, sorting, grouping, snapshot, hideRevised, preservePage = false }) {
+  search({ query, filters, sorting, grouping, hideRevised, preservePage = false }) {
     const previousCount = preservePage ? this.page?.shown : 0;
-    const catalog = this.ensureCatalog({ hideRevised, snapshot, preferences: grouping });
+    const catalog = this.ensureCatalog({ hideRevised });
     const { environment } = catalog;
     const accept = result => {
+      if (!catalog.grouping.entries.has(canonicalUuid(result.item))) return false;
       if (!catalog.acceptRules(result)) return false;
       let data = catalog.dataCache.get(result.item);
       if (!data) {

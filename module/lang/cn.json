@@ -272,5 +272,7 @@
   "SLOWINSERT.Grouping.Review.excluded": "已手动排除归组",
   "SLOWINSERT.Grouping.Review.no-match": "没有证据充分的匹配实现",
   "SLOWINSERT.Grouping.Find": "查找归组或法术",
-  "SLOWINSERT.Grouping.UnavailableMember": "旧成员已不可访问"
+  "SLOWINSERT.Grouping.UnavailableMember": "旧成员已不可访问",
+  "SLOWINSERT.Grouping.Migrate": "迁入旧快照…",
+  "SLOWINSERT.Grouping.Unavailable": "真实视觉不可用：{reason}"
 }

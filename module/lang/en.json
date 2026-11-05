@@ -272,5 +272,7 @@
   "SLOWINSERT.Grouping.Review.excluded": "Manually kept separate",
   "SLOWINSERT.Grouping.Review.no-match": "No corroborated matching implementation",
   "SLOWINSERT.Grouping.Find": "Find a group or spell",
-  "SLOWINSERT.Grouping.UnavailableMember": "Previous members no longer available"
+  "SLOWINSERT.Grouping.UnavailableMember": "Previous members no longer available",
+  "SLOWINSERT.Grouping.Migrate": "Import old review…",
+  "SLOWINSERT.Grouping.Unavailable": "Truesight unavailable: {reason}"
 }

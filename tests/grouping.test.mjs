@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGroupingCatalog, calculateGrouping, groupSearchResults, normalizeGrouping, canonicalUuid, editionEvidence, isSrdSource, GROUP_INDEX_FIELDS, groupingDiff, migratePins } from '../module/scripts/grouping.mjs';
-import { groupingSettingKey, normalizeGroupingState, applyGroupingState, undoGroupingState, validSnapshot } from '../module/scripts/grouping-state.mjs';
+import { buildGroupingCatalog, calculateGrouping, canonicalUuid, editionEvidence, isSrdSource, GROUP_INDEX_FIELDS, groupingDiff } from '../../fvtt-zh-aliases/modules/truesight/scripts/catalog/identity.mjs';
+import {groupSearchResults, normalizeGrouping} from '../module/scripts/grouping.mjs';
+import {validSnapshot} from '../../fvtt-zh-aliases/modules/truesight/scripts/catalog/state.mjs';
 import { spell, groupingFixture } from './grouping-fixture.mjs';
 const calculated=(rows,environment={},preferences=normalizeGrouping(),includeRisk=true)=>calculateGrouping(rows,environment,preferences,{includeRisk});
 const catalog=(rows,environment={},preferences=normalizeGrouping(),includeRisk=true)=>buildGroupingCatalog(rows,environment,calculated(rows,environment,preferences,includeRisk),preferences);
@@ -99,37 +100,20 @@ test('legacy UUIDs normalize for membership but original open/drag objects are u
  assert.equal(canonicalUuid({uuid:'Compendium.a.b.doc',documentType:'Actor'}),'Compendium.a.b.Actor.doc');
 });
 test('exclusions persist through recalculation; restoring them is explicit',()=>{
- const {rows}=groupingFixture(),preferences=normalizeGrouping({version:2,excluded:[rows[0].item.uuid]});const snap=calculated(rows,{},preferences);
+ const {rows}=groupingFixture(),preferences={excluded:[rows[0].item.uuid]};const snap=calculated(rows,{},preferences);
  assert.equal(snap.records[rows[0].item.uuid].warning,'excluded');assert.equal(snap.records[rows[0].item.uuid].key,null);
  const cat=buildGroupingCatalog(rows,{},calculated(rows),preferences);assert.equal(cat.entries.get(rows[0].item.uuid).key,null);
  assert.ok(calculated(rows).records[rows[0].item.uuid].key);
 });
-test('apply preserves viable legacy pins and exclusions; undo restores the previous snapshot and preferences',()=>{
- const {rows}=groupingFixture(),uuid=rows[4].item.uuid;const legacy={version:1,pins:{'old-static-key':uuid},enabled:false};
- const state=normalizeGroupingState(null,legacy),snapshot=calculated(rows);const applied=applyGroupingState(state,snapshot);
- assert.equal(applied.preferences.pins['spell:2014:conjure-example'],uuid);assert.equal(applied.preferences.enabled,false);assert.equal(state.active,null);
- const restored=undoGroupingState(applied);assert.equal(restored.active,null);assert.equal(restored.previous,null);assert.deepEqual(restored.preferences.pins,legacy.pins);
- assert.deepEqual(normalizeGroupingState(JSON.parse(JSON.stringify(applied))),JSON.parse(JSON.stringify(applied)));
-});
-test('conflicting pins on merged families are reported and never arbitrarily moved',()=>{
- const {rows}=groupingFixture(),snapshot=calculated(rows);const pins={a:rows[4].item.uuid,b:rows[5].item.uuid,c:'Item.deleted'};
- assert.deepEqual(Object.keys(migratePins(pins,snapshot)),[]);
- assert.deepEqual(groupingDiff(null,snapshot,{pins}).lostPins,Object.values(pins));
-});
+
+
 test('diff counts new, merged, split and independent spells',()=>{
  const {rows}=groupingFixture(),safe=calculated(rows,{},normalizeGrouping(),false),risk=calculated(rows);
  assert.equal(groupingDiff(null,safe).added,2);assert.equal(groupingDiff(safe,risk).added,1);assert.equal(groupingDiff(risk,safe).split,1);
  const old=structuredClone(risk);const ids=old.groups['spell:2014:example-spell'].members;old.groups.other={members:[ids[1]]};old.groups['spell:2014:example-spell'].members=[ids[0]];
  assert.equal(groupingDiff(old,risk).merged,1);
 });
-test('cache corruption fails open, worlds are isolated, preferences sanitize malformed input',()=>{
- const {rows}=groupingFixture(),snap=calculated(rows);assert.ok(validSnapshot(snap));
- for(const value of [null,{}, {...snap,ruleVersion:99},{...snap,groups:{evil:{members:['Item.no']}}},{...snap,records:{bad:null}}])assert.equal(validSnapshot(value),null);
- assert.notEqual(groupingSettingKey({id:'one'}),groupingSettingKey({id:'two'}));
- assert.equal(normalizeGroupingState({version:2,active:{bad:1}}).active,null);
- assert.deepEqual(normalizeGrouping({version:0,enabled:false}),normalizeGrouping());
- assert.deepEqual(normalizeGrouping({version:2,pins:{bad:5},excluded:[null,'a','a']}).excluded,['a']);
-});
+
 test('search never loads documents; required metadata fields exclude payloads',()=>{
  const rows=[spell('a'),spell('b')];for(const r of rows)r.item.get=()=>assert.fail('document read');
  assert.equal(count(rows,catalog(rows)),1);assert.ok(GROUP_INDEX_FIELDS.every(f=>!/(description|effects|activities)/.test(f)));
@@ -153,26 +137,7 @@ test("panel opening and dragging use the selected original member, including pro
   assert.deepEqual(opened,[native.uuid,external.uuid]);
 });
 
-test('failed client persistence never replaces live snapshot or undo',async t=>{
- const {SlowInsertPanel}=await import('../module/scripts/panel.mjs');
- const before=normalizeGroupingState(),{rows}=groupingFixture(),next=applyGroupingState(before,calculated(rows));
- const originalGame=globalThis.game,originalHooks=globalThis.Hooks;
- t.after(()=>{globalThis.game=originalGame;globalThis.Hooks=originalHooks;});
- globalThis.game={world:{id:'test'},settings:{set:async()=>{throw new Error('quota');}}};
- globalThis.Hooks={callAll:()=>assert.fail('must not broadcast failed save')};
- const panel={groupingState:before,grouping:before.preferences,refresh:()=>assert.fail('must not refresh failed save')};
- await assert.rejects(SlowInsertPanel.prototype.commitGroupingState.call(panel,next),/quota/);
- assert.equal(panel.groupingState,before);assert.equal(panel.groupingState.previous,null);
-});
-test('applied membership reloads and index refresh cannot silently recompute it',()=>{
- const {rows}=groupingFixture(),state=applyGroupingState(normalizeGroupingState(),calculated(rows));
- const restored=normalizeGroupingState(JSON.parse(JSON.stringify(state)));
- const added=spell('additional'),current=[...rows,added];
- const cat=buildGroupingCatalog(current,{},restored.active,restored.preferences);
- assert.equal(cat.entries.get(added.item.uuid).key,null);
- assert.equal(Object.keys(restored.active.groups).length,3);
- assert.equal(cat.changed,1);
-});
+
 
 test('bilingual names without original metadata require whole-segment identifier and source corroboration',()=>{
  const {rows}=groupingFixture(),pair=rows.slice(4);delete pair[1].item.originalName;
@@ -185,4 +150,12 @@ test('bilingual names without original metadata require whole-segment identifier
 test('other systems do not inherit dnd5e spell identity rules',()=>{
  const rows=[spell('a'),spell('b')];const snap=calculated(rows,{system:{id:'other'}});
  assert.equal(Object.keys(snap.groups).length,0);assert.equal(Object.keys(snap.records).length,0);
+});
+
+test('preference migration uses shared membership, drops ambiguous merged pins and never creates groups', async () => {
+ const {reconcilePins}=await import('../module/scripts/grouping.mjs');
+ const entries=new Map([['a',{key:'merged'}],['b',{key:'merged'}],['c',{key:'separate'}]]);
+ assert.deepEqual(reconcilePins({old:'a'},entries),{merged:'a'});
+ assert.deepEqual(reconcilePins({old:'a',other:'b',third:'c',lost:'gone'},entries),{separate:'c'});
+ assert.deepEqual([...entries.keys()],['a','b','c']);
 });

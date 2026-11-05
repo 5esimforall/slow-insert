@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { hidesRevisedContent, registerRulesDisplay, rulesPredicate } from "../module/scripts/rules-visibility.mjs";
 import { prepareSourceEnvironment } from "../module/scripts/source-resolution.mjs";
-import { buildGroupingCatalog, groupSearchResults } from "../module/scripts/grouping.mjs";
+import { buildGroupingCatalog } from "../../fvtt-zh-aliases/modules/truesight/scripts/catalog/identity.mjs";
+import { groupSearchResults } from "../module/scripts/grouping.mjs";
 import { buildFilterOptions } from "../module/scripts/filters.mjs";
 
 const id = "slow-insert";

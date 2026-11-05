@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BrowseSession } from '../module/scripts/browse-session.mjs';
-import { calculateGrouping, normalizeGrouping } from '../module/scripts/grouping.mjs';
+import { calculateGrouping, buildGroupingCatalog } from '../../fvtt-zh-aliases/modules/truesight/scripts/catalog/identity.mjs';
+import {normalizeGrouping} from '../module/scripts/grouping.mjs';
 import { normalizeFilters, setGroup, setScheme } from '../module/scripts/filters.mjs';
 import { normalizeSorting } from '../module/scripts/sorting.mjs';
 import { spell, groupingFixture } from './grouping-fixture.mjs';
@@ -16,9 +17,10 @@ function fixture(rows = groupingFixture().rows) {
       return this.rows.filter(row => row.item.name.toLowerCase().includes(query.toLowerCase())).filter(accept);
     }
   };
-  const session = new BrowseSession(index, { onCatalog: catalog => catalogs.push(catalog) });
   const options = { query: '', filters: setScheme(normalizeFilters(), 'spells'), sorting: normalizeSorting(),
     grouping: normalizeGrouping(), snapshot: calculateGrouping(rows, {}, normalizeGrouping(), { includeRisk: true }), hideRevised: false };
+  const session = new BrowseSession(index, {onCatalog: catalog => catalogs.push(catalog),
+    groupingCatalog: current => buildGroupingCatalog(current, {}, options.snapshot)});
   return { session, index, calls, catalogs, options };
 }
 

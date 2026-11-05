@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.7**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.8**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -15,7 +15,7 @@
 
 ## 开发命令
 
-需要 Node.js、npm、系统 `zip`；预览和分类提取使用 Python 3。不需要安装运行时 npm 依赖。
+需要 Node.js 22 或以上、npm、系统 `zip`；预览和分类提取使用 Python 3。不需要安装运行时 npm 依赖。
 
 ```sh
 cd /Users/arctic/Arc/fvtt/projects/slow-insert
@@ -23,6 +23,8 @@ npm test
 npm run check
 npm run package
 ```
+
+开发与测试需要同级的 `fvtt-zh-aliases` 工作区，其中 `modules/truesight` 是共享基座源码。测试加载器只映射基座公开的 `api-v1.mjs`，不会复制聚类算法。浏览器预览服务器也挂载该目录；生产代码按 Foundry 的模块目录布局导入公共入口。
 
 `npm run package` 只打包模块源码，输出到项目内的发行目录。ZIP 顶层目录始终为 `slow-insert`，不会包含测试、工具或 Git 历史，也不会自动部署到 Foundry。
 
@@ -50,7 +52,7 @@ node tools/audit-dedup.mjs \
   --world arenae \
   --out output/dedup-audit-2026-11-01 \
   --level-module '/Applications/Foundry Virtual Tabletop.app/Contents/Resources/app/node_modules/classic-level/index.js'
-node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
+node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
 ```
 
 当前克隆命令使用 macOS `cp -cR`。离线审计不执行运行时系统迁移、Babele 优先级或模组钩子；结果不能直接当作实时索引。相同名称、identifier、来源指针乃至无上下文的内容指纹，都不能单独证明可归并。
@@ -68,27 +70,29 @@ node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
 
 ## 面板内部职责
 
-面板将检索、浏览计算和结果渲染分开，使索引更新与界面操作可以独立验证。所有文件仍随同一个 Foundry 模组发布：
+面板将检索、浏览计算和结果渲染分开，使索引更新与界面操作可以独立验证。搜索界面代码随 Slow Insert 发布，共享聚类与来源代码另由 Truesight 发布：
 
 | 文件（位于 `module/scripts/`） | 职责与状态归属 |
 | --- | --- |
 | `panel.mjs` | 装配控件与宿主，协调刷新、客户端偏好、打开和拖放 |
 | `quick-insert-index.mjs` | 适配 Foundry／Quick Insert，管理索引钩子、启动、超时、恢复与清理 |
-| `browse-session.mjs` | 管理派生目录缓存和分页，执行筛选、别名补全、归组及整体排序 |
+| `browse-session.mjs` | 管理派生目录缓存和分页，执行筛选、别名补全、共享成员映射及整体排序 |
 | `results-view.mjs` | 渲染结果与成员，管理行映射、选中和展开状态；接收明确的渲染上下文 |
 
-索引完成以 Quick Insert 完成事件为准；文档更新在其索引钩子结束后合并刷新。查询先筛选成员，再选择组代表、整体排序，最后分批渲染。结果视图不重选代表，打开和拖放使用视图所记录的原条目。归组控件通过状态读取与提交回调连接面板，不直接访问面板内部字段或 Quick Insert。
+索引完成以 Quick Insert 完成事件为准；文档更新在其索引钩子结束后合并刷新。查询先筛选成员，再选择组代表、整体排序，最后分批渲染。结果视图不重选代表，打开和拖放使用视图所记录的原条目。归组控件通过 Truesight 公共 API 打开管理窗口或提交身份排除，不访问面板内部审核状态。
 
 `tests/index-lifecycle.test.mjs`、`tests/browse-session.test.mjs` 和 `tests/results-view.test.mjs` 分别覆盖这些边界；分页与宿主行为仍由对应测试覆盖。界面验证继续使用上文浏览器夹具，并与实机观察分开记录。
 
-## 通用归组开发
+## 共享目录接入
 
-`scripts/grouping.mjs` 负责当前索引身份、显式计算和已应用结果展示；`grouping-state.mjs` 负责世界／客户端持久化结构、校验与撤销；`grouping-controls.mjs` 提供预览确认流程。修改身份规则时递增规则版本，并验证失效缓存不会隐式重算。
+`catalog-api.mjs` 通过 Truesight 的公开 `api-v1.mjs` 获取来源 API 与有效成员关系，再将纯元数据接回 Quick Insert 原始结果。`grouping.mjs` 只保留展示与首选逻辑；`grouping-controls.mjs` 打开基座的管理界面，不自行计算或写入审核。`grouping-state.mjs` 仅定义旧客户端键及新的浏览偏好键。
 
-`tests/grouping-fixture.mjs` 使用合成元数据，不依赖本机合集；单元测试覆盖拒绝证据、身份变化、权限过滤、风险开关、首选迁移和撤销。浏览器夹具入口为 `http://127.0.0.1:4178/tests/fixture.html?grouping=1&lang=cn`。实际界面验收优先通过 MCP 操作运行中的 Foundry；每次发布的观察记录保存在 `output/`。
+聚类算法、书目数据与名称解析源码唯一归属于同级工作区的 `modules/truesight`。更改公共 API 时同步更新这里的消费者及测试。审核通知 `truesightChanged` 使浏览缓存失效，来源扩展也统一注册到基座。
+
+离线来源审计需要加载公开依赖：`node --import ./tools/register-dependencies.mjs tools/audit-sources.mjs ...`，其他导入运行时来源解析的工具同理。单元测试通过 `npm test` 自动配置。
 
 ## v0.2.0 规范来源书目
 
 书目数据、引用／版次判定和 UI 分层；复用系统／模块声明并支持可选导入器字典与声明式扩展。页码只保留在提示，模块／实现版本不再进入书目；冲突和未知单列，不改原始文档。只迁移来源筛选，其余偏好保留。
 
-完整扩展契约与元数据判定边界见模块说明。只读重放已有审计：`node tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classification-v0.2.0`。
+完整扩展契约与元数据判定边界见模块说明。只读重放已有审计：`node --import ./tools/register-dependencies.mjs tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classification-v0.2.0`。

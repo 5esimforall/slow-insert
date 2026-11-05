@@ -1,8 +1,9 @@
+import { catalog } from "./catalog-api.mjs";
 import { QuickInsertIndex } from "./quick-insert-index.mjs";
 import { BrowseSession } from "./browse-session.mjs";
 import { ResultsView } from "./results-view.mjs";
 import { GroupingControls } from "./grouping-controls.mjs";
-import { groupingSettingKey, normalizeGroupingState } from "./grouping-state.mjs";
+import { groupingSettingKey, preferenceSettingKey } from "./grouping-state.mjs";
 import { createBrowseWindow, browseWindowPosition } from "./browse-window.mjs";
 import { normalizeSorting, effectiveSort } from "./sorting.mjs";
 import { SortControls } from "./sort-controls.mjs";
@@ -10,11 +11,11 @@ import { t } from "./i18n.mjs";
 import { documentDragData } from "./source.mjs";
 import { SCHEMES, activeFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls, createFilterSwitch } from "./filter-controls.mjs";
-import { normalizeGrouping } from "./grouping.mjs";
+import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.7";
+export const MODULE_VERSION = "0.6.8";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -41,8 +42,9 @@ export class SlowInsertPanel {
     this.hooks = [];
     this.filters = normalizeFilters(game.settings.get(MODULE_ID, "filters"));
     this.sorting = normalizeSorting(game.settings.get(MODULE_ID, "sorting"));
-    this.groupingState = normalizeGroupingState(game.settings.get(MODULE_ID, groupingSettingKey(game.world)), game.settings.get(MODULE_ID, "grouping"));
-    this.grouping = this.groupingState.preferences;
+    const oldGrouping = game.settings.get(MODULE_ID, groupingSettingKey(game.world));
+    this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, preferenceSettingKey(game.world, game.user?.id ?? game.userId))
+      ?? oldGrouping?.preferences ?? game.settings.get(MODULE_ID, "grouping"));
     this.browsePosition = game.settings.get(MODULE_ID, "browsePosition");
     this.dnd5e = game.system.id === "dnd5e";
     if (!this.dnd5e) this.filters = setScheme(this.filters, "items");
@@ -141,15 +143,8 @@ export class SlowInsertPanel {
     });
 
     this.groupingControls = new GroupingControls({
-      getState: () => this.groupingState,
-      getPreferences: () => this.grouping,
       getCatalog: () => this.session.catalog?.grouping,
-      isAllowed: () => this.allowed(),
       canBuild: () => this.allowed() && this.index.hasIndex && !this.index.indexing,
-      isDestroyed: () => this.destroyed,
-      readIndex: () => ({ results: this.index.search("", () => true),
-        environment: this.index.sourceEnvironment(this.session.publicationProviders) }),
-      commit: state => this.commitGroupingState(state),
       setPending: pending => this.browseButton.classList.toggle("si-grouping-pending", pending)
     });
     this.buildBrowseContent();
@@ -186,11 +181,17 @@ export class SlowInsertPanel {
       if (this.list.scrollHeight - this.list.scrollTop - this.list.clientHeight < 160) this.loadMore();
     });
     this.listen(this.list, "dragstart", event => this.onDragStart(event));
-    this.hooks.push(["slowInsertGroupingChanged", Hooks.on("slowInsertGroupingChanged", state => {
-      this.groupingState = normalizeGroupingState(state);
-      this.grouping = this.groupingState.preferences;
-      this.session.invalidate();
-      this.refresh();
+    this.hooks.push(["truesightChanged", Hooks.on("truesightChanged", change => {
+      if (change.reason === "apply" && ["ready", "unreviewed"].includes(change.status)) {
+        const pins = reconcilePins(this.grouping.pins, catalog.read().entries);
+        if (JSON.stringify(pins) !== JSON.stringify(this.grouping.pins)) {
+          this.grouping = {...this.grouping, pins}; void this.save("grouping", this.grouping);
+        }
+      }
+      this.session.invalidate(); this.refresh();
+    })]);
+    this.hooks.push(["slowInsertPreferencesChanged", Hooks.on("slowInsertPreferencesChanged", value => {
+      this.grouping = normalizeGrouping(value); this.session.invalidate(); this.refresh();
     })]);
     this.hooks.push([RULES_CHANGED, Hooks.on(RULES_CHANGED, () => {
       this.session.invalidate();
@@ -282,21 +283,16 @@ export class SlowInsertPanel {
 
   async save(key, value) {
     try {
-      if (key === "grouping") await this.commitGroupingState({ ...this.groupingState, preferences: normalizeGrouping(value) });
-      else await game.settings.set(MODULE_ID, key, value);
+      if (key === "grouping") {
+        const preferences = normalizeGrouping(value);
+        await game.settings.set(MODULE_ID, preferenceSettingKey(game.world, game.user?.id ?? game.userId), preferences);
+        this.grouping = preferences;
+        Hooks.callAll("slowInsertPreferencesChanged", preferences);
+      } else await game.settings.set(MODULE_ID, key, value);
+    } catch (error) {
+      console.warn("Slow Insert | Could not save client preference", error);
+      ui.notifications.warn(t("Grouping.SaveFailed"));
     }
-    catch (error) { console.warn("Slow Insert | Could not save client preference", error); if (key === "grouping") { this.grouping = this.groupingState.preferences; ui.notifications.warn(t("Grouping.SaveFailed")); } }
-  }
-
-  async commitGroupingState(state) {
-    // Persist before changing live membership. Storage quota/errors must leave
-    // both the applied snapshot and its undo slot untouched.
-    await game.settings.set(MODULE_ID, groupingSettingKey(game.world), state);
-    this.groupingState = normalizeGroupingState(state);
-    this.grouping = this.groupingState.preferences;
-    this.session.invalidate();
-    Hooks.callAll("slowInsertGroupingChanged", this.groupingState);
-    this.refresh(true);
   }
 
   clearResults(message) {
@@ -305,23 +301,8 @@ export class SlowInsertPanel {
     this.status.textContent = message;
   }
 
-  registerPublications(providerId, records) {
-    if (typeof providerId !== "string" || !providerId.trim() || !Array.isArray(records)) throw new TypeError("Expected a provider id and publication records");
-    const registered = structuredClone(records);
-    this.session.publicationProviders.set(providerId, registered);
-    this.session.invalidate();
-    if (this.visible) this.refresh();
-    return () => this.session.publicationProviders.get(providerId) === registered && this.unregisterPublications(providerId);
-  }
-
-  unregisterPublications(providerId) {
-    const removed = this.session.publicationProviders.delete(providerId);
-    if (removed) {
-      this.session.invalidate();
-      if (this.visible) this.refresh();
-    }
-    return removed;
-  }
+  registerPublications(providerId, records) { return catalog.registerPublications(providerId, records); }
+  unregisterPublications(providerId) { return catalog.unregisterPublications(providerId); }
 
   refresh(preservePage = false) {
     const scrollTop = preservePage ? this.list.scrollTop : 0;
@@ -339,7 +320,7 @@ export class SlowInsertPanel {
     this.sortControls.update(this.filters.scheme, query);
     try {
       const page = this.session.search({ query, filters: this.filters, sorting: this.sorting,
-        grouping: this.grouping, snapshot: this.groupingState.active,
+        grouping: this.grouping,
         hideRevised: hidesRevisedContent(game, MODULE_ID), preservePage });
       this.renderResults(page.groups.slice(0, page.shown), page.environment);
       this.updateResultCount();
@@ -386,12 +367,12 @@ export class SlowInsertPanel {
     } else if (action === "pin" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
       this.grouping = { ...this.grouping, pins: { ...this.grouping.pins, [group.key]: control.dataset.uuid } };
     } else if (action === "exclude" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
-      this.grouping = { ...this.grouping, excluded: [...new Set([...this.grouping.excluded, control.dataset.uuid])] };
+      void catalog.exclude(control.dataset.uuid).catch(error => { console.error(error); ui.notifications.warn(t("Grouping.SaveFailed")); });
     } else if (action === "unpin") {
       const pins = { ...this.grouping.pins }; delete pins[group.key];
       this.grouping = { ...this.grouping, pins };
     }
-    if (action !== "expand") void this.save("grouping", this.grouping);
+    if (!["expand", "exclude"].includes(action)) void this.save("grouping", this.grouping);
     this.refresh(true);
     const index = this.view.results.findIndex(result => result.group?.key === group.key);
     if (index >= 0) this.view.select(index, false);

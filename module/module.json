@@ -2,7 +2,7 @@
   "id": "slow-insert",
   "title": "Slow Insert",
   "description": "A persistent right-side compendium browser with source badges and 5e quick-reference filter schemes, powered by Quick Insert.",
-  "version": "0.6.7",
+  "version": "0.6.8",
   "compatibility": {
     "minimum": "13.347",
     "verified": "13.351",
@@ -22,17 +22,17 @@
     },
     {
       "lang": "cn",
-      "name": "中文（简体）",
+      "name": "\u4e2d\u6587\uff08\u7b80\u4f53\uff09",
       "path": "lang/cn.json"
     },
     {
       "lang": "zh-CN",
-      "name": "中文（简体，zh-CN）",
+      "name": "\u4e2d\u6587\uff08\u7b80\u4f53\uff0czh-CN\uff09",
       "path": "lang/cn.json"
     },
     {
       "lang": "zh-Hans",
-      "name": "中文（简体，zh-Hans）",
+      "name": "\u4e2d\u6587\uff08\u7b80\u4f53\uff0czh-Hans\uff09",
       "path": "lang/cn.json"
     }
   ],
@@ -43,6 +43,13 @@
         "type": "module",
         "compatibility": {
           "minimum": "3.7.8"
+        }
+      },
+      {
+        "id": "truesight",
+        "type": "module",
+        "compatibility": {
+          "minimum": "0.1.0"
         }
       }
     ]

@@ -1,3 +1,4 @@
+import { catalog } from "./catalog-api.mjs";
 /** Foundry/Quick Insert boundary. Completion hooks, not forceIndex promises,
  * own completion; all timers and subscriptions belong to this instance. */
 export class QuickInsertIndex {
@@ -104,22 +105,7 @@ export class QuickInsertIndex {
     }
   }
 
-  sourceEnvironment(publicationProviders) {
-    return {
-      packs: game.packs, modules: game.modules, system: game.system, world: game.world,
-      localize: key => game.i18n.localize(key), lang: game.i18n.lang,
-      sourceBooks: CONFIG.DND5E?.sourceBooks,
-      publications: game.system.id === "dnd5e" ? undefined : [],
-      publicationProviders,
-      // Optional importer metadata adapter. No required dependency, method calls,
-      // private index access or full-document reads.
-      externalPublications: {
-        titles: globalThis.Parser?.SOURCE_JSON_TO_FULL,
-        abbreviations: globalThis.Parser?.SOURCE_JSON_TO_ABV,
-        dates: globalThis.Parser?.SOURCE_JSON_TO_DATE
-      }
-    };
-  }
+  sourceEnvironment() { return catalog.sourceEnvironment(); }
 
   destroy() {
     this.destroyed = true;

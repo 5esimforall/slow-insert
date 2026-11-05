@@ -197,17 +197,6 @@ test("registered aliases are searchable without leaking every alias into the vis
   assert.match(options.items.source[0].searchText, /TCE/i);
 });
 
-test("provider replacement invalidates derived metadata and stale disposers cannot remove the new registration", async () => {
-  const { SlowInsertPanel } = await import("../module/scripts/panel.mjs");
-  const panel = { session: { publicationProviders: new Map(), invalidate() { this.catalog = null; } }, visible: true, refresh() { this.refreshes = (this.refreshes || 0) + 1; },
-    unregisterPublications: SlowInsertPanel.prototype.unregisterPublications };
-  const first = SlowInsertPanel.prototype.registerPublications.call(panel, "test", [{ id: "a" }]);
-  const second = SlowInsertPanel.prototype.registerPublications.call(panel, "test", [{ id: "b" }]);
-  assert.equal(first(), false);
-  assert.equal(panel.session.publicationProviders.get("test")[0].id, "b");
-  assert.equal(second(), true);
-  assert.equal(panel.refreshes, 3);
-});
 
 test("unrelated dynamically declared books sharing a new abbreviation stay ambiguous", () => {
   const environment = prepareSourceEnvironment({ sourceBooks: { ZZQ: "Zeta Question Almanac" }, modules: new Map([

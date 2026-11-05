@@ -5,6 +5,7 @@
 <link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/module/styles/slow-insert.css">
+<link rel="stylesheet" href="/truesight/styles.css">
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; background: #242b2b; color: #d8dfde; font: 14px system-ui; }
@@ -46,7 +47,8 @@
     ? { "TYPES.Item.spell": "法术", "TYPES.Item.weapon": "武器" }
     : { "TYPES.Item.spell": "Spell", "TYPES.Item.weapon": "Weapon" };
   document.documentElement.lang = language === "cn" ? "zh-CN" : language;
-  const labels = { ...fallback, ...translations, ...systemLabels };
+  const foundationLabels = await (await fetch(`/truesight/lang/${language === "cn" ? "cn" : "en"}.json`)).json();
+  const labels = { ...fallback, ...translations, ...systemLabels, ...foundationLabels };
   const handlers = new Map();
   globalThis.Hooks = {
     on(name, fn) { const list = handlers.get(name) || []; list.push(fn); handlers.set(name, list); return fn; },
@@ -59,10 +61,12 @@
   const icon = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="5" fill="#774f3a"/><path d="M16 5c7 10 10 12 6 19-3 5-13 3-13-3 0-5 6-6 7-16z" fill="#efb478"/></svg>');
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
-    system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", await (await fetch("/module/module.json")).json()]]),
-    packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
+    system: { id: "dnd5e" }, world: {id:"fixture"}, user: { id:"fixture-user", isGM: false },
+    modules: new Map([["quick-insert", { active: true }], ["truesight", {active:true}], ["slow-insert", await (await fetch("/module/module.json")).json()]]),
+    packs: new Map([["fixture.spells", { visible: true, title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
+      registerMenu() {},
+      storage: new Map([["client", {getItem: key => settings.has(key) ? JSON.stringify(settings.get(key)) : null}]]),
       register(id, key, config) { definitions.set(`${id}.${key}`, config); if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
       get(id, key) { return settings.get(`${id}.${key}`); },
       async set(id, key, value) { settings.set(`${id}.${key}`, value); definitions.get(`${id}.${key}`)?.onChange?.(value); return value; }
@@ -186,6 +190,8 @@
     document.querySelector("main").append(stale);
   }
   globalThis.fixtureItems = items;
+  game.items = new Map(items.filter(item => item.uuid.startsWith("Item.")).map(item => [item.uuid.split(".")[1], {visible:true}]));
+  game.actors = new Map(items.filter(item => item.uuid.startsWith("Actor.")).map(item => [item.uuid.split(".")[1], {visible:true}]));
   globalThis.QuickInsert = {
     hasIndex: true,
     search(query, filter, max) {
@@ -202,6 +208,7 @@
   document.querySelector("#deny").onclick = () => { fixtureState.denied = !fixtureState.denied; settings.set("quick-insert.gmOnly", fixtureState.denied); };
   document.querySelector("#drop").ondragover = event => event.preventDefault();
   document.querySelector("#drop").ondrop = event => { event.preventDefault(); fixtureState.drop = JSON.parse(event.dataTransfer.getData("text/plain")); event.currentTarget.textContent = JSON.stringify(fixtureState.drop); };
+  await import("/truesight/scripts/main.mjs");
   await import("/module/scripts/main.mjs");
   await Hooks.callAll("init");
   await Hooks.callAll("setup");
