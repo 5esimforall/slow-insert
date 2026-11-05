@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGroupingCatalog, calculateGrouping, canonicalUuid, editionEvidence, isSrdSource, GROUP_INDEX_FIELDS, groupingDiff } from '../../fvtt-zh-aliases/modules/truesight/scripts/catalog/identity.mjs';
+import { buildGroupingCatalog, calculateGrouping, canonicalUuid, editionEvidence, isSrdSource, GROUP_INDEX_FIELDS, groupingDiff } from '../../truesight/module/scripts/catalog/identity.mjs';
 import {groupSearchResults, normalizeGrouping} from '../module/scripts/grouping.mjs';
-import {validSnapshot} from '../../fvtt-zh-aliases/modules/truesight/scripts/catalog/state.mjs';
+import {validSnapshot} from '../../truesight/module/scripts/catalog/state.mjs';
 import { spell, groupingFixture } from './grouping-fixture.mjs';
 const calculated=(rows,environment={},preferences=normalizeGrouping(),includeRisk=true)=>calculateGrouping(rows,environment,preferences,{includeRisk});
 const catalog=(rows,environment={},preferences=normalizeGrouping(),includeRisk=true)=>buildGroupingCatalog(rows,environment,calculated(rows,environment,preferences,includeRisk),preferences);

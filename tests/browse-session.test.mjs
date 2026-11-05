@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BrowseSession } from '../module/scripts/browse-session.mjs';
-import { calculateGrouping, buildGroupingCatalog } from '../../fvtt-zh-aliases/modules/truesight/scripts/catalog/identity.mjs';
+import { calculateGrouping, buildGroupingCatalog } from '../../truesight/module/scripts/catalog/identity.mjs';
 import {normalizeGrouping} from '../module/scripts/grouping.mjs';
 import { normalizeFilters, setGroup, setScheme } from '../module/scripts/filters.mjs';
 import { normalizeSorting } from '../module/scripts/sorting.mjs';

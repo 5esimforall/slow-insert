@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import os
 ROOT = Path(__file__).resolve().parents[1]
-FOUNDATION = ROOT.parent / 'fvtt-zh-aliases/modules/truesight'
+FOUNDATION = ROOT.parent / 'truesight/module'
 class Handler(SimpleHTTPRequestHandler):
     def translate_path(self, path):
         path = unquote(urlsplit(path).path)

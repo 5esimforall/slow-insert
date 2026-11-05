@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CatalogService} from '../../fvtt-zh-aliases/modules/truesight/scripts/catalog/service.mjs';
-import {connectCatalog} from '../../fvtt-zh-aliases/modules/truesight/scripts/catalog/api.mjs';
-import {loadGrouping, itemGroups} from '../../fvtt-zh-aliases/modules/truesight/scripts/names/groups.mjs';
+import {CatalogService} from '../../truesight/module/scripts/catalog/service.mjs';
+import {connectCatalog} from '../../truesight/module/scripts/catalog/api.mjs';
+import {loadGrouping, itemGroups} from '../../truesight/module/scripts/names/groups.mjs';
 import {catalog, browseCatalog} from '../module/scripts/catalog-api.mjs';
 import {groupSearchResults, normalizeGrouping} from '../module/scripts/grouping.mjs';
 import {groupingFixture, spell} from './grouping-fixture.mjs';

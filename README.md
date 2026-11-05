@@ -24,7 +24,7 @@ npm run check
 npm run package
 ```
 
-开发与测试需要同级的 `fvtt-zh-aliases` 工作区，其中 `modules/truesight` 是共享基座源码。测试加载器只映射基座公开的 `api-v1.mjs`，不会复制聚类算法。浏览器预览服务器也挂载该目录；生产代码按 Foundry 的模块目录布局导入公共入口。
+开发与测试需要同级的 `truesight` 项目，其中 `module/` 是共享基座源码。测试加载器只映射基座公开的 `api-v1.mjs`，不会复制聚类算法。浏览器预览服务器也挂载该目录；生产代码按 Foundry 的模块目录布局导入公共入口。
 
 `npm run package` 只打包模块源码，输出到项目内的发行目录。ZIP 顶层目录始终为 `slow-insert`，不会包含测试、工具或 Git 历史，也不会自动部署到 Foundry。
 
@@ -88,7 +88,7 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 
 `catalog-api.mjs` 通过 Truesight 的公开 `api-v1.mjs` 获取来源 API 与有效成员关系，再将纯元数据接回 Quick Insert 原始结果。`grouping.mjs` 只保留展示与首选逻辑；`grouping-link.mjs` 打开基座的管理界面，不自行计算或写入审核。`grouping-state.mjs` 定义按世界和用户隔离的浏览偏好键。
 
-聚类算法、书目数据与名称解析源码唯一归属于同级工作区的 `modules/truesight`。更改公共 API 时同步更新这里的消费者及测试。审核通知 `truesightChanged` 使浏览缓存失效，来源扩展也统一注册到基座。
+聚类算法、书目数据与名称解析源码唯一归属于同级 `truesight` 项目的 `module/`。更改公共 API 时同步更新这里的消费者及测试。审核通知 `truesightChanged` 使浏览缓存失效，来源扩展也统一注册到基座。
 
 离线来源审计需要加载公开依赖：`node --import ./tools/register-dependencies.mjs tools/audit-sources.mjs ...`，其他导入运行时来源解析的工具同理。单元测试通过 `npm test` 自动配置。
 
