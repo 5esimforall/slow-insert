@@ -156,7 +156,8 @@
         metadata:{packageType:record.package === "dnd5e" ? "system" : "module",packageName:record.package}});
       game.packs.get(packId).index.set(id, {_stats:{modifiedTime:record.modifiedTime}});
       const translated = record.names.find(name => /[\u3400-\u9fff]/.test(name));
-      const name = language === "cn" && translated ? translated : record.names[0];
+      const name = record.package === "dnd-tashas-cauldron" && record.identifier === "summon-construct"
+        ? "Summon Construct Summon Construct" : language === "cn" && translated ? translated : record.names[0];
       items.push({name, uuid:uuid.replace(".Item.","."), documentType:"Item",subType:record.type,package:packId,packageName:packId,img:icon,
         system:{identifier:record.identifier,source:{book,rules:record.rules},level:record.level,school:record.school},
         async show(){fixtureState.opened.push(name);document.querySelector("#opened").textContent=`Opened UUID: ${this.uuid}`;}});

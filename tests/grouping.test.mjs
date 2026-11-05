@@ -220,3 +220,26 @@ test("approved suffix families carry non-blocking risk through grouping, filters
   assert.equal(stale.warning,"stale");
   assert.equal(stale.risk,"implementation");
 });
+
+test("identical translation plus original name remains grouped without relaxing identity checks",()=>{
+  const ids=GROUPING_REGISTRY.groups["spell:2014:summon-construct"].members;
+  const uuid="Compendium.dnd-tashas-cauldron.tcoe-character-options.Item.tcoeSummonConstr";
+  const f=fixture(ids),target=f.results.find(r=>r.item.uuid===uuid);
+  target.item.name="Summon Construct Summon Construct";
+  let catalog=f.catalog();
+  assert.equal(catalog.entries.get(uuid).warning,null);
+  assert.equal(catalog.entries.get(uuid).risk,"implementation");
+  assert.equal(groupSearchResults(f.results,catalog).groups[0].members.length,3);
+  assert.equal(target.item.name,"Summon Construct Summon Construct");
+  assert.equal(target.item.show(),uuid);
+  for(const name of ["Summon Construct Summon Construct Summon Construct","Summon Construct Custom Construct","Summon Construct + homebrew"]) {
+    target.item.name=name;
+    assert.equal(f.catalog().entries.get(uuid).warning,"stale");
+  }
+  target.item.name="Summon Construct Summon Construct";
+  target.item.system.identifier="summon-construct-custom";
+  assert.equal(f.catalog().entries.get(uuid).warning,"stale");
+  target.item.system.identifier="summon-construct";
+  f.environment.packs.get(target.item.package).index.get(uuid.split(".").at(-1))._stats.modifiedTime=-1;
+  assert.equal(f.catalog().entries.get(uuid).warning,"stale");
+});

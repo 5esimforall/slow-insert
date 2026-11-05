@@ -187,7 +187,7 @@
   "SLOWINSERT.Grouping.Tag.dependency": "Advancement dependency",
   "SLOWINSERT.Grouping.Review.edition": "Edition conflict",
   "SLOWINSERT.Grouping.Review.spell": "Spell metadata needs review",
-  "SLOWINSERT.Grouping.Review.stale": "Content updated",
+  "SLOWINSERT.Grouping.Review.stale": "Grouping needs review",
   "SLOWINSERT.Grouping.Review.unverified": "Shown separately",
   "SLOWINSERT.Grouping.ReviewHint": "This entry is shown separately. Open it or drag it to use it.",
   "SLOWINSERT.Source.External": "External · {book}",

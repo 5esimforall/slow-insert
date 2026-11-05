@@ -38,7 +38,10 @@ export function isSrdSource(item, environment={}) {
 const normalName = value => text(value).normalize("NFKC").toLowerCase().replace(/[\s()（）]/g,"");
 function nameMatches(name, names) {
   const normalized=normalName(name);
-  return names.some(a=>normalName(a)===normalized) || names.some(a=>names.some(b=>a!==b&&normalName(a+b)===normalized));
+  // Bilingual converters concatenate translation + original even when a
+  // translation keeps the original English name. Accept exactly two audited
+  // names, including identical ones; never strip arbitrary repeated text.
+  return names.some(a=>normalName(a)===normalized) || names.some(a=>names.some(b=>normalName(a+b)===normalized));
 }
 function currentMember(item,record,environment) {
   if(item.documentType!=="Item"||item.subType!==record.type)return "stale";

@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.3**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.4**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 

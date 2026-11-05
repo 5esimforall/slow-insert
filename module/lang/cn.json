@@ -187,7 +187,7 @@
   "SLOWINSERT.Grouping.Tag.dependency": "成长依赖",
   "SLOWINSERT.Grouping.Review.edition": "版次冲突",
   "SLOWINSERT.Grouping.Review.spell": "法术数据待复核",
-  "SLOWINSERT.Grouping.Review.stale": "内容已更新",
+  "SLOWINSERT.Grouping.Review.stale": "归组待复核",
   "SLOWINSERT.Grouping.Review.unverified": "单独显示",
   "SLOWINSERT.Grouping.ReviewHint": "此条目单独显示，可直接打开或拖入。",
   "SLOWINSERT.Source.External": "外部 · {book}",
