@@ -113,3 +113,88 @@ export async function runBrowserChecks() {
   await query(panel, '', 100);
   return checks;
 }
+
+export async function runLayoutBrowserChecks() {
+  const { checks, check } = checker();
+  const tab = ui.slowinsert, panel = tab.panel;
+  change(panel.filterControls.scheme, 'items');
+  panel.filterControls.reset.click();
+  await query(panel, 'bulk', 100);
+  panel.loadMore(); panel.list.scrollTop = 160;
+  const first = panel.list.firstElementChild, page = panel.session.page;
+  const selection = panel.view.selected, filters = panel.filters, sorting = panel.sorting;
+  const scroll = panel.list.scrollTop;
+  panel.searchSwapButton.click();
+  await until(() => !panel.swappingLayout && panel.searchInWindow, 'search moved into window');
+  check(panel.root.contains(panel.browseContent) && panel.browseWindow.element.contains(panel.searchContent)
+    && !panel.root.contains(panel.searchContent), 'swap completely exchanges search and filters between hosts');
+  check(panel.list.firstElementChild === first && panel.session.page === page && page.shown === 121
+    && panel.view.selected === selection && panel.filters === filters && panel.sorting === sorting
+    && panel.list.scrollTop === scroll, 'swap preserves live results, pagination, selection, scroll, filters and sorting');
+  check(document.activeElement === panel.input && panel.searchSwapButton.getAttribute('aria-pressed') === 'true'
+    && !panel.browseButton.hasAttribute('aria-haspopup'), 'swapped search keeps focus and controls describe their new targets');
+  check(game.settings.get('slow-insert', 'searchInWindow') === true, 'layout preference is saved');
+  check(panel.browseContent.scrollWidth <= panel.browseContent.clientWidth
+    && getComputedStyle(panel.browseContent.querySelector('.si-browse-columns')).gridTemplateColumns.split(' ').length === 1,
+    'sidebar filters stack in one column without horizontal overflow');
+  await tab.render({ force: true });
+  check(panel.root.contains(panel.browseContent) && panel.browseWindow.element.contains(first), 'host rerender preserves swapped placement');
+  ui.sidebar.changeTab('chat');
+  await query(panel, 'fire', 6);
+  panel.input.focus(); key(panel.input, 'ArrowDown'); key(panel.input, 'Enter');
+  await pause();
+  check(fixtureState.opened.at(-1) === panel.view.results[panel.view.selected].item.name,
+    'floating search still opens the selected item while another sidebar tab is active');
+  const payload = new DataTransfer(), selected = panel.view.results[panel.view.selected].item;
+  panel.list.querySelector('[aria-selected=true]').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: payload }));
+  check(JSON.parse(payload.getData('text/plain')).uuid === selected.uuid, 'floating search drags the displayed original item');
+  await query(panel, 'bulk', 100); panel.loadMore();
+  check(panel.session.page.shown === 121 && !panel.visible, 'floating search paginates while sidebar is inactive');
+  panel.browseButton.click();
+  check(tab.active && document.activeElement === panel.filterControls.scheme, 'filter button reveals and focuses sidebar controls');
+  change(panel.filterControls.scheme, 'spells');
+  check(panel.searchContent.querySelector('.si-scheme').value === 'spells', 'sidebar scheme updates floating search');
+  await panel.browseWindow.close();
+  check(document.activeElement === panel.searchWindowButton && panel.root.contains(panel.browseContent)
+    && panel.searchWindowButton.getAttribute('aria-expanded') === 'false', 'closing floating search leaves filters and a focused reopen button');
+  panel.searchWindowButton.click();
+  await until(() => panel.browseWindow.rendered, 'reopen floating search');
+  check(document.activeElement === panel.input && panel.input.value === 'bulk', 'reopen restores search and focus');
+  await panel.browseWindow.close();
+  panel.session.invalidate();
+  await panel.openBrowseWindow();
+  check(panel.session.catalog !== null, 'reopening floating search refreshes an invalidated catalog');
+  await panel.browseWindow.close();
+  QuickInsert.hasIndex = false; panel.session.clear();
+  const builds = fixtureState.indexBuilds;
+  await panel.openBrowseWindow();
+  await until(() => fixtureState.indexBuilds === builds + 1 && !panel.index.indexing && panel.session.page, 'cold floating search index');
+  check(true, 'opening floating search starts a missing index even when activation preceded rendering');
+  await panel.browseWindow.close();
+  fixtureState.keybind.onDown();
+  await until(() => panel.browseWindow.rendered, 'shortcut reopens floating search');
+  check(document.activeElement === panel.input, 'shortcut reopens a closed floating search while filters remain active');
+  const popout = await tab.renderPopout();
+  await until(() => popout.panel.browseWindow?.rendered, 'saved layout in fresh host');
+  check(popout.panel.searchInWindow && popout.panel.root.contains(popout.panel.browseContent)
+    && popout.panel.browseWindow.element.contains(popout.panel.searchContent), 'fresh panel restores saved layout');
+  const poppedPanel = popout.panel;
+  await popout.close(); delete tab.popout;
+  check(!poppedPanel.searchContent.isConnected && !poppedPanel.browseContent.isConnected
+    && !poppedPanel.browseWindow.rendered, 'destroy cleans up both swapped trees and window');
+  panel.filterSwapButton.click();
+  await until(() => !panel.swappingLayout && !panel.searchInWindow, 'search restored to sidebar');
+  check(panel.root.contains(panel.searchContent) && panel.browseWindow.element.contains(panel.browseContent)
+    && document.activeElement === panel.input && game.settings.get('slow-insert', 'searchInWindow') === false,
+    'second swap restores original layout, focus and preference');
+  await panel.browseWindow.close();
+  panel.searchSwapButton.click();
+  await until(() => !panel.swappingLayout && panel.searchInWindow, 'swap with closed window');
+  check(panel.browseWindow.rendered && panel.browseWindow.element.contains(panel.searchContent), 'swap opens a closed auxiliary window');
+  await panel.swapLayout(); await panel.browseWindow.close();
+  const original = panel.searchInWindow;
+  document.querySelector('#deny').click(); await panel.swapLayout();
+  check(panel.searchInWindow === original && !panel.browseWindow.rendered, 'denied access cannot swap or open a window');
+  document.querySelector('#deny').click();
+  return checks;
+}

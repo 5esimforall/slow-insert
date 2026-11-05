@@ -44,10 +44,11 @@ export class SlowInsertPanel {
     this.sorting = normalizeSorting(game.settings.get(MODULE_ID, "sorting"));
     this.grouping = normalizeGrouping(game.settings.get(MODULE_ID, preferenceSettingKey(game.world, game.user?.id ?? game.userId)));
     this.browsePosition = game.settings.get(MODULE_ID, "browsePosition");
+    this.searchInWindow = game.settings.get(MODULE_ID, "searchInWindow") === true;
     this.dnd5e = game.system.id === "dnd5e";
     if (!this.dnd5e) this.filters = setScheme(this.filters, "items");
     this.index = new QuickInsertIndex({
-      isVisible: () => this.visible,
+      isVisible: () => this.searchVisible,
       onInvalidate: () => this.session.invalidate(),
       onRefresh: () => this.refresh(),
       onStateChange: () => { this.reindexButton.disabled = this.index.indexing; },
@@ -72,14 +73,17 @@ export class SlowInsertPanel {
     this.root = element("aside", "slow-insert");
     this.root.id = sidebarHost.app.isPopout ? "slow-insert-popout-panel" : "slow-insert-panel";
     this.root.hidden = true;
-    this.root.setAttribute("aria-label", t("Panel.Label"));
+    this.root.setAttribute("aria-label", "Slow Insert");
+    this.searchContent = element("div", "slow-insert si-search-content");
+    this.searchContent.setAttribute("aria-label", t("Panel.Label"));
 
     const header = element("header", "si-header");
     const heading = element("div", "si-heading");
     // A running server can retain the previous manifest version until restart.
     heading.append(element("h2", "", "Slow Insert"), element("span", "si-version", MODULE_VERSION));
     this.reindexButton = button(t("Panel.Reindex"), "fa-arrows-rotate");
-    header.append(heading, this.reindexButton);
+    this.searchSwapButton = this.createSwapButton();
+    header.append(heading, this.searchSwapButton, this.reindexButton);
 
     const searchBox = element("div", "si-search-box");
     const searchIcon = element("i", "fas fa-magnifying-glass");
@@ -103,7 +107,12 @@ export class SlowInsertPanel {
     this.browseButton.setAttribute("aria-expanded", "false");
     this.browseButton.setAttribute("aria-controls", `${this.idPrefix}-browse`);
     searchRow.append(this.browseButton, searchBox);
-    this.listen(this.browseButton, "click", () => { void this.openBrowseWindow(); });
+    this.listen(this.browseButton, "click", () => {
+      if (this.searchInWindow) {
+        this.sidebarHost.app.activate();
+        this.filterControls.scheme.focus();
+      } else void this.openBrowseWindow();
+    });
 
     this.filterControls = new FilterControls({
       state: this.filters, dnd5e: this.dnd5e,
@@ -117,7 +126,7 @@ export class SlowInsertPanel {
       }
     });
 
-    if (this.dnd5e) header.insertBefore(this.filterControls.createSchemeSelect(), this.reindexButton);
+    if (this.dnd5e) header.insertBefore(this.filterControls.createSchemeSelect(), this.searchSwapButton);
     this.filterControls.drawer.id = `${this.idPrefix}-filters`;
     this.filterControls.toggle.setAttribute("aria-controls", this.filterControls.drawer.id);
 
@@ -150,7 +159,9 @@ export class SlowInsertPanel {
     this.list.setAttribute("aria-label", t("Panel.ResultsLabel"));
     this.view = new ResultsView({ list: this.list, input: this.input, idPrefix: this.idPrefix });
 
-    this.root.append(header, searchRow, this.status, this.list);
+    this.searchContent.append(header, searchRow, this.status, this.list);
+    this.root.append(this.searchInWindow ? this.browseContent : this.searchContent);
+    this.updateLayoutControls();
     sidebarHost.content.append(this.root);
 
     this.listen(this.reindexButton, "click", () => this.index.buildIndex());
@@ -162,7 +173,7 @@ export class SlowInsertPanel {
       clearTimeout(this.searchTimer);
       this.refresh();
     });
-    this.listen(this.root, "keydown", event => this.onKeydown(event));
+    this.listen(this.searchContent, "keydown", event => this.onKeydown(event));
     this.listen(this.list, "click", event => {
       const action = event.target.closest("[data-group-action]");
       if (action) { this.onGroupAction(action); return; }
@@ -199,7 +210,14 @@ export class SlowInsertPanel {
     const top = element("div", "si-browse-top");
     this.browseSummary = element("span", "si-browse-summary");
     this.browseSummary.setAttribute("role", "status");
-    top.append(filters.scheme.parentElement, this.browseSummary);
+    this.filterSwapButton = this.createSwapButton();
+    this.searchWindowButton = button(t("Panel.Label"), "fa-magnifying-glass");
+    this.searchWindowButton.setAttribute("aria-haspopup", "dialog");
+    this.searchWindowButton.setAttribute("aria-controls", `${this.idPrefix}-browse`);
+    this.listen(this.searchWindowButton, "click", () => { void this.openBrowseWindow(); });
+    const actions = element("div", "si-layout-actions");
+    actions.append(this.searchWindowButton, this.filterSwapButton);
+    top.append(filters.scheme.parentElement, this.browseSummary, actions);
     const columns = element("div", "si-browse-columns");
     const left = element("section", "si-browse-filters");
     const filterHeader = element("div", "si-browse-section-header");
@@ -219,12 +237,76 @@ export class SlowInsertPanel {
     this.browseContent.append(top, columns);
   }
 
-  async openBrowseWindow() {
+  get searchVisible() {
+    return this.searchInWindow ? Boolean(this.browseWindow?.rendered) : this.visible;
+  }
+
+  createSwapButton() {
+    const control = button(t("Layout.Swap"), "fa-right-left");
+    control.classList.add("si-layout-swap");
+    this.listen(control, "click", () => { void this.swapLayout(); });
+    return control;
+  }
+
+  updateLayoutControls() {
+    for (const control of [this.searchSwapButton, this.filterSwapButton]) {
+      control.title = t(this.searchInWindow ? "Layout.SearchInSidebar" : "Layout.SearchInWindow");
+      control.setAttribute("aria-label", control.title);
+      control.setAttribute("aria-pressed", String(this.searchInWindow));
+    }
+    this.searchWindowButton.hidden = !this.searchInWindow;
+    this.searchWindowButton.setAttribute("aria-expanded", String(this.searchInWindow && Boolean(this.browseWindow?.rendered)));
+    this.browseButton.setAttribute("aria-controls", this.searchInWindow ? this.root.id : `${this.idPrefix}-browse`);
+    if (this.searchInWindow) {
+      this.browseButton.removeAttribute("aria-haspopup");
+      this.browseButton.removeAttribute("aria-expanded");
+    } else {
+      this.browseButton.setAttribute("aria-haspopup", "dialog");
+      this.browseButton.setAttribute("aria-expanded", String(Boolean(this.browseWindow?.rendered)));
+    }
+  }
+
+  async swapLayout() {
+    if (this.destroyed || this.swappingLayout || !this.allowed()) return;
+    this.swappingLayout = true;
+    const columns = this.browseContent.querySelector(".si-browse-columns");
+    const scroll = { results: this.list.scrollTop, filters: columns.scrollTop };
+    for (const control of [this.searchSwapButton, this.filterSwapButton]) control.disabled = true;
+    try {
+      this.searchInWindow = !this.searchInWindow;
+      // Move the same live trees; no search, control rebuild or result selection reset.
+      this.root.replaceChildren(this.searchInWindow ? this.browseContent : this.searchContent);
+      this.updateLayoutControls();
+      await this.openBrowseWindow({ replaceContent: true });
+      if (this.destroyed) return;
+      this.list.scrollTop = scroll.results;
+      columns.scrollTop = scroll.filters;
+      await this.save("searchInWindow", this.searchInWindow);
+      if (this.destroyed) return;
+      if (!this.searchInWindow) this.sidebarHost.app.activate();
+      this.input.focus();
+    } finally {
+      this.swappingLayout = false;
+      for (const control of [this.searchSwapButton, this.filterSwapButton]) control.disabled = false;
+    }
+  }
+
+  async openBrowseWindow({ replaceContent = false } = {}) {
+    if (this.windowRender) await this.windowRender;
     if (this.destroyed || !this.allowed()) return;
     if (!this.browseWindow) this.browseWindow = createBrowseWindow(this);
-    if (this.browseWindow.rendered) { this.browseWindow.bringToFront(); return; }
-    await this.browseWindow.render({ force: true, position: browseWindowPosition(
+    if (this.browseWindow.rendered && !replaceContent) {
+      this.browseWindow.bringToFront();
+      if (this.searchInWindow) this.input.focus();
+      return;
+    }
+    this.windowRender = this.browseWindow.render({ force: true,
+      window: { title: t(this.searchInWindow ? "Panel.Label" : "Browse.Title"),
+        icon: this.searchInWindow ? "fa-solid fa-magnifying-glass" : "fa-solid fa-sliders" },
+      position: this.browseWindow.rendered ? undefined : browseWindowPosition(
       { width: window.innerWidth, height: window.innerHeight }, this.root.getBoundingClientRect(), this.browsePosition) });
+    try { await this.windowRender; }
+    finally { this.windowRender = null; }
     if (this.destroyed) await this.browseWindow.close({ animate: false, restoreFocus: false });
   }
 
@@ -239,7 +321,7 @@ export class SlowInsertPanel {
   }
 
   toggle() {
-    const active = this.sidebarHost.app.active && ui.sidebar.expanded;
+    const active = this.searchInWindow ? this.browseWindow?.rendered : this.sidebarHost.app.active && ui.sidebar.expanded;
     active ? this.close() : this.open();
   }
 
@@ -247,9 +329,10 @@ export class SlowInsertPanel {
     if (!this.allowed()) return;
     this.visible = true;
     this.root.hidden = false;
-    if (!this.session.page || this.renderedQuery !== this.input.value.trim()) this.refresh();
+    if (!this.session.page || this.renderedQuery !== this.input.value) this.refresh();
     else if (this.session.catalog?.index !== this.index.identity) this.refresh(true);
     this.index.scheduleInitialIndex();
+    if (this.searchInWindow) void this.openBrowseWindow();
   }
 
   deactivateSidebar() {
@@ -263,12 +346,16 @@ export class SlowInsertPanel {
     if (!this.allowed()) return;
     this.sidebarHost.app.activate();
     this.activateSidebar();
-    this.input.focus();
+    if (!this.searchInWindow) this.input.focus();
   }
 
   close() {
     if (this.sidebarHost.app.isPopout) void this.sidebarHost.app.close();
-    else { ui.sidebar.collapse(); this.input.blur(); }
+    else {
+      ui.sidebar.collapse();
+      if (this.searchInWindow) void this.browseWindow?.close({ restoreFocus: false });
+      this.input.blur();
+    }
   }
 
   async save(key, value) {
@@ -330,7 +417,7 @@ export class SlowInsertPanel {
   }
 
   loadMore() {
-    const next = this.session.nextPage({ visible: this.visible, query: this.input.value, scheme: this.filters.scheme });
+    const next = this.session.nextPage({ visible: this.searchVisible, query: this.input.value, scheme: this.filters.scheme });
     if (!next) return;
     this.renderResults(next.groups, next.environment, true);
     this.updateResultCount();
@@ -423,5 +510,7 @@ export class SlowInsertPanel {
     this.events.abort();
     for (const [name, id] of this.hooks) Hooks.off(name, id);
     this.root.remove();
+    this.searchContent.remove();
+    this.browseContent.remove();
   }
 }

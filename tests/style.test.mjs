@@ -15,7 +15,7 @@ test('surfaces consume Quick Insert colors with light and dark fallbacks', () =>
   assert.match(css, /\.slow-insert \{[^}]*background: var\(--si-bg\);/);
   assert.match(css, /\.si-browse-window \{[^}]*background: var\(--si-bg\);[^}]*border: 1px solid var\(--si-border\);/);
   assert.match(css, /\.si-browse-window \.window-header \{[^}]*background: var\(--si-field\);/);
-  assert.match(css, /\.si-browse-window \.slow-insert\.si-browse-content \{ background: transparent; \}/);
+  assert.match(css, /\.si-browse-window \.slow-insert \{ background: transparent; \}/);
   assert.doesNotMatch(css, /--qi[\w-]+\s*:|\.quick-insert-result|#qi-search-appv3|#eeecef|#e3dfe7/);
 });
 test('selected hover colors apply to standalone, grouped and expanded rows', () => {

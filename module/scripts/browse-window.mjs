@@ -27,14 +27,21 @@ export function createBrowseWindow(panel) {
       window: { title: 'SLOWINSERT.Browse.Title', icon: 'fa-solid fa-sliders', resizable: true, minimizable: false },
       position: { width: 740, height: 760 }
     };
-    async _renderHTML() { return panel.browseContent; }
+    async _renderHTML() { return panel.searchInWindow ? panel.searchContent : panel.browseContent; }
     _replaceHTML(content, host) { host.replaceChildren(content); }
     _onRender(context, options) {
       super._onRender(context, options);
       this.element.setAttribute('role', 'dialog');
-      this.element.setAttribute('aria-label', t('Browse.Title'));
-      panel.browseButton.setAttribute('aria-expanded', 'true');
-      if (options.isFirstRender) panel.filterControls.scheme.focus();
+      this.element.setAttribute('aria-label', t(panel.searchInWindow ? 'Panel.Label' : 'Browse.Title'));
+      panel.updateLayoutControls();
+      if (options.isFirstRender) {
+        if (panel.searchInWindow) {
+          if (!panel.session.page || panel.renderedQuery !== panel.input.value) panel.refresh();
+          else if (!panel.session.catalog || panel.session.catalog.index !== panel.index.identity) panel.refresh(true);
+          panel.index.scheduleInitialIndex();
+          panel.input.focus();
+        } else panel.filterControls.scheme.focus();
+      }
     }
     _onPosition(position) {
       super._onPosition(position);
@@ -50,8 +57,9 @@ export function createBrowseWindow(panel) {
     _onClose(options) {
       super._onClose(options);
       this.rememberPosition(this.position);
-      panel.browseButton.setAttribute('aria-expanded', 'false');
-      if (!panel.destroyed && (panel.visible && (panel.sidebarHost.app.isPopout || globalThis.ui?.sidebar?.expanded)) && options.restoreFocus !== false) panel.browseButton.focus();
+      panel.updateLayoutControls();
+      if (panel.searchInWindow) void panel.save('query', panel.input.value);
+      if (!panel.destroyed && (panel.visible && (panel.sidebarHost.app.isPopout || globalThis.ui?.sidebar?.expanded)) && options.restoreFocus !== false) (panel.searchInWindow ? panel.searchWindowButton : panel.browseButton).focus();
     }
   }
   return new BrowseWindow({ id: `${panel.idPrefix}-browse`, window: { title: t('Browse.Title') } });

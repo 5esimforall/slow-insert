@@ -21,7 +21,7 @@ Hooks.once("init", () => {
   }
   game.settings.register(MODULE_ID, preferenceSettingKey(game.world, game.user?.id ?? game.userId), { scope: "client", config: false, type: Object, default: normalizeGrouping() });
 
-  for (const [key, type, value] of [["query", String, ""], ["filters", Object, {}], ["sorting", Object, {}], ["browsePosition", Object, {}], ["filterExpansion", Object, {}]]) {
+  for (const [key, type, value] of [["searchInWindow", Boolean, false], ["query", String, ""], ["filters", Object, {}], ["sorting", Object, {}], ["browsePosition", Object, {}], ["filterExpansion", Object, {}]]) {
     game.settings.register(MODULE_ID, key, { scope: "client", config: false, type, default: value });
   }
   game.keybindings.register(MODULE_ID, "toggle", {

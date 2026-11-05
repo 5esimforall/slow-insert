@@ -7,7 +7,7 @@ function fixture(total=245) {
   const calls=[];
   const page={groups:Array.from({length:total},(_,i)=>({key:String(i)})),shown:100,query:'fire',scheme:'items',environment:{}};
   const session = new BrowseSession({}); session.page = page;
-  const panel={visible:true,session,input:{value:'fire'},filters:{scheme:'items'},
+  const panel={get searchVisible() { return this.visible; },visible:true,session,input:{value:'fire'},filters:{scheme:'items'},
     renderResults:(groups,env,append)=>calls.push({keys:groups.map(x=>x.key),append}),updateResultCount:()=>{}};
   return {panel,calls};
 }

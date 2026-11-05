@@ -246,5 +246,8 @@
   "SLOWINSERT.Grouping.Review.no-match": "No corroborated matching implementation",
   "SLOWINSERT.Grouping.Open": "Grouping · Truesight",
   "SLOWINSERT.Grouping.OpenHint": "Open the grouping review window in Truesight",
-  "SLOWINSERT.Grouping.OpenFailed": "Could not open Truesight. Check that the module is enabled."
+  "SLOWINSERT.Grouping.OpenFailed": "Could not open Truesight. Check that the module is enabled.",
+  "SLOWINSERT.Layout.Swap": "Swap layout",
+  "SLOWINSERT.Layout.SearchInWindow": "Swap layout: search in window",
+  "SLOWINSERT.Layout.SearchInSidebar": "Swap layout: search in sidebar"
 }

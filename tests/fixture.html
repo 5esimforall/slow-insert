@@ -89,8 +89,9 @@
       const first=!this.rendered;
       if(first){this.element=document.createElement('section');this.element.className=(this.constructor.DEFAULT_OPTIONS.classes??[]).join(' ');this.element.classList.add('fixture-window');
         const header=document.createElement('header'),title=document.createElement('strong'),close=document.createElement('button');
-        title.textContent=this.options.window?.title??'';close.textContent='×';close.setAttribute('aria-label','Close window');close.onclick=()=>this.close();header.append(title,close);this.element.append(header);
+        title.className='window-title';title.textContent=this.options.window?.title??'';close.textContent='×';close.setAttribute('aria-label','Close window');close.onclick=()=>this.close();header.append(title,close);this.element.append(header);
         this.content=document.createElement('div');this.content.className='window-content';this.element.append(this.content);document.body.append(this.element);foundry.applications.instances.set(this.id,this);}
+      if(options.window?.title) this.element.querySelector(".window-title").textContent=options.window.title;
       Object.assign(this.position,options.position);Object.assign(this.element.style,{left:`${this.position.left??20}px`,top:`${this.position.top??20}px`,width:`${this.position.width??620}px`,height:`${this.position.height??650}px`});
       this._replaceHTML(await this._renderHTML(),this.content);this.rendered=true;await this._onRender({}, {isFirstRender:first});return this;
     }
@@ -232,9 +233,9 @@
     const report = document.querySelector("#check-report");
     report.textContent = "Running…";
     try {
-      const { runBrowserChecks } = await import("./browser-checks.js");
+      const { runBrowserChecks, runLayoutBrowserChecks } = await import("./browser-checks.js");
       const { runFilterBrowserChecks } = await import("./filter-browser-checks.js");
-      const checks = [...await runBrowserChecks(), ...await runFilterBrowserChecks()];
+      const checks = [...await runBrowserChecks(), ...await runFilterBrowserChecks(), ...await runLayoutBrowserChecks()];
       report.textContent = `PASS: ${checks.length} checks\n${checks.join("\n")}`;
     } catch (error) { report.textContent = `FAIL: ${error.stack}`; }
     finally { event.target.disabled = false; }

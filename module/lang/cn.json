@@ -246,5 +246,8 @@
   "SLOWINSERT.Grouping.Review.no-match": "没有证据充分的匹配实现",
   "SLOWINSERT.Grouping.Open": "归组管理 · Truesight",
   "SLOWINSERT.Grouping.OpenHint": "在真实视觉中打开归组审核窗口",
-  "SLOWINSERT.Grouping.OpenFailed": "无法打开真实视觉，请检查模块是否已启用。"
+  "SLOWINSERT.Grouping.OpenFailed": "无法打开真实视觉，请检查模块是否已启用。",
+  "SLOWINSERT.Layout.Swap": "对调布局",
+  "SLOWINSERT.Layout.SearchInWindow": "对调布局：搜索移至浮窗",
+  "SLOWINSERT.Layout.SearchInSidebar": "对调布局：搜索移回侧栏"
 }
