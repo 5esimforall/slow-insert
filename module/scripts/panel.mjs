@@ -78,12 +78,9 @@ export class SlowInsertPanel {
     this.searchContent.setAttribute("aria-label", t("Panel.Label"));
 
     const header = element("header", "si-header");
-    const heading = element("div", "si-heading");
-    // A running server can retain the previous manifest version until restart.
-    heading.append(element("h2", "", "Slow Insert"), element("span", "si-version", MODULE_VERSION));
     this.reindexButton = button(t("Panel.Reindex"), "fa-arrows-rotate");
     this.searchSwapButton = this.createSwapButton();
-    header.append(heading, this.searchSwapButton, this.reindexButton);
+    header.append(this.reindexButton, this.searchSwapButton);
 
     const searchBox = element("div", "si-search-box");
     const searchIcon = element("i", "fas fa-magnifying-glass");
@@ -126,7 +123,7 @@ export class SlowInsertPanel {
       }
     });
 
-    if (this.dnd5e) header.insertBefore(this.filterControls.createSchemeSelect(), this.searchSwapButton);
+    if (this.dnd5e) header.insertBefore(this.filterControls.createSchemeSelect(), this.reindexButton);
     this.filterControls.drawer.id = `${this.idPrefix}-filters`;
     this.filterControls.toggle.setAttribute("aria-controls", this.filterControls.drawer.id);
 

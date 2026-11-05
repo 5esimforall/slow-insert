@@ -28,6 +28,11 @@ export function checker() {
 export async function runBrowserChecks() {
   const { checks, check } = checker();
   const tab = ui.slowinsert, panel = tab.panel;
+  const header = panel.searchContent.querySelector('.si-header');
+  check(!header.querySelector('h2, .si-heading, .si-version')
+    && header.firstElementChild.matches('.si-scheme')
+    && header.children[1] === panel.reindexButton && header.lastElementChild === panel.searchSwapButton,
+    'search header puts the scheme first, followed by refresh and layout swap without branding');
   check([...document.querySelectorAll('#sidebar [role=tab]')].map(button => button.dataset.tab).join(',') === 'chat,slowinsert,settings',
     'search tab appears immediately before settings');
   check(tab instanceof CONFIG.ui.slowinsert && panel.sidebarHost.app === tab, 'production registration mounts the panel inside the sidebar host');
