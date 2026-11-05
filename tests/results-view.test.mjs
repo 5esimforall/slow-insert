@@ -64,3 +64,20 @@ test('opening and dragging refuse revoked access or missing rows without changin
   SlowInsertPanel.prototype.onDragStart.call(panel, event);
   assert.equal(prevented, 2);
 });
+
+test('players retain expansion and personal pins but have no identity-exclusion controls', t => {
+  const old={document:globalThis.document,game:globalThis.game};t.after(()=>Object.assign(globalThis,old));
+  const element=()=>({children:[],dataset:{},classList:{add(){}},setAttribute(){},append(...nodes){this.children.push(...nodes);},replaceChildren(...nodes){this.children=nodes;}});
+  globalThis.document={createElement:element,createDocumentFragment:element};
+  globalThis.game={user:{isGM:false},i18n:{format:k=>k,localize:k=>k}};
+  const list=element(),view=new ResultsView({list,input:element(),idPrefix:'test'});
+  view.renderRow=()=>element();view.expandedGroups.add('g');
+  const members=[{uuid:'a',result:{item:{name:'A'}}},{uuid:'b',result:{item:{name:'B'}}}];
+  const group={key:'g',members,representative:members[0],kind:'family'};
+  const all=n=>[n,...n.children.flatMap(all)];
+  const actions=()=>all(list).map(n=>n.dataset?.groupAction).filter(Boolean);
+  view.render([group],{environment:{},pins:{}});
+  assert.deepEqual(actions(),['expand','pin','pin']);
+  game.user.isGM=true;view.render([group],{environment:{},pins:{}});
+  assert.deepEqual(actions(),['expand','pin','exclude','pin','exclude']);
+});

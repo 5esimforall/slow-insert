@@ -3,6 +3,7 @@ import {catalog} from './catalog-api.mjs';
 
 // Opens an application, so use native button semantics with a link appearance.
 export function createGroupingLink(openReview = () => catalog.openReview()) {
+  if (globalThis.game?.user?.isGM !== true) return document.createDocumentFragment();
   const link = document.createElement('button');
   link.type = 'button'; link.className = 'si-grouping-link';
   link.title = t('Grouping.OpenHint');
@@ -11,7 +12,7 @@ export function createGroupingLink(openReview = () => catalog.openReview()) {
   icon.setAttribute('aria-hidden', 'true');
   link.append(label, icon);
   link.onclick = async () => {
-    if (link.disabled) return;
+    if (link.disabled || !globalThis.game?.user?.isGM) return;
     link.disabled = true;
     try { await openReview(); }
     catch (error) {

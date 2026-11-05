@@ -90,7 +90,8 @@ export class ResultsView {
           const unlink = element("i", "fa-solid fa-link-slash");
           unlink.setAttribute("aria-hidden", "true");
           exclude.replaceChildren(unlink);
-          member.append(pin, exclude);
+          member.append(pin);
+          if (globalThis.game?.user?.isGM === true) member.append(exclude);
           children.append(member);
         }
         wrapper.append(children);
@@ -164,7 +165,7 @@ export class ResultsView {
     typeLabel.title = detailText;
     label.append(typeLabel);
     if (member) label.append(element("span", "si-pack", item.packageName || item.package || entry.uuid));
-    if (entry.warning) {
+    if (entry.warning && globalThis.game?.user?.isGM === true) {
       const warning = element("span", "si-warning", t(`Grouping.Review.${entry.warning}`));
       warning.title = t("Grouping.ReviewHint");
       label.append(warning);

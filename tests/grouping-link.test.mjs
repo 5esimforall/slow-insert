@@ -6,8 +6,8 @@ import {language} from './localization.mjs';
 function setup(t, lang = 'en') {
   const before = {document:globalThis.document,game:globalThis.game,ui:globalThis.ui};
   t.after(()=>Object.assign(globalThis,before));
-  globalThis.document = {createElement:tag=>({tag,children:[],attributes:{},append(...nodes){this.children.push(...nodes);},setAttribute(k,v){this.attributes[k]=v;}})};
-  globalThis.game = {i18n:language(lang)};
+  globalThis.document = {createDocumentFragment:()=>({tag:'fragment',children:[]}),createElement:tag=>({tag,children:[],attributes:{},append(...nodes){this.children.push(...nodes);},setAttribute(k,v){this.attributes[k]=v;}})};
+  globalThis.game = {user:{isGM:true},i18n:language(lang)};
   const warnings = [];
   globalThis.ui = {notifications:{warn:message=>warnings.push(message)}};
   return warnings;
@@ -32,4 +32,14 @@ test('grouping entry suppresses duplicate opens and recovers after an opening fa
   await link.onclick();assert.equal(opened,1);
   reject(Error('unavailable'));await pending;
   assert.equal(link.disabled,false);assert.deepEqual(warnings,['Could not open Truesight. Check that the module is enabled.']);
+});
+
+
+test('players have no grouping management entry and cannot invoke a previously created GM button', async t => {
+  setup(t); let opened=0;
+  const gm=createGroupingLink(async()=>{opened++;});
+  game.user.isGM=false;
+  const player=createGroupingLink(async()=>{opened++;});
+  assert.equal(player.tag,'fragment');assert.equal(player.children.length,0);
+  await gm.onclick();assert.equal(opened,0);
 });
