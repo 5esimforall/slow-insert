@@ -79,7 +79,7 @@ test('players retain expansion and personal pins but have no identity-exclusion 
   view.render([group],{environment:{},pins:{}});
   assert.deepEqual(actions(),['expand','pin','pin']);
   game.user.isGM=true;view.render([group],{environment:{},pins:{}});
-  assert.deepEqual(actions(),['expand','pin','exclude','pin','exclude']);
+  assert.deepEqual(actions(),['expand','pin','pin','inspect']);
 });
 
 test('GM identity warnings use shared Truesight localization rather than a consumer-owned copy', t => {
@@ -96,4 +96,26 @@ test('GM identity warnings use shared Truesight localization rather than a consu
   assert.equal(descendants(row).find(n=>n.className==='si-warning').textContent,'SHARED OWNER DIAGNOSTIC');
   game.user.isGM=false;
   assert.equal(descendants(view.renderRow(entry,group,environment)).some(n=>n.className==='si-warning'),false);
+});
+
+test('inspect opens Truesight with a stable member context without refreshing or saving browsing state', async t => {
+  const {connectCatalog}=await import('../../truesight/module/scripts/catalog/api.mjs');
+  const before={game:globalThis.game,ui:globalThis.ui};t.after(()=>Object.assign(globalThis,before));
+  globalThis.game={user:{isGM:true},i18n:{localize:k=>k}};
+  const warnings=[];globalThis.ui={notifications:{warn:m=>warnings.push(m)}};
+  let complete,opens=0,options;
+  connectCatalog({assertManager(){}},value=>{opens++;options=value;return new Promise(resolve=>complete=resolve);});
+  const group={key:'g',members:[{uuid:'Item.a'},{uuid:'Item.b'}]};
+  const panel={view:{renderedGroups:new Map([['g',group]])},refresh:()=>assert.fail('must retain results and focus'),save:()=>assert.fail('must not save preferences')};
+  const control={dataset:{group:'g',groupAction:'inspect',uuid:'Item.b'}};
+  const pending=SlowInsertPanel.prototype.onGroupAction.call(panel,control);
+  assert.equal(control.disabled,true);assert.deepEqual(options,{memberUuid:'Item.b'});
+  await SlowInsertPanel.prototype.onGroupAction.call(panel,control);assert.equal(opens,1);
+  complete();await pending;assert.equal(control.disabled,false);
+  game.user.isGM=false;await SlowInsertPanel.prototype.onGroupAction.call(panel,control);assert.equal(opens,1);
+  game.user.isGM=true;control.dataset.uuid='Item.missing';await SlowInsertPanel.prototype.onGroupAction.call(panel,control);assert.equal(opens,1);
+  control.dataset.uuid='Item.b';connectCatalog({assertManager(){}},()=>{throw Error('unavailable');});
+  const error=console.error;console.error=()=>{};t.after(()=>console.error=error);
+  await SlowInsertPanel.prototype.onGroupAction.call(panel,control);
+  assert.equal(control.disabled,false);assert.deepEqual(warnings,['SLOWINSERT.Grouping.OpenFailed']);
 });

@@ -85,17 +85,15 @@ export class ResultsView {
           const star = element("i", `${pinned ? "fa-solid" : "fa-regular"} fa-star`);
           star.setAttribute("aria-hidden", "true");
           pin.append(star);
-          const exclude = this.groupAction("exclude", group, t("Grouping.Exclude"));
-          exclude.dataset.uuid = entry.uuid;
-          exclude.classList.add("si-exclude");
-          exclude.title = exclude.textContent;
-          exclude.setAttribute("aria-label", exclude.textContent);
-          const unlink = element("i", "fa-solid fa-link-slash");
-          unlink.setAttribute("aria-hidden", "true");
-          exclude.replaceChildren(unlink);
           member.append(pin);
-          if (globalThis.game?.user?.isGM === true) member.append(exclude);
           children.append(member);
+        }
+        if (expanded && globalThis.game?.user?.isGM === true) {
+          const inspect = this.groupAction("inspect", group, t("Grouping.Inspect"));
+          inspect.dataset.uuid = group.representative.uuid;
+          inspect.classList.add("si-group-inspect");
+          inspect.title = t("Grouping.InspectHint");
+          children.append(inspect);
         }
         wrapper.append(children);
       }

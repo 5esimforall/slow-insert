@@ -237,7 +237,6 @@
   "SLOWINSERT.Rules.Legacy": "5e",
   "SLOWINSERT.Rules.Revised": "5r",
   "SLOWINSERT.Grouping.Risk.implementation": "Use with caution: grouped using a source-corroborated name suffix. Rule text, materials, duration or automation may differ. Opening and dragging use the selected original item.",
-  "SLOWINSERT.Grouping.Exclude": "Keep separate",
   "SLOWINSERT.Grouping.SaveFailed": "Could not save grouping. The previously applied cache is unchanged; check browser storage.",
   "SLOWINSERT.Grouping.Review.rules": "Unknown rules generation",
   "SLOWINSERT.Grouping.Review.identifier": "Missing or invalid identifier",
@@ -257,5 +256,7 @@
   "SLOWINSERT.Diagnostics.Label": "Results with grouping diagnostics",
   "SLOWINSERT.Diagnostics.Collapsed": "Collapsed at bottom",
   "SLOWINSERT.Diagnostics.Inline": "Inline",
-  "SLOWINSERT.Diagnostics.HiddenCount": "{count} collapsed"
+  "SLOWINSERT.Diagnostics.HiddenCount": "{count} collapsed",
+  "SLOWINSERT.Grouping.Inspect": "Inspect grouping…",
+  "SLOWINSERT.Grouping.InspectHint": "Inspect the full group in Truesight. Opening this view does not change membership."
 }

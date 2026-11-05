@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.20";
+export const MODULE_VERSION = "0.6.21";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -490,23 +490,30 @@ export class SlowInsertPanel {
     }
   }
 
-  onGroupAction(control) {
+  async onGroupAction(control) {
     const group = this.view.renderedGroups?.get(control.dataset.group);
     if (!group) return;
     const action = control.dataset.groupAction;
+    if (action === "inspect") {
+      if (control.disabled || globalThis.game?.user?.isGM !== true
+        || !group.members.some(entry => entry.uuid === control.dataset.uuid)) return;
+      control.disabled = true;
+      try { await catalog.openReview({memberUuid: control.dataset.uuid}); }
+      catch (error) { console.error(error); ui.notifications.warn(t("Grouping.OpenFailed")); }
+      finally { control.disabled = false; }
+      return;
+    }
     if (action === "expand") {
       if (this.view.expandedGroups.has(group.key)) this.view.expandedGroups.delete(group.key);
       else this.view.expandedGroups.add(group.key);
 
     } else if (action === "pin" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
       this.grouping = { ...this.grouping, pins: { ...this.grouping.pins, [group.key]: control.dataset.uuid } };
-    } else if (action === "exclude" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
-      void catalog.exclude(control.dataset.uuid).catch(error => { console.error(error); ui.notifications.warn(t("Grouping.SaveFailed")); });
     } else if (action === "unpin") {
       const pins = { ...this.grouping.pins }; delete pins[group.key];
       this.grouping = { ...this.grouping, pins };
-    }
-    if (!["expand", "exclude"].includes(action)) void this.save("grouping", this.grouping);
+    } else return;
+    if (action !== "expand") void this.save("grouping", this.grouping);
     this.refresh(true);
     const index = this.view.results.findIndex(result => result.group?.key === group.key);
     if (index >= 0) this.view.select(index, false);

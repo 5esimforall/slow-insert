@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.20**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.21**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -81,7 +81,7 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 | `browse-session.mjs` | 管理派生目录缓存和分页，执行筛选、别名补全、共享成员映射及整体排序 |
 | `results-view.mjs` | 渲染结果与成员，管理行映射、选中和展开状态；接收明确的渲染上下文 |
 
-索引完成以 Quick Insert 完成事件为准；文档更新在其索引钩子结束后合并刷新。查询先筛选成员，再选择组代表、整体排序；开启诊断折叠时按已筛选成员的诊断状态分区，两部分分别分批渲染。结果视图不重选代表，打开和拖放使用视图所记录的原条目。归组控件通过 Truesight 公共 API 打开管理窗口或提交身份排除，不访问面板内部审核状态。
+索引完成以 Quick Insert 完成事件为准；文档更新在其索引钩子结束后合并刷新。查询先筛选成员，再选择组代表、整体排序；开启诊断折叠时按已筛选成员的诊断状态分区，两部分分别分批渲染。结果视图不重选代表，打开和拖放使用视图所记录的原条目。归组控件通过 Truesight 公共 API 打开管理窗口并定位成员所在的完整归组，不访问面板内部审核状态。
 
 `tests/index-lifecycle.test.mjs`、`tests/browse-session.test.mjs` 和 `tests/results-view.test.mjs` 分别覆盖这些边界；分页与宿主行为仍由对应测试覆盖。界面验证继续使用上文浏览器夹具，并与实机观察分开记录。
 
@@ -102,3 +102,7 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 ### 刷新生命周期浏览器回归
 
 访问 `tests/fixture.html?grouping`（中文加 `&lang=cn`）并点击 **Run browser checks**，额外执行 `tests/truesight-refresh-browser-checks.js`。覆盖状态查询零扫描、缓存复用、无关更新保留预览、普通改名与焦点保留、风险改名及身份更新作废预览、权限撤回和旧预览拒绝。此测试只运行在合成夹具，结束后恢复修改过的名称、学派及可见性并关闭审核窗口。
+
+### 归组检查浏览器回归
+
+`tests/fixture.html?grouping` 的浏览器检查同时执行 `tests/grouping-inspection-browser-checks.js`，覆盖组级入口、完整成员定位、只读打开、排除／恢复预览、明确应用、取消和玩家隐藏入口。用例只操作合成世界，结束后恢复审核内容、查询、筛选与展开状态；刷新夹具可恢复初始测试修订。真实 Foundry 中的原生窗口行为仍需单独验收。

@@ -392,16 +392,15 @@
   }
 }
 
-/* A single outbound entry; Truesight owns the review interface. */
+/* Configuration entry; Truesight owns the review interface. */
 .slow-insert .si-grouping-link { display: inline-flex; align-items: center; justify-content: flex-start; align-self: flex-start; gap: 6px; width: auto; height: auto; min-height: 28px; margin: 8px 0 0; padding: 3px 0; border: 0; border-radius: 2px; background: transparent; box-shadow: none; color: var(--ts-accent); font: 12px/1.5 var(--font-body, sans-serif); cursor: pointer; }
 .slow-insert .si-grouping-link:hover:not(:disabled) span { text-decoration: underline; text-underline-offset: 3px; }
 .slow-insert .si-grouping-link i { margin: 0; font-size: 10px; }
 .slow-insert .si-grouping-link:disabled { opacity: .5; cursor: wait; }
 
-.slow-insert .si-member > .si-exclude { position: absolute; right: 33px; bottom: 4px; display: grid; place-items: center; width: 24px; height: 24px; min-width: 24px; min-height: 24px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--ts-muted); font-size: 12px; line-height: 1; cursor: pointer; }
-.slow-insert .si-exclude > i { margin: 0; pointer-events: none; }
-.slow-insert .si-member > .si-exclude:is(:hover, :focus-visible) { background: var(--ts-selected); color: var(--ts-accent); }
-.slow-insert .si-exclude:focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
+.slow-insert .si-group-inspect { display: block; margin: 2px 0 4px auto; padding: 3px 8px; width: auto; height: auto; border: 0; background: transparent; box-shadow: none; color: var(--ts-muted); font-size: 12px; }
+.slow-insert .si-group-inspect:is(:hover, :focus-visible) { color: var(--ts-accent); background: var(--ts-selected); }
+.slow-insert .si-group-inspect:focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
 
 /* Both content trees fit either host; narrow filters stack without losing controls. */
 .slow-insert .si-icon-button[hidden] { display: none; }

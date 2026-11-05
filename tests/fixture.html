@@ -272,6 +272,8 @@
       if (new URL(location.href).searchParams.has('grouping')) {
         const {runTruesightRefreshChecks} = await import('./truesight-refresh-browser-checks.js');
         checks.push(...await runTruesightRefreshChecks());
+        const {runGroupingInspectionChecks} = await import('./grouping-inspection-browser-checks.js');
+        checks.push(...await runGroupingInspectionChecks());
       }
       report.textContent = `PASS: ${checks.length} checks\n${checks.join("\n")}`;
     } catch (error) { report.textContent = `FAIL: ${error.stack}`; }
