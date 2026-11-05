@@ -647,6 +647,12 @@ export class SlowInsertPanel {
           pin.append(star);
           const exclude = this.groupAction("exclude", group, t("Grouping.Exclude"));
           exclude.dataset.uuid = entry.uuid;
+          exclude.classList.add("si-exclude");
+          exclude.title = exclude.textContent;
+          exclude.setAttribute("aria-label", exclude.textContent);
+          const unlink = element("i", "fa-solid fa-link-slash");
+          unlink.setAttribute("aria-hidden", "true");
+          exclude.replaceChildren(unlink);
           member.append(pin, exclude);
           children.append(member);
         }

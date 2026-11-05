@@ -256,7 +256,7 @@
 .slow-insert .si-member:hover { background: var(--si-hover); }
 .slow-insert .si-member:has(> .si-result[aria-selected="true"]) { background: var(--si-selected); border-color: transparent; }
 .slow-insert .si-member > .si-result { width: 100%; min-width: 0; margin: 0; border: 0; background: transparent; }
-.slow-insert .si-member .si-source { min-width: 24px; margin-bottom: 24px; text-align: right; }
+.slow-insert .si-member .si-source { min-width: 52px; margin-bottom: 24px; text-align: right; }
 .slow-insert .si-member > .si-pin {
   position: absolute; right: 6px; bottom: 4px;
   display: grid; place-items: center;
@@ -449,3 +449,8 @@
 .si-grouping-preview input[type=search] { background: var(--si-field); color: var(--si-text); border: 1px solid var(--si-line); width: 100%; margin-block: 8px; }
 .si-grouping-preview input[type=checkbox] { color-scheme: light; accent-color: var(--si-accent); }
 .si-grouping-preview footer { margin-top: auto; position: sticky; bottom: 0; background: var(--si-bg); padding-top: 10px; }
+
+.slow-insert .si-member > .si-exclude { position: absolute; right: 33px; bottom: 4px; display: grid; place-items: center; width: 24px; height: 24px; min-width: 24px; min-height: 24px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--si-muted); font-size: 12px; line-height: 1; cursor: pointer; }
+.slow-insert .si-exclude > i { margin: 0; pointer-events: none; }
+.slow-insert .si-member > .si-exclude:is(:hover, :focus-visible) { background: var(--si-selected); color: var(--si-accent); }
+.slow-insert .si-exclude:focus-visible { outline: 2px solid var(--si-accent); outline-offset: -2px; }
