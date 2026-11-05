@@ -3,13 +3,14 @@ import { normalizeSorting, sortGroups, effectiveSort, sortValueLabel } from "./s
 import { SortControls } from "./sort-controls.mjs";
 import { t } from "./i18n.mjs";
 import { getDockLayout, resolveSource, documentDragData } from "./source.mjs";
-import { SCHEMES, crLabel, itemTypeLabel, isSupportedResult, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
+import { SCHEMES, crLabel, itemTypeLabel, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls, createFilterSwitch } from "./filter-controls.mjs";
 import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
+import { hidesRevisedContent, rulesPredicate, RULES_CHANGED } from "./rules-visibility.mjs";
 import { prepareSourceEnvironment } from "./source-resolution.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.5.7";
+export const MODULE_VERSION = "0.6.0";
 const LIMIT = 100;
 
 function element(tag, className, content) {
@@ -221,6 +222,11 @@ export class SlowInsertPanel {
       this.hooks.push([hook, Hooks.on(hook, () => this.schedulePosition())]);
     }
     }
+    this.hooks.push([RULES_CHANGED, Hooks.on(RULES_CHANGED, () => {
+      this.filterCatalog = null;
+      this.page = null;
+      this.refresh();
+    })]);
     this.hooks.push(["QuickInsert:IndexCompleted", Hooks.on("QuickInsert:IndexCompleted", () => this.onIndexCompleted())]);
     // Sidebar rendering precedes ready. Importer integrations can replace the
     // Quick Insert index during ready; never start indexing from that render.
@@ -484,13 +490,14 @@ export class SlowInsertPanel {
     if (this.filterCatalog && this.filterCatalog.index === index) return this.filterCatalog.environment;
     const started = performance.now();
     environment = prepareSourceEnvironment(environment);
-    const allResults = qi.search("", isSupportedResult, Number.MAX_SAFE_INTEGER);
+    const acceptRules = rulesPredicate(hidesRevisedContent(game, MODULE_ID), environment);
+    const allResults = qi.search("", acceptRules, Number.MAX_SAFE_INTEGER);
     const { options, dataCache } = buildFilterOptions(allResults, environment, {
       typeLabels: CONFIG.Item.typeLabels,
       spellSchools: CONFIG.DND5E?.spellSchools,
       activationTypes: CONFIG.DND5E?.abilityActivationTypes
     });
-    this.filterCatalog = { index, dataCache, environment, grouping: buildGroupingCatalog(allResults, environment) };
+    this.filterCatalog = { index, acceptRules, dataCache, environment, grouping: buildGroupingCatalog(allResults, environment) };
     this.filterControls.setOptions(options);
     console.debug(`Slow Insert | Catalog: ${allResults.length} entries in ${(performance.now() - started).toFixed(1)}ms`);
     return environment;
@@ -514,7 +521,7 @@ export class SlowInsertPanel {
     try {
       const environment = this.ensureFilterCatalog(qi, this.sourceEnvironment());
       const accept = result => {
-        if (!isSupportedResult(result)) return false;
+        if (!this.filterCatalog.acceptRules(result)) return false;
         let data = this.filterCatalog.dataCache.get(result.item);
         if (!data) {
           data = filterItemData(result.item, environment);

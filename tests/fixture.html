@@ -42,17 +42,18 @@
     off(name, fn) { handlers.set(name, (handlers.get(name) || []).filter(x => x !== fn)); },
     callAll(name, ...args) { for (const fn of handlers.get(name) || []) fn(...args); }
   };
-  const settings = new Map([["quick-insert.gmOnly", false], ...Object.entries(globalThis.fixtureSettingsSeed ?? {})]);
+  const definitions = new Map();
+  const settings = new Map([["dnd5e.rulesVersion", "modern"], ["quick-insert.gmOnly", false], ...Object.entries(globalThis.fixtureSettingsSeed ?? {})]);
   const icon = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="5" fill="#774f3a"/><path d="M16 5c7 10 10 12 6 19-3 5-13 3-13-3 0-5 6-6 7-16z" fill="#efb478"/></svg>');
   globalThis.fixtureState = { calls: [], opened: [], indexBuilds: 0, denied: false };
   globalThis.game = {
     system: { id: "dnd5e" }, world: {}, user: { isGM: false },
-    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.5.7" }]]),
+    modules: new Map([["quick-insert", { active: true }], ["slow-insert", { version: "0.6.0" }]]),
     packs: new Map([["fixture.spells", { title: "Example spells", metadata: { packageType: "module", packageName: "fixture" } }]]),
     settings: {
-      register(id, key, config) { if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
+      register(id, key, config) { definitions.set(`${id}.${key}`, config); if (!settings.has(`${id}.${key}`)) settings.set(`${id}.${key}`, config.default); },
       get(id, key) { return settings.get(`${id}.${key}`); },
-      async set(id, key, value) { settings.set(`${id}.${key}`, value); return value; }
+      async set(id, key, value) { settings.set(`${id}.${key}`, value); definitions.get(`${id}.${key}`)?.onChange?.(value); return value; }
     },
     keybindings: { actions: new Map(), register(id, key, config) {
       this.actions.set(`${id}.${key}`, config);
@@ -188,6 +189,17 @@
   document.querySelector("#drop").ondrop = event => { event.preventDefault(); fixtureState.drop = JSON.parse(event.dataTransfer.getData("text/plain")); event.currentTarget.textContent = JSON.stringify(fixtureState.drop); };
   await import("/module/scripts/main.mjs");
   Hooks.callAll("init");
+  if (new URL(location.href).searchParams.has("rules")) {
+    const def = definitions.get("slow-insert.rulesDisplay");
+    const label = document.createElement("label");
+    label.textContent = labels[def.name];
+    const select = document.createElement("select");
+    for (const [value, key] of Object.entries(def.choices)) select.add(new Option(labels[key], value));
+    select.value = game.settings.get("slow-insert", "rulesDisplay");
+    select.onchange = () => game.settings.set("slow-insert", "rulesDisplay", select.value);
+    label.append(select);
+    document.querySelector("main").append(label);
+  }
   // Minimal floating-host adapter: production uses Foundry's native sidebar.
   const { SlowInsertPanel } = await import("/module/scripts/panel.mjs");
   ui.slowinsert = { async render() {

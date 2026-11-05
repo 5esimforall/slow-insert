@@ -240,5 +240,10 @@
   "SLOWINSERT.Browse.Sorting": "排序方式",
   "SLOWINSERT.Browse.Display": "显示选项",
   "SLOWINSERT.Browse.Summary": "{scheme} · {count} 项筛选",
-  "SLOWINSERT.Browse.FilterCount": "{count} 项筛选"
+  "SLOWINSERT.Browse.FilterCount": "{count} 项筛选",
+  "SLOWINSERT.Rules.Name": "规则版本",
+  "SLOWINSERT.Rules.Hint": "5e 隐藏已确认的 2024 内容；5r 同时显示 2014 和 2024 内容。此设置仅影响你的 Slow Insert。",
+  "SLOWINSERT.Rules.System": "跟随系统规则",
+  "SLOWINSERT.Rules.Legacy": "5e",
+  "SLOWINSERT.Rules.Revised": "5r"
 }
