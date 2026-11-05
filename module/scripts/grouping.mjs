@@ -45,9 +45,14 @@ function indexEntry(item, environment) {
 function originalName(item, entry) {
   const original=[entry.originalName,entry.flags?.babele?.originalName,item.originalName,item.flags?.babele?.originalName].find(english);
   if(original)return text(original);
-  // A whole untranslated English name may corroborate its identifier. Never
-  // extract an English tail from a localized/bilingual display name.
-  return english(item.name)&&slug(item.name)===item.system?.identifier?text(item.name):"";
+  // For untranslated or natively bilingual packs without originalName, require
+  // the COMPLETE English segment to reproduce the COMPLETE stored identifier.
+  // A bilingual prefix may contain only Han text/separators, never skipped
+  // English qualifiers. This is corroboration, not arbitrary tail stripping.
+  const name=text(item.name);
+  const bilingual=name.match(/^[\p{Script=Han}\s·，、：:（）()《》“”「」『』—-]+\s+([A-Za-z][A-Za-z0-9\s'’:,()&.!+/-]*)$/u);
+  const candidate=english(name)?name:bilingual?.[1];
+  return candidate&&slug(candidate)===item.system?.identifier?text(candidate):"";
 }
 function describe(result, environment) {
   const item=result.item,uuid=canonicalUuid(item),source=identifySource(item,environment),system=item.system??{},indexed=indexEntry(item,environment);
@@ -92,10 +97,11 @@ export function calculateGrouping(results,environment={},preferences=normalizeGr
     if(clusters.length<2)continue;
     const members=clusters.flatMap(c=>c.members);
     // No transitive name chains or ambiguous roots. Every member must have
-    // the same traceable full base name; at least one corroborated suffix and
-    // exactly one unsuffixed identifier family are required.
-    if(members.some(e=>!e.base)||new Set(members.map(e=>e.base)).size!==1||new Set(members.map(e=>`${e.level}:${e.school}`)).size!==1)continue;
-    const roots=clusters.filter(c=>c.members.some(e=>!e.suffixBook));
+    // the same corroborated full base name when available; at least one suffix
+    // and exactly one unsuffixed identifier family are required. Missing names
+    // in that root family inherit only its already validated identifier link.
+    if(new Set(members.map(e=>e.base).filter(Boolean)).size!==1||new Set(members.map(e=>`${e.level}:${e.school}`)).size!==1)continue;
+    const roots=clusters.filter(c=>c.members.some(e=>e.base&&!e.suffixBook));
     if(roots.length!==1||!members.some(e=>e.suffixBook))continue;
     if(clusters.filter(c=>c!==roots[0]).some(c=>c.members.some(e=>!e.suffixBook)))continue;
     const root=roots[0];
@@ -142,7 +148,8 @@ export function groupingDiff(previous,next,preferences=normalizeGrouping()) {
     if(parents.size>1)merged++;
   }
   for(const g of Object.values(old))if(new Set(g.members.map(id=>after.get(id)??id)).size>1)split++;
-  const lostPins=Object.values(preferences.pins??{}).filter(id=>!after.has(id));
+  const retained=new Set(Object.values(migratePins(preferences.pins,next)));
+  const lostPins=Object.values(preferences.pins??{}).filter(id=>!retained.has(id));
   return {added,merged,split,groups:Object.keys(groups).length,joined:after.size,
     independent:Object.values(next.records).filter(r=>!r.key).length,risky:Object.values(groups).filter(g=>g.risk).length,lostPins};
 }

@@ -8,7 +8,7 @@ test('light surfaces are independent of Foundry and Quick Insert themes', () => 
   assert.match(css, /--si-text: #302b35;/);
   assert.match(css, /color-scheme: light;/);
   assert.match(css, /\.slow-insert\.si-native \{[^}]*background: var\(--si-bg\);/);
-  assert.match(css, /\.si-browse-window \.window-header \{[^}]*background: #e3dfe7;/);
+  assert.match(css, /:is\(\.si-browse-window, \.si-grouping-window\) \.window-header \{[^}]*background: #e3dfe7;/);
   assert.doesNotMatch(css, /--qiBackground|--qiItem|#a7d6c5|\.quick-insert-result|#qi-search-appv3|color-scheme: dark/);
 });
 test('compact rows keep source and disclosure separate and expose truncated details', () => {

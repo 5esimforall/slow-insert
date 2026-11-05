@@ -33,7 +33,7 @@ test('nonspell, external incomplete and equal Chinese display names never imply 
 test('source suffix matching requires original-name provenance, known matching citation, fields and unique unsuffixed root',()=>{
  const {rows}=groupingFixture();const base=rows.slice(4);assert.equal(count(base,catalog(base)),1);
  assert.equal(count(base,catalog(base,{},normalizeGrouping(),false)),2);
- for(const patch of [{originalName:'Conjure Example (XGE)'},{originalName:'Greater Conjure Example (TCE)'},{originalName:'Conjure Example (Greater)'},{originalName:'',name:'例示召唤 Conjure Example (TCE)'},{system:{...base[1].item.system,source:{rules:'2014',book:'XGE'}}},{system:{...base[1].item.system,level:5}}]){
+ for(const patch of [{originalName:'Conjure Example (XGE)'},{originalName:'Greater Conjure Example (TCE)'},{originalName:'Conjure Example (Greater)'},{originalName:'',name:'例示召唤 Greater Conjure Example (TCE)'},{system:{...base[1].item.system,source:{rules:'2014',book:'XGE'}}},{system:{...base[1].item.system,level:5}}]){
    const changed=[base[0],{item:{...base[1].item,...patch}}];assert.equal(count(changed,catalog(changed)),2,JSON.stringify(patch));
  }
  const ambiguous=[...base,spell('extra',{name:'Conjure Example',originalName:'Conjure Example',system:{identifier:'another-id',source:{rules:'2014',book:'TCE'}}})];
@@ -45,6 +45,7 @@ test('Babele index originalName is available even when QI omits it',()=>{
  environment.packs.set('fixture.spells',{index:new Map([['risk2',{originalName:'Conjure Example (TCE)'}]])});
  assert.equal(count(pair,catalog(pair,environment)),1);
  environment.packs.get('fixture.spells').index.get('risk2').originalName='';
+ target.name='不匹配 Conjure Other (TCE)';
  assert.equal(count(pair,catalog(pair,environment)),2);
 });
 test('risk markers survive filtering and all-copies view without becoming blocking warnings',()=>{
@@ -113,7 +114,7 @@ test('apply preserves viable legacy pins and exclusions; undo restores the previ
 test('conflicting pins on merged families are reported and never arbitrarily moved',()=>{
  const {rows}=groupingFixture(),snapshot=calculated(rows);const pins={a:rows[4].item.uuid,b:rows[5].item.uuid,c:'Item.deleted'};
  assert.deepEqual(Object.keys(migratePins(pins,snapshot)),[]);
- assert.deepEqual(groupingDiff(null,snapshot,{pins}).lostPins,['Item.deleted']);
+ assert.deepEqual(groupingDiff(null,snapshot,{pins}).lostPins,Object.values(pins));
 });
 test('diff counts new, merged, split and independent spells',()=>{
  const {rows}=groupingFixture(),safe=calculated(rows,{},normalizeGrouping(),false),risk=calculated(rows);
@@ -171,4 +172,12 @@ test('applied membership reloads and index refresh cannot silently recompute it'
  assert.equal(cat.entries.get(added.item.uuid).key,null);
  assert.equal(Object.keys(restored.active.groups).length,3);
  assert.equal(cat.changed,1);
+});
+
+test('bilingual names without original metadata require whole-segment identifier and source corroboration',()=>{
+ const {rows}=groupingFixture(),pair=rows.slice(4);delete pair[1].item.originalName;
+ assert.equal(count(pair,catalog(pair)),1);
+ for(const name of ['例示召唤 Greater Conjure Example (TCE)','Extra 例示召唤 Conjure Example (TCE)','例示召唤 Conjure Example (XGE)','例示召唤 Conjure Example (TCE) custom']){
+   pair[1].item.name=name;assert.equal(count(pair,catalog(pair)),2,name);
+ }
 });

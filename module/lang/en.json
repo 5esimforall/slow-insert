@@ -268,10 +268,12 @@
   "SLOWINSERT.Grouping.Apply": "Apply grouping",
   "SLOWINSERT.Grouping.PreviewStale": "The index, permissions, or preferences changed. Close this preview and recalculate before applying.",
   "SLOWINSERT.Grouping.Reason.identifier": "Same identifier, rules generation, level and school",
-  "SLOWINSERT.Grouping.Reason.source-suffix": "Same complete original name after a source-corroborated book suffix; same rules, level and school",
+  "SLOWINSERT.Grouping.Reason.source-suffix": "Source-corroborated suffix and full English name verified by original metadata or complete identifier; same rules, level and school",
   "SLOWINSERT.Grouping.Review.rules": "Unknown rules generation",
   "SLOWINSERT.Grouping.Review.identifier": "Missing or invalid identifier",
   "SLOWINSERT.Grouping.Review.identity": "Identity changed since grouping",
   "SLOWINSERT.Grouping.Review.excluded": "Manually kept separate",
-  "SLOWINSERT.Grouping.Review.no-match": "No corroborated matching implementation"
+  "SLOWINSERT.Grouping.Review.no-match": "No corroborated matching implementation",
+  "SLOWINSERT.Grouping.Find": "Find a group or spell",
+  "SLOWINSERT.Grouping.UnavailableMember": "Previous members no longer available"
 }

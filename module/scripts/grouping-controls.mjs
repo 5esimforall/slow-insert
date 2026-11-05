@@ -1,5 +1,5 @@
 import { t } from './i18n.mjs';
-import { calculateGrouping, groupingDiff, migratePins } from './grouping.mjs';
+import { calculateGrouping, groupingDiff, canonicalUuid } from './grouping.mjs';
 import { applyGroupingState, undoGroupingState } from './grouping-state.mjs';
 
 const node=(tag,content)=>{const el=document.createElement(tag);if(content)el.textContent=content;return el;};
@@ -39,18 +39,19 @@ export class GroupingControls {
     root.append(node('p',t('Grouping.PreviewHint')));
     const label=node('label'),risk=node('input');risk.type='checkbox';risk.checked=panel.groupingState.active?.includeRisk===true;
     label.append(risk,document.createTextNode(t('Grouping.IncludeRisk')));root.append(label);
-    const summary=node('p'),details=node('details'),list=node('div'),error=node('p');error.setAttribute('role','alert');
-    details.append(node('summary',t('Grouping.Details')),list);root.append(summary,details,error);
+    const summary=node('p'),details=node('details'),list=node('div'),error=node('p'),search=node('input');
+    search.type='search';search.placeholder=t('Grouping.Find');search.setAttribute('aria-label',t('Grouping.Find'));
+    search.addEventListener('input',()=>{const query=search.value.trim().toLocaleLowerCase();for(const section of list.children)section.hidden=Boolean(query&&!section.textContent.toLocaleLowerCase().includes(query));});error.setAttribute('role','alert');
+    details.append(node('summary',t('Grouping.Details')),search,list);root.append(summary,details,error);
     let snapshot;
     const render=()=>{
       snapshot=calculateGrouping(initial.results,initial.environment,panel.grouping,{includeRisk:risk.checked});
       const diff=groupingDiff(panel.groupingState.active,snapshot,panel.grouping);
-      const retained=new Set(Object.values(migratePins(panel.grouping.pins,snapshot)));
-      const lost=Object.values(panel.grouping.pins).filter(id=>!retained.has(id));
-      summary.textContent=t('Grouping.Diff',{...diff,lost:lost.length});list.replaceChildren();
-      const byId=new Map(initial.results.map(r=>[r.item.uuid,r.item.name]));
+      const lost=diff.lostPins;
+      summary.textContent=t('Grouping.Diff',{...diff,lost:lost.length});list.replaceChildren();search.value='';
+      const byId=new Map(initial.results.map(r=>[canonicalUuid(r.item),r.item.name]));
       // Entries in details are lazy to keep large catalogs responsive.
-      const name=id=>byId.get(id)??initial.results.find(r=>r.item.uuid===id.replace('.Item.','.'))?.item.name??id;
+      const name=id=>byId.get(id)??t('Grouping.UnavailableMember');
       for(const [key,group] of Object.entries(snapshot.groups)) {
         const section=node('details');section.append(node('summary',`${group.risk?'⚠ ':''}${name(group.members[0])} (${group.members.length}) — ${t(`Grouping.Reason.${group.reason}`)}`));
         section.addEventListener('toggle',()=>{if(section.open&&!section.dataset.loaded){section.dataset.loaded='1';for(const id of group.members)section.append(node('p',`${name(id)} — ${id}`));}});
@@ -61,7 +62,7 @@ export class GroupingControls {
       independent.addEventListener('toggle',()=>{if(independent.open&&!independent.dataset.loaded){independent.dataset.loaded='1';for(const [id,record] of Object.entries(snapshot.records))if(!record.key)independent.append(node('p',`${name(id)} — ${t(`Grouping.Review.${record.warning??'no-match'}`)}`));}});list.append(independent);
       const removed=Object.entries(panel.groupingState.active?.groups??{}).filter(([key,g])=>JSON.stringify(snapshot.groups[key]?.members)!==JSON.stringify(g.members));
       const old=node('details');old.append(node('summary',t('Grouping.PreviousChanges',{count:removed.length})));
-      old.addEventListener('toggle',()=>{if(old.open&&!old.dataset.loaded){old.dataset.loaded='1';for(const [key,g] of removed)old.append(node('p',`${key}: ${g.members.map(name).join(' / ')}`));}});list.append(old);
+      old.addEventListener('toggle',()=>{if(old.open&&!old.dataset.loaded){old.dataset.loaded='1';for(const [key,g] of removed)old.append(node('p',g.members.filter(id=>byId.has(id)).map(name).join(' / ')||t('Grouping.UnavailableMember')));}});list.append(old);
       if(lost.length)list.append(node('p',t('Grouping.LostPins')+' '+lost.map(name).join(' / ')));
     };
     risk.addEventListener('change',render);render();

@@ -268,10 +268,12 @@
   "SLOWINSERT.Grouping.Apply": "应用归组",
   "SLOWINSERT.Grouping.PreviewStale": "索引、权限或偏好已变化。请关闭预览并重新归组后应用。",
   "SLOWINSERT.Grouping.Reason.identifier": "标识、规则代际、环阶与学派一致",
-  "SLOWINSERT.Grouping.Reason.source-suffix": "来源印证书目后缀，完整原名、规则代际、环阶与学派一致",
+  "SLOWINSERT.Grouping.Reason.source-suffix": "来源印证书目后缀，英文名经原名字段或完整标识印证，规则代际、环阶与学派一致",
   "SLOWINSERT.Grouping.Review.rules": "规则代际未知",
   "SLOWINSERT.Grouping.Review.identifier": "标识缺失或无效",
   "SLOWINSERT.Grouping.Review.identity": "身份字段已变化",
   "SLOWINSERT.Grouping.Review.excluded": "已手动排除归组",
-  "SLOWINSERT.Grouping.Review.no-match": "没有证据充分的匹配实现"
+  "SLOWINSERT.Grouping.Review.no-match": "没有证据充分的匹配实现",
+  "SLOWINSERT.Grouping.Find": "查找归组或法术",
+  "SLOWINSERT.Grouping.UnavailableMember": "旧成员已不可访问"
 }
