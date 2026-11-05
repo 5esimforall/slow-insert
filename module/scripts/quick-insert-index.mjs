@@ -1,4 +1,18 @@
 import { catalog } from "./catalog-api.mjs";
+import { FILTER_INDEX_FIELDS, ACTOR_FILTER_INDEX_FIELDS } from "./filters.mjs";
+import { SOURCE_INDEX_FIELDS } from "./source.mjs";
+
+const SEARCH_FIELDS = ['name', 'type', 'img', 'ownership', 'permission', 'folder', 'items', 'flags', 'originalName',
+  ...FILTER_INDEX_FIELDS, ...ACTOR_FILTER_INDEX_FIELDS, ...SOURCE_INDEX_FIELDS];
+export function affectsSearch(delta, prefix = '') {
+  if (!delta || typeof delta !== 'object' || Array.isArray(delta)) return true;
+  return Object.entries(delta).some(([key, value]) => {
+    const path = [prefix, key.replace(/(^|\.)-=/g, '$1')].filter(Boolean).join('.');
+    if (SEARCH_FIELDS.some(field => path === field || path.startsWith(field + '.'))) return true;
+    if (!SEARCH_FIELDS.some(field => field.startsWith(path + '.'))) return false;
+    return affectsSearch(value, path);
+  });
+}
 /** Foundry/Quick Insert boundary. Completion hooks, not forceIndex promises,
  * own completion; all timers and subscriptions belong to this instance. */
 export class QuickInsertIndex {
@@ -32,7 +46,8 @@ export class QuickInsertIndex {
     // A sidebar may mount before ready. Importers can replace QI's index there.
     this.hooks.push(["ready", Hooks.on("ready", () => this.scheduleInitialIndex())]);
     for (const hook of ["createItem", "updateItem", "deleteItem", "createActor", "updateActor", "deleteActor"]) {
-      this.hooks.push([hook, Hooks.on(hook, () => {
+      this.hooks.push([hook, Hooks.on(hook, (_document, delta) => {
+        if (hook.startsWith("update") && !affectsSearch(delta)) return;
         this.onInvalidate();
         // Let Quick Insert finish replacing document index entries first.
         clearTimeout(this.catalogTimer);

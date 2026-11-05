@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QuickInsertIndex } from '../module/scripts/quick-insert-index.mjs';
+import { QuickInsertIndex, affectsSearch } from '../module/scripts/quick-insert-index.mjs';
 
 function fixture(t, {ready=true, delay=-1}={}) {
   const old={game:globalThis.game,QuickInsert:globalThis.QuickInsert};
@@ -90,4 +90,11 @@ test('rejected build reports failure, but an in-flight rejection after destroy i
  let reject;QuickInsert.forceIndex=()=>new Promise((_,no)=>{reject=no;});
  const pending=index.buildIndex();index.destroy();reject(Error('late'));await pending;
  assert.deepEqual(failures,['offline']);
+});
+
+
+test('search updates ignore HP and spent resources but retain filter metadata changes', () => {
+ for (const delta of [{'system.attributes.hp.value':1},{system:{uses:{spent:1}}},{'system.resources.legact.value':0}]) assert.equal(affectsSearch(delta),false);
+ for (const delta of [{name:'New'},{system:{resources:{legact:{max:3}}}},{'system.school':'abj'},{'system.-=source':null},{system:null},{ownership:{default:0}}]) assert.equal(affectsSearch(delta),true);
+ assert.equal(affectsSearch(undefined),true);
 });
