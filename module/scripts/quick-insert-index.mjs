@@ -50,10 +50,16 @@ export class QuickInsertIndex {
         if (hook.startsWith("update") && !affectsSearch(delta)) return;
         this.onInvalidate();
         // Let Quick Insert finish replacing document index entries first.
-        clearTimeout(this.catalogTimer);
-        this.catalogTimer = setTimeout(() => { if (this.isVisible()) this.onRefresh(); }, 0);
+        this.scheduleRefresh();
       })]);
     }
+  }
+
+  scheduleRefresh() {
+    clearTimeout(this.refreshTimer);
+    this.refreshTimer = setTimeout(() => {
+      if (!this.destroyed && this.isVisible()) this.onRefresh();
+    }, 0);
   }
 
   scheduleInitialIndex() {
@@ -88,7 +94,7 @@ export class QuickInsertIndex {
         return;
       }
       this.failed = false;
-      if (this.isVisible()) this.onRefresh();
+      this.scheduleRefresh();
     }, 0);
   }
 
@@ -127,6 +133,7 @@ export class QuickInsertIndex {
     clearTimeout(this.initialIndexTimer);
     clearTimeout(this.indexTimeout);
     clearTimeout(this.catalogTimer);
+    clearTimeout(this.refreshTimer);
     for (const [name, id] of this.hooks) Hooks.off(name, id);
     this.hooks = [];
   }

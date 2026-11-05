@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.12**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.13**。基于 Quick Insert 与 Truesight 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -97,3 +97,7 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 书目数据、引用／版次判定和 UI 分层；复用系统／模块声明并支持可选导入器字典与声明式扩展。页码只保留在提示，模块／实现版本不再进入书目；冲突和未知单列，不改原始文档。筛选仅接受当前存储格式。
 
 完整扩展契约与元数据判定边界见模块说明。只读重放已有审计：`node --import ./tools/register-dependencies.mjs tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classification-v0.2.0`。
+
+### 刷新生命周期浏览器回归
+
+访问 `tests/fixture.html?grouping`（中文加 `&lang=cn`）并点击 **Run browser checks**，额外执行 `tests/truesight-refresh-browser-checks.js`。覆盖状态查询零扫描、缓存复用、无关更新保留预览、普通改名与焦点保留、风险改名及身份更新作废预览、权限撤回和旧预览拒绝。此测试只运行在合成夹具，结束后恢复修改过的名称、学派及可见性并关闭审核窗口。

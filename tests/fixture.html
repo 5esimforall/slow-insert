@@ -236,6 +236,10 @@
       const { runBrowserChecks, runLayoutBrowserChecks } = await import("./browser-checks.js");
       const { runFilterBrowserChecks } = await import("./filter-browser-checks.js");
       const checks = [...await runBrowserChecks(), ...await runFilterBrowserChecks(), ...await runLayoutBrowserChecks()];
+      if (new URL(location.href).searchParams.has('grouping')) {
+        const {runTruesightRefreshChecks} = await import('./truesight-refresh-browser-checks.js');
+        checks.push(...await runTruesightRefreshChecks());
+      }
       report.textContent = `PASS: ${checks.length} checks\n${checks.join("\n")}`;
     } catch (error) { report.textContent = `FAIL: ${error.stack}`; }
     finally { event.target.disabled = false; }

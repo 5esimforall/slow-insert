@@ -98,3 +98,11 @@ test('search updates ignore HP and spent resources but retain filter metadata ch
  for (const delta of [{name:'New'},{system:{resources:{legact:{max:3}}}},{'system.school':'abj'},{'system.-=source':null},{system:null},{ownership:{default:0}}]) assert.equal(affectsSearch(delta),true);
  assert.equal(affectsSearch(undefined),true);
 });
+
+test('catalog and document refresh requests coalesce without cancelling index completion recovery', async t => {
+ const {index,counts}=fixture(t);index.scheduleRefresh();index.scheduleRefresh();
+ t.mock.timers.tick(1);assert.equal(counts().refreshes,1);
+ index.onIndexCompleted();index.scheduleRefresh();
+ t.mock.timers.tick(1);await Promise.resolve();assert.equal(counts().starts,1);
+ index.destroy();
+});

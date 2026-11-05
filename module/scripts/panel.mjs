@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.12";
+export const MODULE_VERSION = "0.6.13";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -188,7 +188,9 @@ export class SlowInsertPanel {
           this.grouping = {...this.grouping, pins}; void this.save("grouping", this.grouping);
         }
       }
-      this.session.invalidate(); this.refresh();
+      this.session.invalidate();
+      if (change.changes?.includes("access")) this.refresh();
+      else this.index.scheduleRefresh();
     })]);
     this.hooks.push(["slowInsertPreferencesChanged", Hooks.on("slowInsertPreferencesChanged", value => {
       this.grouping = normalizeGrouping(value); this.session.invalidate(); this.refresh();
