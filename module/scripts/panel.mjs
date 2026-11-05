@@ -15,7 +15,7 @@ import { normalizeGrouping, reconcilePins } from "./grouping.mjs";
 import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.11";
+export const MODULE_VERSION = "0.6.12";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -121,7 +121,7 @@ export class SlowInsertPanel {
     this.filterControls.drawer.id = `${this.idPrefix}-filters`;
     this.filterControls.toggle.setAttribute("aria-controls", this.filterControls.drawer.id);
 
-    this.sortControls = new SortControls({ state: this.sorting, scheme: this.filters.scheme, id: this.idPrefix,
+    this.sortControls = new SortControls({ state: this.sorting, scheme: this.filters.scheme,
       onChange: state => {
         this.sorting = state;
         clearTimeout(this.searchTimer);
@@ -211,9 +211,7 @@ export class SlowInsertPanel {
     left.append(filterHeader, filters.active, filters.drawer);
     const right = element("div", "si-browse-right");
     const sortSection = element("section", "si-browse-sort");
-    sortSection.append(element("h3", "", t("Browse.Sorting")), sorting.root, sorting.drawer);
-    sorting.more.hidden = true;
-    sorting.setExpanded(true);
+    sortSection.append(element("h3", "", t("Sort.Advanced")), sorting.root);
     const display = element("section", "si-browse-display");
     display.append(element("h3", "", t("Browse.Display")), filters.displayOptions);
     right.append(sortSection, display, createGroupingLink());

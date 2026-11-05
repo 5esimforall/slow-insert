@@ -1,83 +1,188 @@
 import { t } from './i18n.mjs';
 import { SORT_FIELDS, effectiveSort, normalizeSorting, sortFieldLabel } from './sorting.mjs';
-function el(tag,cls,text) { const e=document.createElement(tag);e.className=cls;if(text)e.textContent=text;return e; }
-function btn(label,text) { const e=el('button','si-sort-button',text);e.type='button';e.title=label;e.setAttribute('aria-label',label);return e; }
+
+const SORT_DRAG_TYPE = 'application/x-slow-insert-sort-rule';
+function el(tag, cls, text) {
+  const element = document.createElement(tag);
+  element.className = cls;
+  if (text) element.textContent = text;
+  return element;
+}
+function btn(label, text) {
+  const button = el('button', 'si-sort-button', text);
+  button.type = 'button';
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  return button;
+}
+
 export class SortControls {
-  constructor({state,scheme,onChange,id}) {
-    this.state=normalizeSorting(state);this.scheme=scheme;this.query='';this.onChange=onChange;
-    this.root=el('div','si-sort-controls');
-    this.select=el('select','si-sort-select');this.select.setAttribute('aria-label',t('Sort.Primary'));
-    this.direction=btn(t('Sort.Direction'),'↑');
-    this.more=btn(t('Sort.Advanced'),'⋯');this.more.setAttribute('aria-expanded','false');
-    this.drawer=el('div','si-sort-drawer');this.drawer.id=`${id}-sort`;this.drawer.hidden=true;
-    this.drawer.setAttribute('role','region');this.drawer.setAttribute('aria-label',t('Sort.Advanced'));
-    this.more.setAttribute('aria-controls',this.drawer.id);
-    this.root.append(this.select,this.direction,this.more);
-    this.select.addEventListener('change',()=> {
-      const p=this.profile;
-      if(this.select.value==='auto')p.mode='auto';
-      else {p.mode='manual';p.keys=[{field:this.select.value,direction:'asc'},...p.keys.slice(1).filter(k=>k.field!==this.select.value)];}
-      this.commit();
-    });
-    this.direction.addEventListener('click',()=> {
-      const keys=effectiveSort(this.profile,this.scheme,this.query).map(k=>({...k}));
-      this.profile.mode='manual';keys[0].direction=keys[0].direction==='asc'?'desc':'asc';this.profile.keys=keys;this.commit();
-    });
-    this.more.addEventListener('click',()=>this.setExpanded(this.drawer.hidden));
-    this.update(scheme,'');
+  constructor({ state, scheme, onChange }) {
+    this.state = normalizeSorting(state);
+    this.scheme = scheme;
+    this.query = '';
+    this.onChange = onChange;
+    this.root = el('div', 'si-sort-editor');
+    this.draggedRuleIndex = null;
+    this.update(scheme, '');
   }
-  setExpanded(value){this.drawer.hidden=!value;this.more.setAttribute('aria-expanded',String(value));this.onExpanded?.(value);}
-  get profile(){return this.state.profiles[this.scheme];}
-  commit(){this.state=normalizeSorting(this.state);this.update(this.scheme,this.query);this.onChange(this.state);}
-  option(select,value,label){const o=el('option','',label);o.value=value;select.append(o);}
-  update(scheme,query){
-    this.scheme=scheme;this.query=query;
-    const p=this.profile,keys=effectiveSort(p,scheme,query),primary=keys[0];
-    this.select.replaceChildren();
-    this.option(this.select,'auto',t('Sort.AutoEffective',{field:sortFieldLabel(primary.field)}));
-    this.option(this.select,'relevance',sortFieldLabel('relevance'));
-    for(const f of SORT_FIELDS[scheme])this.option(this.select,f,sortFieldLabel(f));
-    this.select.value=p.mode==='auto'?'auto':primary.field;
-    if(p.mode==='manual' && keys.length>1)this.select.selectedOptions[0].textContent+=` +${keys.length-1}`;
-    // Auto label must describe auto's actual rule, not the current manual field.
-    this.select.options[0].textContent=t('Sort.AutoEffective',{field:sortFieldLabel(effectiveSort({mode:'auto'},scheme,query)[0].field)});
-    this.direction.disabled=primary.field==='relevance';
-    this.direction.textContent=primary.direction==='desc'?'↓':'↑';
-    const directionLabel=t(primary.direction==='desc'?'Sort.Desc':'Sort.Asc');
-    this.direction.title=directionLabel;this.direction.setAttribute('aria-label',directionLabel);
-    this.select.title=keys.map(k=>`${sortFieldLabel(k.field)} ${k.direction==='asc'?'↑':'↓'}`).join(' → ');
-    this.more.classList.toggle('si-sort-custom',p.mode==='manual'&&p.keys.length>1);
+
+  get profile() { return this.state.profiles[this.scheme]; }
+  get keys() { return effectiveSort(this.profile, this.scheme, this.query); }
+
+  commit() {
+    this.state = normalizeSorting(this.state);
+    this.update(this.scheme, this.query);
+    this.onChange(this.state);
+  }
+
+  editRules(edit) {
+    const keys = this.keys.map(key => ({ ...key }));
+    edit(keys);
+    this.profile.mode = 'manual';
+    this.profile.keys = keys;
+    this.commit();
+  }
+
+  option(select, value, label) {
+    const option = el('option', '', label);
+    option.value = value;
+    select.append(option);
+  }
+
+  update(scheme, query) {
+    // A query/profile refresh invalidates an in-flight drag before rebuilding rows.
+    this.clearDrag();
+    this.scheme = scheme;
+    this.query = query;
     this.renderEditor();
   }
-  renderEditor(){
-    const focused=this.drawer.contains(document.activeElement)?document.activeElement.getAttribute("aria-label"):null;
-    const p=this.profile,keys=effectiveSort(p,this.scheme,this.query);
-    this.drawer.replaceChildren();
-    this.drawer.append(el('div','si-sort-title',t('Sort.Advanced')));
-    keys.forEach((key,i)=>{
-      const row=el('div','si-sort-rule');
-      row.append(el('span','si-sort-number',String(i+1)));
-      const select=el('select','si-sort-select');select.setAttribute('aria-label',t('Sort.Rule',{n:i+1}));
-      for(const f of ['relevance',...SORT_FIELDS[this.scheme]])if(f===key.field||!keys.some(k=>k.field===f))this.option(select,f,sortFieldLabel(f));
-      select.value=key.field;
-      const edit=fn=>{p.mode='manual';p.keys=keys.map(k=>({...k}));fn(p.keys);this.commit();};
-      select.addEventListener('change',()=>edit(k=>{k[i]={field:select.value,direction:'asc'};}));
-      const direction=btn(t('Sort.RuleDirection',{n:i+1}),key.direction==='asc'?'↑':'↓');direction.disabled=key.field==='relevance';
-      direction.addEventListener('click',()=>edit(k=>{k[i].direction=k[i].direction==='asc'?'desc':'asc';}));
-      const up=btn(t('Sort.MoveUp',{n:i+1}),'⌃');up.disabled=i===0;
-      up.addEventListener('click',()=>{edit(k=>{[k[i-1],k[i]]=[k[i],k[i-1]];});this.drawer.querySelectorAll('select')[i-1]?.focus();});
-      const remove=btn(t('Sort.Remove',{n:i+1}),'×');remove.disabled=keys.length===1;
-      remove.addEventListener('click',()=>{edit(k=>k.splice(i,1));this.drawer.querySelector('select')?.focus();});
-      row.append(select,direction,up,remove);this.drawer.append(row);
+
+  moveRule(from, to) {
+    const count = this.keys.length;
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0
+      || from >= count || to >= count || from === to) return;
+    this.editRules(keys => keys.splice(to, 0, keys.splice(from, 1)[0]));
+    this.root.querySelectorAll('.si-sort-number')[to]?.focus();
+  }
+
+  clearDropTarget() {
+    for (const row of this.root.querySelectorAll('.si-sort-rule')) row.removeAttribute('data-drop-position');
+  }
+
+  clearDrag() {
+    this.draggedRuleIndex = null;
+    this.clearDropTarget();
+    for (const row of this.root.querySelectorAll('.si-sort-rule')) row.removeAttribute('data-dragging');
+  }
+
+  acceptsDrag(event) {
+    // External document drops and drags from other panels must not reorder rules.
+    return this.draggedRuleIndex !== null && event.dataTransfer?.types.includes(SORT_DRAG_TYPE);
+  }
+
+  bindReordering(row, handle, index) {
+    handle.draggable = this.keys.length > 1;
+    handle.disabled = !handle.draggable;
+    handle.addEventListener('keydown', event => {
+      const target = { ArrowUp: index - 1, ArrowDown: index + 1, Home: 0, End: this.keys.length - 1 }[event.key];
+      if (target === undefined) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.moveRule(index, target);
     });
-    const actions=el('div','si-sort-actions');
-    const add=btn(t('Sort.Add'),t('Sort.Add'));add.disabled=keys.length>=3;
-    add.addEventListener('click',()=> {p.mode='manual';p.keys=[...keys,{field:SORT_FIELDS[this.scheme].find(f=>!keys.some(k=>k.field===f)),direction:'asc'}];this.commit();this.drawer.querySelectorAll('.si-sort-rule select')[p.keys.length-1]?.focus();});
-    const reset=btn(t('Sort.Reset'),t('Sort.Reset'));reset.addEventListener('click',()=>{p.mode='auto';this.commit();this.select.focus();});
-    actions.append(add,reset);this.drawer.append(actions);
-    const label=el('label','si-sort-language',t('Sort.NameOrder'));
-    const order=el('select','si-sort-select');this.option(order,'local',t('Sort.Local'));this.option(order,'english',t('Sort.English'));order.value=p.nameOrder;
-    order.addEventListener('change',()=>{p.nameOrder=order.value;this.commit();});label.append(order);order.setAttribute('aria-label',t('Sort.NameOrder'));this.drawer.append(label,el('p','si-filter-help',t('Sort.Help')));
-    if(focused)for(const control of this.drawer.querySelectorAll('[aria-label]'))if(control.getAttribute('aria-label')===focused){control.focus();break;}
+    handle.addEventListener('dragstart', event => {
+      if (!handle.draggable || !event.dataTransfer) { event.preventDefault(); return; }
+      this.clearDrag();
+      this.draggedRuleIndex = index;
+      event.dataTransfer.setData(SORT_DRAG_TYPE, String(index));
+      event.dataTransfer.effectAllowed = 'move';
+      row.setAttribute('data-dragging', 'true');
+      event.stopPropagation();
+    });
+    handle.addEventListener('dragend', () => this.clearDrag());
+    row.addEventListener('dragover', event => {
+      if (!this.acceptsDrag(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = 'move';
+      this.clearDropTarget();
+      if (index !== this.draggedRuleIndex) {
+        row.setAttribute('data-drop-position', index < this.draggedRuleIndex ? 'before' : 'after');
+      }
+    });
+    row.addEventListener('dragleave', event => {
+      if (!row.contains(event.relatedTarget)) row.removeAttribute('data-drop-position');
+    });
+    row.addEventListener('drop', event => {
+      if (!this.acceptsDrag(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const from = this.draggedRuleIndex;
+      this.clearDrag();
+      this.moveRule(from, index);
+    });
+  }
+
+  renderEditor() {
+    const focused = this.root.contains(document.activeElement) ? document.activeElement.getAttribute('aria-label') : null;
+    const profile = this.profile, keys = this.keys;
+    this.root.replaceChildren();
+    keys.forEach((key, index) => {
+      const row = el('div', 'si-sort-rule');
+      const handle = btn(t('Sort.Reorder', { n: index + 1 }), String(index + 1));
+      handle.classList.add('si-sort-number');
+      handle.setAttribute('aria-keyshortcuts', 'ArrowUp ArrowDown Home End');
+      this.bindReordering(row, handle, index);
+      const select = el('select', 'si-sort-select');
+      select.setAttribute('aria-label', t('Sort.Rule', { n: index + 1 }));
+      for (const field of ['relevance', ...SORT_FIELDS[this.scheme]]) {
+        if (field === key.field || !keys.some(other => other.field === field)) this.option(select, field, sortFieldLabel(field));
+      }
+      select.value = key.field;
+      select.addEventListener('change', () => this.editRules(rules => { rules[index] = { field: select.value, direction: 'asc' }; }));
+      const direction = btn(t('Sort.RuleDirection', { n: index + 1 }), key.direction === 'asc' ? '↑' : '↓');
+      direction.disabled = key.field === 'relevance';
+      direction.addEventListener('click', () => this.editRules(rules => {
+        rules[index].direction = rules[index].direction === 'asc' ? 'desc' : 'asc';
+      }));
+      const remove = btn(t('Sort.Remove', { n: index + 1 }), '×');
+      remove.disabled = keys.length === 1;
+      remove.addEventListener('click', () => {
+        this.editRules(rules => rules.splice(index, 1));
+        this.root.querySelector('.si-sort-rule select')?.focus();
+      });
+      row.append(handle, select, direction, remove);
+      this.root.append(row);
+    });
+    const actions = el('div', 'si-sort-actions');
+    const add = btn(t('Sort.Add'), t('Sort.Add'));
+    add.disabled = keys.length >= 3;
+    add.addEventListener('click', () => {
+      this.editRules(rules => rules.push({ field: SORT_FIELDS[this.scheme].find(field => !rules.some(key => key.field === field)), direction: 'asc' }));
+      this.root.querySelectorAll('.si-sort-rule select')[this.keys.length - 1]?.focus();
+    });
+    const reset = btn(t('Sort.Reset'), t('Sort.Reset'));
+    reset.addEventListener('click', () => {
+      profile.mode = 'auto';
+      this.commit();
+      this.root.querySelector('.si-sort-rule select')?.focus();
+    });
+    actions.append(add, reset);
+    this.root.append(actions);
+    const label = el('label', 'si-sort-language', t('Sort.NameOrder'));
+    const order = el('select', 'si-sort-select');
+    this.option(order, 'local', t('Sort.Local'));
+    this.option(order, 'english', t('Sort.English'));
+    order.value = profile.nameOrder;
+    order.addEventListener('change', () => { profile.nameOrder = order.value; this.commit(); });
+    order.setAttribute('aria-label', t('Sort.NameOrder'));
+    label.append(order);
+    this.root.append(label);
+    if (focused) {
+      for (const control of this.root.querySelectorAll('[aria-label]')) {
+        if (control.getAttribute('aria-label') === focused) { control.focus(); break; }
+      }
+    }
   }
 }

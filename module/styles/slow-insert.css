@@ -308,26 +308,26 @@
 
 .slow-insert .si-display-options { border-top: 1px solid var(--si-line); padding-top: 2px; }
 
-/* Sorting and filtering share a compact, always-visible browse toolbar. */
+/* Multi-rule editor: the numbered handle owns reordering. */
 .slow-insert .si-filter-toolbar { gap: 5px; }
 .slow-insert .si-filter-toolbar .si-filter-toggle { flex: 0 0 auto; padding: 4px 6px; white-space: nowrap; }
-.slow-insert .si-sort-controls { display: flex; flex: 1; min-width: 0; gap: 4px; align-items: center; }
 .slow-insert .si-sort-select { width: 100%; min-width: 0; height: 28px; min-height: 0; margin: 0; padding: 2px 5px; border: 1px solid var(--si-line); border-radius: 4px; background: var(--si-field); color: var(--si-text); font: 11px/1.4 var(--font-body, sans-serif); color-scheme: inherit; box-shadow: none; }
 .slow-insert .si-sort-button, .slow-insert .si-filter-reset { flex: none; width: auto; height: 28px; min-height: 0; margin: 0; padding: 3px 7px; border: 1px solid var(--si-line); border-radius: 4px; background: transparent; color: var(--si-muted); font: 11px/1.4 var(--font-body, sans-serif); box-shadow: none; cursor: pointer; }
 .slow-insert .si-sort-button:disabled { opacity: .35; cursor: default; }
-.slow-insert .si-sort-button:hover:not(:disabled), .slow-insert .si-sort-custom { color: var(--si-accent); border-color: var(--si-accent); }
+.slow-insert .si-sort-button:hover:not(:disabled) { color: var(--si-accent); border-color: var(--si-accent); }
 .slow-insert .si-sort-select:focus-visible, .slow-insert .si-sort-button:focus-visible { outline: 1px solid var(--si-accent); outline-offset: 1px; }
-.slow-insert .si-sort-drawer { flex: none; margin-top: 8px; padding: 8px 0; border-block: 1px solid var(--si-line); }
-.slow-insert .si-sort-drawer[hidden] { display: none; }
-.slow-insert .si-sort-title { color: var(--si-text); font-size: 11px; margin-bottom: 8px; }
-.slow-insert .si-sort-rule { display: flex; gap: 4px; align-items: center; margin-bottom: 5px; }
-.slow-insert .si-sort-number { width: 12px; flex: none; font-size: 10px; color: var(--si-muted); }
+.slow-insert .si-sort-rule { position: relative; display: flex; gap: 4px; align-items: center; margin-bottom: 5px; }
+.slow-insert .si-sort-editor { min-width: 0; }
+.slow-insert .si-sort-number { width: 26px; padding: 0; border-color: transparent; font-variant-numeric: tabular-nums; cursor: grab; user-select: none; }
+.slow-insert .si-sort-number:active { cursor: grabbing; }
+.slow-insert .si-sort-rule[data-dragging="true"] { opacity: .5; }
+.slow-insert .si-sort-rule[data-drop-position]::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; background: var(--si-accent); pointer-events: none; }
+.slow-insert .si-sort-rule[data-drop-position="before"]::after { top: -4px; }
+.slow-insert .si-sort-rule[data-drop-position="after"]::after { bottom: -4px; }
 .slow-insert .si-sort-actions { display: flex; gap: 5px; margin: 8px 0; flex-wrap: wrap; }
 .slow-insert .si-sort-language { display: flex; align-items: center; gap: 8px; color: var(--si-muted); font-size: 11px; margin-bottom: 8px; }
 .slow-insert .si-sort-language select { flex: 1; width: auto; }
 .slow-insert .si-filter-reset-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
-.slow-insert .si-sort-drawer { flex: 0 1 auto; min-height: 0; max-height: 38vh; overflow-y: auto; scrollbar-width: thin; }
-.slow-insert .si-filter-toolbar .si-sort-custom { color: var(--si-accent); border-color: var(--si-accent); }
 
 .slow-insert .si-header > .si-scheme {
   flex: 0 1 auto; width: auto; max-width: 48%; height: 26px;
@@ -359,11 +359,7 @@
 .si-browse-content .si-filter-group:first-child { border-top: 0; }
 .si-browse-content .si-filter-group summary { font-size: 12px; padding: 12px 0; }
 .si-browse-content .si-filter-choice { font-size: 12px; padding: 4px 7px; }
-.si-browse-content .si-sort-controls { margin-bottom: 14px; }
-.si-browse-content .si-sort-controls button[hidden] { display: none; }
 .si-browse-content .si-sort-select { height: 32px; font-size: 12px; }
-.si-browse-content .si-sort-drawer { max-height: none; overflow: visible; padding: 0; margin: 0; border: 0; }
-.si-browse-content .si-sort-title { margin-bottom: 10px; }
 .si-browse-content .si-sort-rule { margin-bottom: 8px; gap: 5px; }
 .si-browse-content .si-sort-button { height: 30px; }
 .si-browse-content .si-sort-actions { margin: 12px 0 16px; }
