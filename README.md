@@ -37,7 +37,7 @@ npm run preview
 
 打开 [英文预览](http://127.0.0.1:4178/tests/fixture.html) 或 [中文预览](http://127.0.0.1:4178/tests/fixture.html?lang=cn)。夹具执行实际 `init → setup → ready` 入口，由生产 `registerSidebar()` 注册侧栏，再使用 `tests/sidebar-fixture.mjs` 提供最小 Foundry v13 宿主契约。宿主模拟标签切换、展开／收起、重渲染和原生弹出窗口，不直接实例化搜索面板。
 
-面板必须接收宿主；旧浮层的入口、定位、宽度设置和控件已移除。旧客户端存储中遗留的 `width` 值不再读取，无需迁移或清除其他偏好。
+面板必须接收宿主。
 
 从新加载的夹具点击 **Run browser checks** 执行 `tests/browser-checks.js` 与 `tests/filter-browser-checks.js`，页面显示逐项通过结果或失败原因。用例使用合成 DOM 事件验证应用接线；真实点击、键盘焦点和窗口尺寸另用 MCP 验证。夹具不是真实 Foundry 世界，不能替代实机观察；结束后重载夹具以恢复测试查询和筛选。
 
@@ -57,7 +57,7 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 
 当前克隆命令使用 macOS `cp -cR`。离线审计不执行运行时系统迁移、Babele 优先级或模组钩子；结果不能直接当作实时索引。相同名称、identifier、来源指针乃至无上下文的内容指纹，都不能单独证明可归并。
 
-分析输出包括严格负载候选、保守包对、法术家族候选、来源后缀候选、年代证据冲突与法术字段差异的 JSON/CSV。这些输出只供离线研究，不参与运行时归组，也不会生成可发布的逐条归组名单。v0.6.5 已删除旧静态注册表、审批文件与生成器；当前归组行为见模块说明。
+分析输出包括严格负载候选、保守包对、法术家族候选、来源后缀候选、年代证据冲突与法术字段差异的 JSON/CSV。这些输出只供离线研究，不参与运行时归组，也不会生成可发布的逐条归组名单。当前归组行为见[模块说明](module/README.md)。
 
 ## 部署与保存边界
 
@@ -67,7 +67,6 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 - 安装时使用发行 ZIP 中的 `slow-insert` 文件夹；开发源码文件夹名 `module` 不能直接作为 Foundry 模块安装目录名。
 - `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。
 - 本仓库不包含 FVTT 总目录中的其他模块、配套包、世界数据或旧项目。
-- 既有 ZIP、截图、日志及分类数据溯源记录原样迁移；其中的旧路径和日期是历史记录，不是当前执行路径。
 
 ## 面板内部职责
 
@@ -92,9 +91,9 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 
 离线来源审计需要加载公开依赖：`node --import ./tools/register-dependencies.mjs tools/audit-sources.mjs ...`，其他导入运行时来源解析的工具同理。单元测试通过 `npm test` 自动配置。
 
-## v0.2.0 规范来源书目
+## 来源书目与审计重放
 
-书目数据、引用／版次判定和 UI 分层；复用系统／模块声明并支持可选导入器字典与声明式扩展。页码只保留在提示，模块／实现版本不再进入书目；冲突和未知单列，不改原始文档。筛选仅接受当前存储格式。
+来源解析区分书目数据、引用／版次判定和 UI 展示，复用系统／模块声明并支持可选导入器字典与声明式扩展。页码只保留在提示，模块／实现版本不作为书目；冲突和未知单列，不改原始文档。筛选仅接受当前存储格式。
 
 完整扩展契约与元数据判定边界见模块说明。只读重放已有审计：`node --import ./tools/register-dependencies.mjs tools/audit-sources.mjs output/dedup-audit-2026-11-01 output/source-classification-v0.2.0`。
 
