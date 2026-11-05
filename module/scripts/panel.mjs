@@ -1,19 +1,20 @@
+import { QuickInsertIndex } from "./quick-insert-index.mjs";
+import { BrowseSession } from "./browse-session.mjs";
+import { ResultsView } from "./results-view.mjs";
 import { GroupingControls } from "./grouping-controls.mjs";
 import { groupingSettingKey, normalizeGroupingState } from "./grouping-state.mjs";
 import { createBrowseWindow, browseWindowPosition } from "./browse-window.mjs";
-import { normalizeSorting, sortGroups, effectiveSort, sortValueLabel } from "./sorting.mjs";
+import { normalizeSorting, effectiveSort } from "./sorting.mjs";
 import { SortControls } from "./sort-controls.mjs";
 import { t } from "./i18n.mjs";
-import { getDockLayout, resolveSource, documentDragData } from "./source.mjs";
-import { SCHEMES, crLabel, itemTypeLabel, activeFilters, buildFilterOptions, filterItemData, matchesFilters, normalizeFilters, setScheme } from "./filters.mjs";
+import { getDockLayout, documentDragData } from "./source.mjs";
+import { SCHEMES, activeFilters, normalizeFilters, setScheme } from "./filters.mjs";
 import { FilterControls, createFilterSwitch } from "./filter-controls.mjs";
-import { buildGroupingCatalog, groupSearchResults, normalizeGrouping } from "./grouping.mjs";
-import { hidesRevisedContent, rulesPredicate, RULES_CHANGED } from "./rules-visibility.mjs";
-import { prepareSourceEnvironment } from "./source-resolution.mjs";
+import { normalizeGrouping } from "./grouping.mjs";
+import { hidesRevisedContent, RULES_CHANGED } from "./rules-visibility.mjs";
 
 export const MODULE_ID = "slow-insert";
-export const MODULE_VERSION = "0.6.5";
-const LIMIT = 100;
+export const MODULE_VERSION = "0.6.6";
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -36,8 +37,6 @@ function button(label, icon) {
 export class SlowInsertPanel {
   constructor() {
     this.visible = false;
-    this.results = [];
-    this.selected = -1;
     this.width = game.settings.get(MODULE_ID, "width");
     this.events = new AbortController();
     this.hooks = [];
@@ -46,16 +45,23 @@ export class SlowInsertPanel {
     this.groupingState = normalizeGroupingState(game.settings.get(MODULE_ID, groupingSettingKey(game.world)), game.settings.get(MODULE_ID, "grouping"));
     this.grouping = this.groupingState.preferences;
     this.browsePosition = game.settings.get(MODULE_ID, "browsePosition");
-    this.expandedGroups = new Set();
-    this.rowElements = [];
-    this.publicationProviders = new Map();
     this.dnd5e = game.system.id === "dnd5e";
     if (!this.dnd5e) this.filters = setScheme(this.filters, "items");
+    this.index = new QuickInsertIndex({
+      isVisible: () => this.visible,
+      onInvalidate: () => this.session.invalidate(),
+      onRefresh: () => this.refresh(),
+      onStateChange: () => { this.reindexButton.disabled = this.index.indexing; },
+      onFailure: () => { this.status.textContent = t("Status.IndexFailed"); }
+    });
+    this.session = new BrowseSession(this.index, { onCatalog: catalog => {
+      this.filterControls.setOptions(catalog.options);
+      this.groupingControls?.update(catalog.grouping);
+    } });
   }
 
   allowed() {
-    return game.modules.get("quick-insert")?.active
-      && (game.user.isGM || !game.settings.get("quick-insert", "gmOnly"));
+    return this.index.allowed();
   }
 
   listen(target, event, callback, options = {}) {
@@ -137,7 +143,18 @@ export class SlowInsertPanel {
       this.refresh();
     });
 
-    this.groupingControls = new GroupingControls(this);
+    this.groupingControls = new GroupingControls({
+      getState: () => this.groupingState,
+      getPreferences: () => this.grouping,
+      getCatalog: () => this.session.catalog?.grouping,
+      isAllowed: () => this.allowed(),
+      canBuild: () => this.allowed() && this.index.hasIndex && !this.index.indexing,
+      isDestroyed: () => this.destroyed,
+      readIndex: () => ({ results: this.index.search("", () => true),
+        environment: this.index.sourceEnvironment(this.session.publicationProviders) }),
+      commit: state => this.commitGroupingState(state),
+      setPending: pending => this.browseButton.classList.toggle("si-grouping-pending", pending)
+    });
     this.buildBrowseContent();
 
     this.status = element("div", "si-status");
@@ -147,6 +164,7 @@ export class SlowInsertPanel {
     this.list.id = `${this.idPrefix}-results`;
     this.list.setAttribute("role", "listbox");
     this.list.setAttribute("aria-label", t("Panel.ResultsLabel"));
+    this.view = new ResultsView({ list: this.list, input: this.input, idPrefix: this.idPrefix });
 
     this.resizeHandle = element("div", "si-resize");
     this.resizeHandle.tabIndex = 0;
@@ -171,7 +189,7 @@ export class SlowInsertPanel {
 
     this.listen(this.launcher, "click", () => this.toggle());
     this.listen(this.closeButton, "click", () => this.close());
-    this.listen(this.reindexButton, "click", () => this.buildIndex());
+    this.listen(this.reindexButton, "click", () => this.index.buildIndex());
     this.listen(this.input, "input", event => {
       clearTimeout(this.searchTimer);
       if (!event.isComposing) this.searchTimer = setTimeout(() => this.refresh(), 100);
@@ -230,26 +248,15 @@ export class SlowInsertPanel {
     this.hooks.push(["slowInsertGroupingChanged", Hooks.on("slowInsertGroupingChanged", state => {
       this.groupingState = normalizeGroupingState(state);
       this.grouping = this.groupingState.preferences;
-      this.filterCatalog = null;
+      this.session.invalidate();
       this.refresh();
     })]);
     this.hooks.push([RULES_CHANGED, Hooks.on(RULES_CHANGED, () => {
-      this.filterCatalog = null;
-      this.page = null;
+      this.session.invalidate();
+      this.session.clear();
       this.refresh();
     })]);
-    this.hooks.push(["QuickInsert:IndexCompleted", Hooks.on("QuickInsert:IndexCompleted", () => this.onIndexCompleted())]);
-    // Sidebar rendering precedes ready. Importer integrations can replace the
-    // Quick Insert index during ready; never start indexing from that render.
-    this.hooks.push(["ready", Hooks.on("ready", () => this.scheduleInitialIndex())]);
-    for (const hook of ["createItem", "updateItem", "deleteItem", "createActor", "updateActor", "deleteActor"]) {
-      this.hooks.push([hook, Hooks.on(hook, () => {
-        this.filterCatalog = null;
-        // Let Quick Insert's document hooks finish replacing their index entries first.
-        clearTimeout(this.catalogTimer);
-        this.catalogTimer = setTimeout(() => { if (this.visible) this.refresh(); }, 0);
-      })]);
-    }
+    this.index.connect();
     this.position();
   }
 
@@ -329,9 +336,9 @@ export class SlowInsertPanel {
     if (!this.allowed()) return;
     this.visible = true;
     this.root.hidden = false;
-    if (!this.page || this.renderedQuery !== this.input.value.trim()) this.refresh();
-    else if (this.filterCatalog?.index !== globalThis.QuickInsert?.searchLib?.index) this.refresh(true);
-    this.scheduleInitialIndex();
+    if (!this.session.page || this.renderedQuery !== this.input.value.trim()) this.refresh();
+    else if (this.session.catalog?.index !== this.index.identity) this.refresh(true);
+    this.index.scheduleInitialIndex();
   }
 
   deactivateSidebar() {
@@ -358,7 +365,7 @@ export class SlowInsertPanel {
     this.input.focus();
     this.input.select();
     this.refresh();
-    this.scheduleInitialIndex();
+    this.index.scheduleInitialIndex();
   }
 
   close() {
@@ -395,183 +402,58 @@ export class SlowInsertPanel {
     await game.settings.set(MODULE_ID, groupingSettingKey(game.world), state);
     this.groupingState = normalizeGroupingState(state);
     this.grouping = this.groupingState.preferences;
-    this.filterCatalog = null;
+    this.session.invalidate();
     Hooks.callAll("slowInsertGroupingChanged", this.groupingState);
     this.refresh(true);
   }
 
-  scheduleInitialIndex() {
-    if (!game.ready || !this.visible || this.indexing || this.initialIndexTimer || this.indexFailed) return;
-    if (globalThis.QuickInsert?.hasIndex) return;
-    // Yield past ready callbacks, including their microtasks. When QI owns a
-    // delayed automatic build, let it run rather than creating a second build.
-    if (game.settings.get("quick-insert", "automaticIndexing") !== -1) return;
-    this.initialIndexTimer = setTimeout(() => {
-      this.initialIndexTimer = null;
-      if (!this.destroyed && this.visible && !globalThis.QuickInsert?.hasIndex) void this.buildIndex(false);
-    }, 0);
-  }
-
-  onIndexCompleted() {
-    if (this.destroyed) return;
-    clearTimeout(this.indexTimeout);
-    this.indexing = false;
-    this.reindexButton.disabled = false;
-    this.filterCatalog = null;
-    // Other completion listeners may still update the index. Refresh once,
-    // after the hook dispatch, not once here AND once after forceIndex returns.
-    clearTimeout(this.catalogTimer);
-    this.catalogTimer = setTimeout(() => {
-      if (this.destroyed) return;
-      if (!globalThis.QuickInsert?.hasIndex) {
-        if (!this.indexRecoveryUsed) {
-          this.indexRecoveryUsed = true;
-          console.warn("Slow Insert | Index reference lost during startup; retrying once");
-          void this.buildIndex(false);
-        } else this.failIndex(new Error("Index reference missing after recovery"));
-        return;
-      }
-      this.indexFailed = false;
-      if (this.visible) this.refresh();
-    }, 0);
-  }
-
-  failIndex(error) {
-    clearTimeout(this.indexTimeout);
-    this.indexing = false;
-    this.indexFailed = true;
-    this.reindexButton.disabled = false;
-    console.error("Slow Insert | Indexing failed", error);
-    this.status.textContent = t("Status.IndexFailed");
-  }
-
-  async buildIndex(manual = true) {
-    if (!game.ready || this.destroyed || this.indexing || !this.allowed()) return;
-    if (manual) this.indexRecoveryUsed = false;
-    this.indexFailed = false;
-    this.indexing = true;
-    this.reindexButton.disabled = true;
-    this.refresh();
-    // forceIndex returns immediately if QI is already building. Only its
-    // completion event is evidence of completion; a resolved promise isn't.
-    this.indexTimeout = setTimeout(() => {
-      if (!this.destroyed && this.indexing) this.failIndex(new Error("No index completion event within 60 seconds"));
-    }, 60000);
-    try {
-      await globalThis.QuickInsert.forceIndex();
-    } catch (error) {
-      if (!this.destroyed) this.failIndex(error);
-    }
-  }
-
   clearResults(message) {
-    this.page = null;
-    this.results = [];
-    this.rowElements = [];
-    this.selected = -1;
-    this.list.replaceChildren();
-    this.input.removeAttribute("aria-activedescendant");
-    this.input.setAttribute("aria-expanded", "false");
+    this.session.clear();
+    this.view.clear();
     this.status.textContent = message;
-  }
-
-  sourceEnvironment() {
-    return {
-      packs: game.packs, modules: game.modules, system: game.system, world: game.world,
-      localize: key => game.i18n.localize(key), lang: game.i18n.lang,
-      sourceBooks: CONFIG.DND5E?.sourceBooks,
-      publications: this.dnd5e ? undefined : [],
-      publicationProviders: this.publicationProviders,
-      // Optional importer metadata adapter. No required dependency, method calls,
-      // private index access or full-document reads.
-      externalPublications: {
-        titles: globalThis.Parser?.SOURCE_JSON_TO_FULL,
-        abbreviations: globalThis.Parser?.SOURCE_JSON_TO_ABV,
-        dates: globalThis.Parser?.SOURCE_JSON_TO_DATE
-      }
-    };
   }
 
   registerPublications(providerId, records) {
     if (typeof providerId !== "string" || !providerId.trim() || !Array.isArray(records)) throw new TypeError("Expected a provider id and publication records");
     const registered = structuredClone(records);
-    this.publicationProviders.set(providerId, registered);
-    this.filterCatalog = null;
+    this.session.publicationProviders.set(providerId, registered);
+    this.session.invalidate();
     if (this.visible) this.refresh();
-    return () => this.publicationProviders.get(providerId) === registered && this.unregisterPublications(providerId);
+    return () => this.session.publicationProviders.get(providerId) === registered && this.unregisterPublications(providerId);
   }
 
   unregisterPublications(providerId) {
-    const removed = this.publicationProviders.delete(providerId);
+    const removed = this.session.publicationProviders.delete(providerId);
     if (removed) {
-      this.filterCatalog = null;
+      this.session.invalidate();
       if (this.visible) this.refresh();
     }
     return removed;
   }
 
-  ensureFilterCatalog(qi, environment) {
-    const index = qi.searchLib?.index;
-    if (this.filterCatalog && this.filterCatalog.index === index) return this.filterCatalog.environment;
-    const started = performance.now();
-    environment = prepareSourceEnvironment(environment);
-    const acceptRules = rulesPredicate(hidesRevisedContent(game, MODULE_ID), environment);
-    const permittedResults = qi.search("", () => true, Number.MAX_SAFE_INTEGER);
-    const allResults = permittedResults.filter(acceptRules);
-    const { options, dataCache } = buildFilterOptions(allResults, environment, {
-      typeLabels: CONFIG.Item.typeLabels,
-      spellSchools: CONFIG.DND5E?.spellSchools,
-      activationTypes: CONFIG.DND5E?.abilityActivationTypes
-    });
-    this.filterCatalog = { index, acceptRules, dataCache, environment, grouping: buildGroupingCatalog(permittedResults, environment, this.groupingState?.active, this.grouping) };
-    this.filterControls.setOptions(options);
-    this.groupingControls?.update(this.filterCatalog.grouping);
-    console.debug(`Slow Insert | Catalog: ${allResults.length} entries in ${(performance.now() - started).toFixed(1)}ms`);
-    return environment;
-  }
-
   refresh(preservePage = false) {
-    const previousCount = preservePage ? this.page?.shown : 0;
     const scrollTop = preservePage ? this.list.scrollTop : 0;
     if (!this.visible && !this.browseWindow?.rendered) return;
     this.updateBrowseSummary();
-    this.groupingControls?.update(this.filterCatalog?.grouping);
+    this.groupingControls?.update(this.session.catalog?.grouping);
     this.groupToggle.checked = !this.grouping.enabled;
     this.groupToggleState.textContent = t(this.grouping.enabled ? "Grouping.CopiesGrouped" : "Grouping.CopiesShown");
     if (!this.allowed()) { this.clearResults(t("Status.Unavailable")); return; }
-    if (this.indexFailed) { this.clearResults(t("Status.IndexFailed")); return; }
-    if (this.indexing) { this.clearResults(t("Status.Indexing")); return; }
-    const qi = globalThis.QuickInsert;
-    if (!qi?.hasIndex) { this.clearResults(t("Status.Waiting")); return; }
+    if (this.index.failed) { this.clearResults(t("Status.IndexFailed")); return; }
+    if (this.index.indexing) { this.clearResults(t("Status.Indexing")); return; }
+    if (!this.index.hasIndex) { this.clearResults(t("Status.Waiting")); return; }
     const query = this.input.value.trim();
     this.renderedQuery = this.input.value;
     this.sortControls.update(this.filters.scheme, query);
     try {
-      const environment = this.ensureFilterCatalog(qi, this.sourceEnvironment());
-      const accept = result => {
-        if (!this.filterCatalog.acceptRules(result)) return false;
-        let data = this.filterCatalog.dataCache.get(result.item);
-        if (!data) {
-          data = filterItemData(result.item, environment);
-          this.filterCatalog.dataCache.set(result.item, data);
-        }
-        return matchesFilters(data, this.filters);
-      };
-      // Limit after grouping, never before: otherwise a group could hide matches
-      // past the first 100 raw rows or choose a representative outside filters.
-      const matches = qi.search(query, accept, Number.MAX_SAFE_INTEGER);
-      const { groups: unsortedGroups, rawCount } = groupSearchResults(matches, this.filterCatalog.grouping, {
-        preferences: this.grouping, accept, query, lang: environment.lang
-      });
-      const groups = sortGroups(unsortedGroups, { profile: this.sorting.profiles[this.filters.scheme],
-        scheme: this.filters.scheme, query, environment, dataFor: item => this.filterCatalog.dataCache.get(item) });
-      this.page = { groups, environment, rawCount, shown: Math.min(groups.length, previousCount || LIMIT),
-        query, scheme: this.filters.scheme };
-      this.renderGroups(groups.slice(0, this.page.shown), environment);
+      const page = this.session.search({ query, filters: this.filters, sorting: this.sorting,
+        grouping: this.grouping, snapshot: this.groupingState.active,
+        hideRevised: hidesRevisedContent(game, MODULE_ID), preservePage });
+      this.renderResults(page.groups.slice(0, page.shown), page.environment);
       this.updateResultCount();
       this.list.scrollTop = scrollTop;
-      this.input.setAttribute("aria-expanded", String(this.results.length > 0));
-      this.select(this.results.length ? 0 : -1, false);
+      this.input.setAttribute("aria-expanded", String(this.view.results.length > 0));
+      this.view.select(this.view.results.length ? 0 : -1, false);
     } catch (error) {
       console.error("Slow Insert | Search failed", error);
       this.clearResults(t("Status.SearchFailed"));
@@ -579,105 +461,35 @@ export class SlowInsertPanel {
   }
 
   updateResultCount() {
-    const page = this.page;
+    const page = this.session.page;
     this.status.textContent = page.groups.length ? t("Grouping.Status", {
       count: page.shown, total: page.groups.length, raw: page.rawCount, scheme: t(SCHEMES[page.scheme].label)
     }) : t("Status.NoResults");
   }
 
   loadMore() {
-    const page = this.page;
-    if (!this.visible || !page || page.shown >= page.groups.length
-      || this.input.value.trim() !== page.query || this.filters.scheme !== page.scheme) return;
-    const end = Math.min(page.shown + LIMIT, page.groups.length);
-    const next = page.groups.slice(page.shown, end);
-    page.shown = end;
-    this.renderGroups(next, page.environment, true);
+    const next = this.session.nextPage({ visible: this.visible, query: this.input.value, scheme: this.filters.scheme });
+    if (!next) return;
+    this.renderResults(next.groups, next.environment, true);
     this.updateResultCount();
   }
 
-  renderGroups(groups, environment, append = false) {
-    if (!append) {
-      this.results = [];
-      this.rowElements = [];
-      this.renderedGroups = new Map();
-      this.list.replaceChildren();
-    }
-    for (const group of groups) this.renderedGroups.set(group.key, group);
-    const fragment = document.createDocumentFragment();
-    for (const group of groups) {
-      const wrapper = element("div", "si-result-group");
-      wrapper.setAttribute("role", "group");
-      wrapper.setAttribute("aria-label", group.representative.result.item.name);
-      const heading = element("div", "si-group-heading");
-      heading.append(this.renderRow(group.representative, group, environment));
-      wrapper.append(heading);
-      if (group.members.length > 1) {
-        const expanded = this.expandedGroups.has(group.key);
-        const toggle = this.groupAction("expand", group, t(expanded ? "Grouping.Collapse" : "Grouping.Expand", { count: group.members.length }));
-        toggle.setAttribute("aria-label", toggle.textContent);
-        toggle.classList.add("si-group-toggle");
-        toggle.replaceChildren();
-        const count = element("span", "si-toggle-count", String(group.members.length));
-        const chevron = element("span", "si-toggle-chevron");
-        count.setAttribute("aria-hidden", "true");
-        chevron.setAttribute("aria-hidden", "true");
-        toggle.append(count, chevron);
-        toggle.setAttribute("aria-expanded", String(expanded));
-        toggle.title = t(group.kind === "exact" ? "Grouping.ExactHint" : "Grouping.FamilyHint");
-        const childrenId = `${this.idPrefix}-members-${this.results.length}`;
-        toggle.setAttribute("aria-controls", childrenId);
-        heading.append(toggle);
-        const children = element("div", "si-group-members");
-        children.id = childrenId;
-        children.hidden = !expanded;
-        if (expanded) for (const entry of group.members) {
-          const member = element("div", "si-member");
-          member.append(this.renderRow(entry, group, environment, true));
-          const pinned = this.grouping.pins[group.key] === entry.uuid;
-          const pin = this.groupAction(pinned ? "unpin" : "pin", group, t(pinned ? "Grouping.Unpin" : "Grouping.Pin"));
-          pin.dataset.uuid = entry.uuid;
-          pin.classList.add("si-pin");
-          pin.setAttribute("aria-label", pin.textContent);
-          pin.setAttribute("aria-pressed", String(pinned));
-          pin.title = pin.textContent;
-          pin.replaceChildren();
-          const star = element("i", `${pinned ? "fa-solid" : "fa-regular"} fa-star`);
-          star.setAttribute("aria-hidden", "true");
-          pin.append(star);
-          const exclude = this.groupAction("exclude", group, t("Grouping.Exclude"));
-          exclude.dataset.uuid = entry.uuid;
-          exclude.classList.add("si-exclude");
-          exclude.title = exclude.textContent;
-          exclude.setAttribute("aria-label", exclude.textContent);
-          const unlink = element("i", "fa-solid fa-link-slash");
-          unlink.setAttribute("aria-hidden", "true");
-          exclude.replaceChildren(unlink);
-          member.append(pin, exclude);
-          children.append(member);
-        }
-        wrapper.append(children);
-      }
-      fragment.append(wrapper);
-    }
-    this.list.append(fragment);
-  }
-
-  groupAction(action, group, label) {
-    const control = element("button", "si-group-button", label);
-    control.type = "button";
-    control.dataset.groupAction = action;
-    control.dataset.group = group.key;
-    return control;
+  renderResults(groups, environment, append = false) {
+    this.view.render(groups, {
+      environment, pins: this.grouping.pins,
+      dataFor: item => this.session.catalog.dataCache.get(item),
+      sortKeys: effectiveSort(this.sorting.profiles[this.filters.scheme], this.filters.scheme, this.input.value),
+      typeLabels: { Item: CONFIG.Item?.typeLabels, Actor: CONFIG.Actor?.typeLabels }
+    }, append);
   }
 
   onGroupAction(control) {
-    const group = this.renderedGroups?.get(control.dataset.group);
+    const group = this.view.renderedGroups?.get(control.dataset.group);
     if (!group) return;
     const action = control.dataset.groupAction;
     if (action === "expand") {
-      if (this.expandedGroups.has(group.key)) this.expandedGroups.delete(group.key);
-      else this.expandedGroups.add(group.key);
+      if (this.view.expandedGroups.has(group.key)) this.view.expandedGroups.delete(group.key);
+      else this.view.expandedGroups.add(group.key);
 
     } else if (action === "pin" && group.members.some(entry => entry.uuid === control.dataset.uuid)) {
       this.grouping = { ...this.grouping, pins: { ...this.grouping.pins, [group.key]: control.dataset.uuid } };
@@ -689,96 +501,17 @@ export class SlowInsertPanel {
     }
     if (action !== "expand") void this.save("grouping", this.grouping);
     this.refresh(true);
-    const index = this.results.findIndex(result => result.group?.key === group.key);
-    if (index >= 0) this.select(index, false);
+    const index = this.view.results.findIndex(result => result.group?.key === group.key);
+    if (index >= 0) this.view.select(index, false);
     this.input.focus();
-  }
-
-  renderRow(entry, group, environment, member = false) {
-    const { item } = entry.result;
-    const index = this.results.length;
-    this.results.push({ ...entry.result, group });
-    const source = resolveSource(item, environment);
-    const row = element("button", "si-result");
-    row.type = "button";
-    row.tabIndex = -1;
-    row.draggable = true;
-    row.dataset.index = String(index);
-    row.id = `${this.idPrefix || "slow-insert"}-result-${index}`;
-    row.setAttribute("role", "option");
-    row.setAttribute("aria-selected", "false");
-    row.title = `${item.name}\n${source.title}\n${item.uuid}`;
-    row.dataset.uuid = item.uuid;
-    const image = element("img", "si-image");
-    image.src = item.img || (item.documentType === "Actor" ? "icons/svg/mystery-man.svg" : "icons/svg/item-bag.svg");
-    image.alt = ""; image.loading = "lazy"; image.draggable = false;
-    image.addEventListener("error", () => { image.hidden = true; }, { once: true });
-    const label = element("span", "si-label");
-    const nameLine = element("span", "si-name-line");
-    if (entry.risk) {
-      const hint = t(`Grouping.Risk.${entry.risk}`);
-      const risk = element("span", "si-risk");
-      risk.setAttribute("role", "img");
-      risk.setAttribute("aria-label", hint);
-      risk.title = hint;
-      risk.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 19 18H1Z"/><path class="si-risk-mark" d="M10 7v5m0 2v1"/></svg>';
-      nameLine.append(risk);
-      row.title += `\n${hint}`;
-    }
-    nameLine.append(element("span", "si-name", item.name || t("Panel.Unnamed")));
-    label.append(nameLine);
-    const data = this.filterCatalog.dataCache.get(item);
-    const subtitle = data?.monster ? t("Panel.MonsterCR", { cr: data.cr === null ? t("Unknown") : crLabel(data.cr) })
-      : itemTypeLabel(item.subType, CONFIG[item.documentType]?.typeLabels, environment) || t("Panel.Item");
-    const details = [subtitle];
-    const sortKeys = effectiveSort(this.sorting.profiles[this.filters.scheme], this.filters.scheme, this.input.value);
-    for (const key of sortKeys) {
-      if (key.field === "cr" && data?.monster) continue;
-      const value = sortValueLabel(key.field, item, data, environment);
-      if (value && !details.includes(value)) details.push(value);
-    }
-    if (group.members.length > 1) {
-      details.push(group.rules);
-      if (!member && group.kind === "exact") details.push(t("Grouping.Exact"));
-      if (member) {
-        if (entry.uuid === group.representative.uuid) details.push(t("Grouping.Default"));
-        for (const tag of entry.tags) details.push(t(`Grouping.Tag.${tag}`));
-      }
-    }
-    const detailText = details.filter(Boolean).join(" · ");
-    const typeLabel = element("span", "si-type", detailText);
-    typeLabel.title = detailText;
-    label.append(typeLabel);
-    if (member) label.append(element("span", "si-pack", item.packageName || item.package || entry.uuid));
-    if (entry.warning) {
-      const warning = element("span", "si-warning", t(`Grouping.Review.${entry.warning}`));
-      warning.title = t("Grouping.ReviewHint");
-      label.append(warning);
-    }
-    const badge = element("span", `si-source si-source--${source.kind}${source.external ? " si-source--external" : ""}`, source.label);
-    badge.dataset.sourceStatus = source.status;
-    badge.title = group.members.length > 1 && !member ? t("Grouping.DefaultSource", { source: source.title }) : source.title;
-    row.append(image, label, badge);
-    this.rowElements.push(row);
-    return row;
-  }
-
-  select(index, scroll = true) {
-    this.rowElements[this.selected]?.setAttribute("aria-selected", "false");
-    this.selected = index;
-    const row = this.rowElements[index];
-    if (!row) { this.input.removeAttribute("aria-activedescendant"); return; }
-    row.setAttribute("aria-selected", "true");
-    this.input.setAttribute("aria-activedescendant", row.id);
-    if (scroll) row.scrollIntoView({ block: "nearest" });
   }
 
   onKeydown(event) {
     if (event.isComposing) return;
     if (event.target === this.input && ["ArrowRight", "ArrowLeft"].includes(event.key)
       && event.altKey && !event.ctrlKey && !event.metaKey) {
-      const group = this.results[this.selected]?.group;
-      if (group?.members.length > 1 && this.expandedGroups.has(group.key) !== (event.key === "ArrowRight")) {
+      const group = this.view.results[this.view.selected]?.group;
+      if (group?.members.length > 1 && this.view.expandedGroups.has(group.key) !== (event.key === "ArrowRight")) {
         event.preventDefault(); event.stopPropagation();
         this.onGroupAction({ dataset: { group: group.key, groupAction: "expand" } });
       }
@@ -792,17 +525,17 @@ export class SlowInsertPanel {
       if (this.renderedQuery !== this.input.value) {
         this.refresh();
       }
-      if (!this.results.length) return;
-      if (event.key === "Enter") void this.openItem(this.selected);
-      else this.select((this.selected + (event.key === "ArrowDown" ? 1 : -1) + this.results.length) % this.results.length);
+      if (!this.view.results.length) return;
+      if (event.key === "Enter") void this.openItem(this.view.selected);
+      else this.view.select((this.view.selected + (event.key === "ArrowDown" ? 1 : -1) + this.view.results.length) % this.view.results.length);
     }
   }
 
   async openItem(index) {
     if (!this.allowed()) return;
-    const item = this.results[index]?.item;
+    const item = this.view.results[index]?.item;
     if (!item) return;
-    this.select(index, false);
+    this.view.select(index, false);
     try {
       await item.show();
     } catch (error) {
@@ -813,7 +546,7 @@ export class SlowInsertPanel {
 
   onDragStart(event) {
     const row = event.target.closest(".si-result");
-    const item = row && this.results[Number(row.dataset.index)]?.item;
+    const item = row && this.view.results[Number(row.dataset.index)]?.item;
     if (!item || !this.allowed() || !event.dataTransfer) { event.preventDefault(); return; }
     // Standard Foundry document drag data; destinations enforce their own permissions.
     event.dataTransfer.setData("text/plain", JSON.stringify(documentDragData(item)));
@@ -824,10 +557,8 @@ export class SlowInsertPanel {
     this.destroyed = true;
     this.groupingControls?.destroy();
     void this.browseWindow?.close({ animate: false, restoreFocus: false });
-    clearTimeout(this.initialIndexTimer);
-    clearTimeout(this.indexTimeout);
+    this.index.destroy();
     clearTimeout(this.searchTimer);
-    clearTimeout(this.catalogTimer);
     cancelAnimationFrame(this.positionFrame);
     this.events.abort();
     this.resizeObserver?.disconnect();

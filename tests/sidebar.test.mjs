@@ -24,9 +24,9 @@ test('native activation preserves loaded results when query and index are unchan
   const previous=globalThis.QuickInsert;const index={};let refreshes=0;
   globalThis.QuickInsert={hasIndex:true,searchLib:{index}};
   try {
-    const panel={scheduleInitialIndex:()=>{},allowed:()=>true,root:{hidden:true},page:{shown:200},filterCatalog:{index},renderedQuery:'fire',input:{value:'fire'},refresh:()=>refreshes++};
+    const panel={index:{identity:index,scheduleInitialIndex:()=>{}},allowed:()=>true,root:{hidden:true},session:{page:{shown:200},catalog:{index}},renderedQuery:'fire',input:{value:'fire'},refresh:()=>refreshes++};
     SlowInsertPanel.prototype.activateSidebar.call(panel);
-    assert.equal(refreshes,0);assert.equal(panel.page.shown,200);assert.equal(panel.visible,true);
+    assert.equal(refreshes,0);assert.equal(panel.session.page.shown,200);assert.equal(panel.visible,true);
     panel.input.value='ice';SlowInsertPanel.prototype.activateSidebar.call(panel);assert.equal(refreshes,1);
   } finally {globalThis.QuickInsert=previous;}
 });

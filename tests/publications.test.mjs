@@ -199,12 +199,12 @@ test("registered aliases are searchable without leaking every alias into the vis
 
 test("provider replacement invalidates derived metadata and stale disposers cannot remove the new registration", async () => {
   const { SlowInsertPanel } = await import("../module/scripts/panel.mjs");
-  const panel = { publicationProviders: new Map(), visible: true, refresh() { this.refreshes = (this.refreshes || 0) + 1; },
+  const panel = { session: { publicationProviders: new Map(), invalidate() { this.catalog = null; } }, visible: true, refresh() { this.refreshes = (this.refreshes || 0) + 1; },
     unregisterPublications: SlowInsertPanel.prototype.unregisterPublications };
   const first = SlowInsertPanel.prototype.registerPublications.call(panel, "test", [{ id: "a" }]);
   const second = SlowInsertPanel.prototype.registerPublications.call(panel, "test", [{ id: "b" }]);
   assert.equal(first(), false);
-  assert.equal(panel.publicationProviders.get("test")[0].id, "b");
+  assert.equal(panel.session.publicationProviders.get("test")[0].id, "b");
   assert.equal(second(), true);
   assert.equal(panel.refreshes, 3);
 });

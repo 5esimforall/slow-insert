@@ -1,6 +1,6 @@
 # Slow Insert
 
-独立开发项目，当前模块版本 **0.6.5**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
+独立开发项目，当前模块版本 **0.6.6**。基于 Quick Insert 的常驻右侧检索面板，支持来源徽标、中英文本地化和 5e 速查筛选。
 
 项目根目录：`/Users/arctic/Arc/fvtt/projects/slow-insert`。
 
@@ -61,6 +61,21 @@ node tools/analyze-dedup-audit.mjs output/dedup-audit-2026-11-01
 - `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。本次整理没有更新该副本。
 - 本仓库不包含 FVTT 总目录中的其他模块、配套包、世界数据或旧项目。
 - 既有 ZIP、截图、日志及分类数据溯源记录原样迁移；其中的旧路径和日期是历史记录，不是当前执行路径。
+
+## 面板内部职责
+
+面板将检索、浏览计算和结果渲染分开，使索引更新与界面操作可以独立验证。所有文件仍随同一个 Foundry 模组发布：
+
+| 文件（位于 `module/scripts/`） | 职责与状态归属 |
+| --- | --- |
+| `panel.mjs` | 装配控件与宿主，协调刷新、客户端偏好、打开和拖放 |
+| `quick-insert-index.mjs` | 适配 Foundry／Quick Insert，管理索引钩子、启动、超时、恢复与清理 |
+| `browse-session.mjs` | 管理派生目录缓存和分页，执行筛选、别名补全、归组及整体排序 |
+| `results-view.mjs` | 渲染结果与成员，管理行映射、选中和展开状态；接收明确的渲染上下文 |
+
+索引完成以 Quick Insert 完成事件为准；文档更新在其索引钩子结束后合并刷新。查询先筛选成员，再选择组代表、整体排序，最后分批渲染。结果视图不重选代表，打开和拖放使用视图所记录的原条目。归组控件通过状态读取与提交回调连接面板，不直接访问面板内部字段或 Quick Insert。
+
+`tests/index-lifecycle.test.mjs`、`tests/browse-session.test.mjs` 和 `tests/results-view.test.mjs` 分别覆盖这些边界；分页与宿主行为仍由对应测试覆盖。界面验证继续使用上文浏览器夹具，并与实机观察分开记录。
 
 ## 通用归组开发
 
