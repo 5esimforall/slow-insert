@@ -167,9 +167,11 @@ test('bilingual names without original metadata require whole-segment identifier
 });
 
 test('other systems do not inherit dnd5e spell identity rules',()=>{
- const rows=[spell('a'),spell('b')];const snap=calculated(rows,{system:{id:'other'}});
- assert.equal(Object.keys(snap.groups).length,0);assert.equal(Object.keys(snap.records).length,2);
- assert.ok(Object.values(snap.records).every(record=>record.reason==='origin'));
+ const rows=[spell('a'),spell('b'),{item:{uuid:'Item.world1',documentType:'Item',subType:'spell',name:'World Spell',system:{}}}];
+ const snap=calculated(rows,{system:{id:'other'}});
+ assert.equal(Object.keys(snap.groups).length,0);assert.equal(Object.keys(snap.records).length,3);
+ assert.deepEqual(rows.map(r=>snap.records[r.item.uuid].warning),[null,null,null]);
+ assert.deepEqual(rows.map(r=>snap.records[r.item.uuid].reason),['no-match','no-match','origin']);
 });
 
 test('review reapplication reconciles pins by shared membership, drops ambiguous merged pins and never creates groups', async () => {

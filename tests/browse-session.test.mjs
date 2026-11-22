@@ -185,3 +185,33 @@ test('diagnostics keep a mixed group intact while a risk marker alone stays in t
   assert.deepEqual(copies.diagnosticGroups[0].members.map(entry => entry.uuid), [f.index.rows[1].item.uuid]);
   assert.equal(copies.rawCount, page.rawCount);
 });
+
+test('monsters without compendiumSource stay out of collapsed diagnostics while genuine source conflicts collapse', () => {
+  const npc = (uuid, name, patch = {}) => ({
+    item: {
+      uuid, package: uuid.startsWith('Compendium.') ? uuid.split('.').slice(1, 3).join('.') : '',
+      documentType: 'Actor', subType: 'npc', name,
+      system: { details: { cr: 1, type: { value: 'humanoid' } }, traits: { size: 'med' }, source: { rules: '2014' }, ...patch.system },
+      _stats: patch._stats ?? {}
+    }
+  });
+  const source = 'Compendium.dnd5e.monsters.Actor.goblin';
+  const rows = [
+    npc(source, 'Goblin'),
+    npc('Compendium.custom.monsters.Actor.goblinCopy', '哥布林 Goblin', { _stats: { compendiumSource: source } }),
+    npc('Compendium.dnd5e.monsters.Actor.ogre', 'Ogre'),
+    npc('Actor.worldNpc', 'World Bandit'),
+    npc('Compendium.dnd5e_classpack.monsterspack.Actor.conflict', 'Broken NPC', {
+      system: { source: { rules: '2014', book: 'PHB 2024' } }
+    })
+  ];
+  const env = { system: { id: 'dnd5e' }, packs: new Map(), modules: new Map() };
+  const snapshot = calculateGrouping(rows, env);
+  const f = fixture(rows);
+  f.options.filters = setScheme(normalizeFilters(), 'monsters');
+  f.session.groupingCatalog = current => buildGroupingCatalog(current, env, snapshot);
+  const page = f.session.search({ ...f.options, collapseDiagnostics: true });
+  assert.equal(page.groups.length, 3);
+  assert.equal(page.diagnosticGroups.length, 1);
+  assert.equal(page.diagnosticGroups[0].members[0].uuid, 'Compendium.dnd5e_classpack.monsterspack.Actor.conflict');
+});
