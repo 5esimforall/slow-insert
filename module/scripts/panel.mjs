@@ -196,12 +196,17 @@ export class SlowInsertPanel {
     });
     this.listen(this.list, "dragstart", event => this.onDragStart(event));
     this.hooks.push(["truesightChanged", Hooks.on("truesightChanged", change => {
+      if (Array.isArray(change?.changes) && !catalog.affects(change, ["identity", "names", "access", "sources", "review", "display"])) return;
       if (change.reason === "apply" && ["ready", "unreviewed"].includes(change.status)) {
         const pins = reconcilePins(this.grouping.pins, catalog.read().entries);
         if (JSON.stringify(pins) !== JSON.stringify(this.grouping.pins)) {
           this.grouping = {...this.grouping, pins}; void this.save("grouping", this.grouping);
         }
       }
+      const prev = this.session.catalog?.revisions, next = change?.revisions;
+      if (prev && next && !change.changes?.includes("access")
+        && prev.index === next.index && prev.sources === next.sources
+        && prev.review === next.review && prev.access === next.access) return;
       this.session.invalidate();
       if (change.changes?.includes("access")) this.refresh();
       else this.index.scheduleRefresh();

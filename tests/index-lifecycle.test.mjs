@@ -106,3 +106,32 @@ test('catalog and document refresh requests coalesce without cancelling index co
  t.mock.timers.tick(1);await Promise.resolve();assert.equal(counts().starts,1);
  index.destroy();
 });
+
+test('document hooks ignore embedded actor items unless embeddedIndexing is enabled, and always ignore tokens', t => {
+ const old={Hooks:globalThis.Hooks};t.after(()=>{globalThis.Hooks=old.Hooks;});
+ const callbacks=new Map();let nextId=0;
+ globalThis.Hooks={on:(name,fn)=>{const id=++nextId;callbacks.set(id,{name,fn});return id;},off:(_name,id)=>callbacks.delete(id)};
+ const {index,counts}=fixture(t);let invalidations=0,embedded=false;
+ index.onInvalidate=()=>invalidations++;
+ globalThis.game.settings.get=(_id,key)=>key==='embeddedIndexing'?embedded:-1;
+ index.connect();
+ const emit=(name,doc,delta)=>{for(const entry of callbacks.values())if(entry.name===name)entry.fn(doc,delta);};
+ const actorItem={id:'i1',uuid:'Actor.a1.Item.i1',parent:{documentName:'Actor',id:'a1'}};
+ const tokenItem={id:'t1',isToken:true,uuid:'Scene.s1.Token.t1.Actor.a1.Item.t1'};
+ emit('createItem',actorItem,{});
+ emit('updateItem',actorItem,{name:'Renamed'});
+ emit('deleteItem',actorItem,{});
+ emit('createItem',tokenItem,{});
+ emit('createActor',{id:'ta1',isToken:true},{});
+ t.mock.timers.tick(1);
+ assert.equal(invalidations,0);assert.equal(counts().refreshes,0);
+ embedded=true;
+ emit('createItem',actorItem,{});
+ emit('createItem',tokenItem,{});
+ t.mock.timers.tick(1);
+ assert.equal(invalidations,1);assert.equal(counts().refreshes,1);
+ emit('createItem',{id:'w1',uuid:'Item.w1'},{});
+ t.mock.timers.tick(1);
+ assert.equal(invalidations,2);assert.equal(counts().refreshes,2);
+ index.destroy();
+});

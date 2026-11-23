@@ -13,6 +13,24 @@ export function affectsSearch(delta, prefix = '') {
     return affectsSearch(value, path);
   });
 }
+export function isIndexedDocument(hook, document) {
+  if (!document || typeof document !== 'object') return true;
+  if (document.isToken === true || document.parent?.isToken === true
+    || document.parent?.documentName === 'Token' || document.parent?.parent?.documentName === 'Token'
+    || (typeof document.uuid === 'string' && /^Scene\.[^.]+\.Token\./.test(document.uuid))) return false;
+  if (hook.endsWith('Item') && !document.pack && !document.parent?.pack) {
+    const embedded = (typeof document.uuid === 'string' && /^Actor\.[^.]+\.Item\./.test(document.uuid))
+      || Boolean(document.parent && (document.parent.documentName === 'Actor'
+        || document.parent.items !== undefined
+        || (typeof document.parent.uuid === 'string' && document.parent.uuid.startsWith('Actor.'))));
+    if (embedded) {
+      try { return Boolean(globalThis.game?.settings?.get?.('quick-insert', 'embeddedIndexing')); }
+      catch { return false; }
+    }
+  }
+  return true;
+}
+
 /** Foundry/Quick Insert boundary. Completion hooks, not forceIndex promises,
  * own completion; all timers and subscriptions belong to this instance. */
 export class QuickInsertIndex {
@@ -46,7 +64,8 @@ export class QuickInsertIndex {
     // A sidebar may mount before ready. Importers can replace QI's index there.
     this.hooks.push(["ready", Hooks.on("ready", () => this.scheduleInitialIndex())]);
     for (const hook of ["createItem", "updateItem", "deleteItem", "createActor", "updateActor", "deleteActor"]) {
-      this.hooks.push([hook, Hooks.on(hook, (_document, delta) => {
+      this.hooks.push([hook, Hooks.on(hook, (document, delta) => {
+        if (!isIndexedDocument(hook, document)) return;
         if (hook.startsWith("update") && !affectsSearch(delta)) return;
         this.onInvalidate();
         // Let Quick Insert finish replacing document index entries first.

@@ -31,7 +31,7 @@ export class BrowseSession {
     const permittedResults = rawResults.filter(result => grouping.entries.has(canonicalUuid(result.item)));
     const allResults = permittedResults.filter(acceptRules);
     const { options, dataCache } = buildFilterOptions(allResults, environment, this.index.filterConfig);
-    this.catalog = { index, options, acceptRules, dataCache, environment, grouping };
+    this.catalog = { index, options, acceptRules, dataCache, environment, grouping, revisions: grouping.revisions ?? null };
     this.onCatalog(this.catalog);
     console.debug(`Slow Insert | Catalog: ${allResults.length} entries in ${(performance.now() - started).toFixed(1)}ms`);
     return this.catalog;
