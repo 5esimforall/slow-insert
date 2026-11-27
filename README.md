@@ -41,7 +41,7 @@ npm run preview
 
 面板必须接收宿主。
 
-从新加载的夹具点击 **Run browser checks** 执行 `tests/browser-checks.js`、`tests/filter-browser-checks.js`、`tests/theme-browser-checks.js` 与 `tests/diagnostics-browser-checks.js`，页面显示逐项通过结果或失败原因。用例使用合成 DOM 事件验证应用接线；真实点击、键盘焦点和窗口尺寸另用 MCP 验证。夹具不是真实 Foundry 世界，不能替代实机观察；结束后重载夹具以恢复测试查询和筛选。
+从新加载的夹具点击 **Run browser checks** 执行 `tests/browser-checks.js`、`tests/filter-browser-checks.js`、`tests/theme-browser-checks.js` 与 `tests/diagnostics-browser-checks.js`，页面显示逐项通过结果或失败原因。用例使用合成 DOM 事件验证应用接线；真实点击、键盘焦点和窗口尺寸另在真实浏览器中验证。夹具不是真实 Foundry 世界，不能替代实机观察；结束后重载夹具以恢复测试查询和筛选。
 
 ## 非破坏性归并审计
 
@@ -64,7 +64,7 @@ node --import ./tools/register-dependencies.mjs tools/analyze-dedup-audit.mjs ou
 ## 部署与保存边界
 
 - 开发源码以本仓库为准，不直接在 Foundry 安装目录中开发。
-- 开发后默认在提交到仓库后部署到 FVTT 时直接部署，但把验收交给用户。如果用户要求验收，优先使用MCP并告知用户；不要使用Computer Use。
+- 开发后默认在提交到仓库后部署到 FVTT 时直接部署，但把验收交给用户。如果用户要求验收，通过浏览器实机检查并告知用户；不要使用 Computer Use。
 - 发布前提交 Git 并标记版本，再打包部署；不额外复制旧安装目录作为备份。世界数据与素材不在本仓库的版本控制范围内。
 - 安装时使用发行 ZIP 中的 `slow-insert` 文件夹；开发源码文件夹名 `module` 不能直接作为 Foundry 模块安装目录名。
 - `/Users/arctic/Library/Application Support/FoundryVTT/Data/modules/slow-insert` 是独立的运行副本，不是符号链接。
