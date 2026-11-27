@@ -3,6 +3,7 @@
 /output/
 /.playwright-cli/
 /node_modules/
+/.claude/
 
 # OS and Python cache files
 .DS_Store
